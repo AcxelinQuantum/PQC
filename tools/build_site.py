@@ -571,6 +571,7 @@ def main():
         page = LAYOUT
         for key, value in values.items():
             page = page.replace("{" + key + "}", value)
+        page = re.sub(r'href="([^":#]*/)?index\.html', lambda m: 'href="' + (m.group(1) or "./"), page)  # folder addresses, no index.html
         (OUT / rel).parent.mkdir(parents=True, exist_ok=True)
         (OUT / rel).write_text(page, encoding="utf-8")
     print(f"built {OUT}")

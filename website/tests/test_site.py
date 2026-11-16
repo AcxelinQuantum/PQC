@@ -53,7 +53,7 @@ def test_home_to_install_command_copied(browser, site, section):
     page.goto(base + "/index.html")
     page.get_by_role("link", name=link).click()
     page.get_by_role("heading", level=1).wait_for()
-    assert page.url.endswith(f"/{section}/index.html")
+    assert page.url.endswith(f"/{section}/")
     page.get_by_role("navigation", name=name).get_by_role("link", name="Set up", exact=True).click()
     page.get_by_role("heading", name=f"Set up {name}").wait_for()
     step = page.locator("ol.steps > li").filter(has=page.get_by_role("heading", name="Install", exact=True))
@@ -109,6 +109,8 @@ def test_images_load_and_every_internal_link_resolves(browser, site):
         for href in page.eval_on_selector_all("a[href]", "els => els.map(e => e.getAttribute('href'))"):
             if href.startswith(("http", "#", "mailto:")):
                 continue
+            if href.split("#")[0].endswith("index.html"):
+                broken.append((path, href, "link the folder, so the address does not show index.html"))
             if not ((out / path).parent / href.split("#")[0]).exists():
                 broken.append((path, href))
     assert not broken, broken
