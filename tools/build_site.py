@@ -15,13 +15,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "website", ROOT / "build" / "site"
 SECTIONS = {
-    "tls": ("Acxelin TLS", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
+    "edge": ("Acxelin TLS", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                             ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
     "vpn": ("Acxelin VPN", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                             ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
     "readiness": ("Acxelin Readiness", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("assets.html", "What it tracks"), ("set-up.html", "Set up"),
                                          ("manual.html", "Manual"), ("sample.html", "Sample"), ("security.html", "Security")]),
 }
+PRODUCT = {"edge": "tls"}  # URL folder to product folder where they differ
 LAYOUT = r"""<!doctype html>
 <html lang="en">
 <head>
@@ -519,7 +520,7 @@ def markdown(text):
 
 def manual(section):
     name = SECTIONS[section][0]
-    text = (ROOT / "products" / section / "docs/manual.md").read_text(encoding="utf-8")
+    text = (ROOT / "products" / PRODUCT.get(section, section) / "docs/manual.md").read_text(encoding="utf-8")
     return (f"<!-- title: {name} manual -->\n<!-- description: How to install, use and run {name}: first steps, everyday tasks, "
             f"troubleshooting and questions. -->\n{markdown(text)}")
 
@@ -529,7 +530,7 @@ def main():
     shutil.copytree(SRC / "assets", OUT / "assets")
     for section in SECTIONS:
         (OUT / section).mkdir(parents=True)
-        guide = ROOT / f"documents/acxelin-{section}-how-it-works.pdf"
+        guide = ROOT / f"documents/acxelin-{PRODUCT.get(section, section)}-how-it-works.pdf"
         if guide.exists():
             shutil.copy(guide, OUT / section / "guide.pdf")
     bom, excerpt = sample(OUT)
@@ -545,7 +546,7 @@ def main():
             "{{READINESS_KINDS}}": readiness_kinds(bom), "{{READINESS_CATALOG}}": readiness_catalog(), "{{READINESS_SOURCES}}": sources[0],
             "{{READINESS_ALGORITHM_COUNT}}": str(len(catalog)), "{{READINESS_SOURCE_COUNT}}": str(sources[1]),
             "{{VPN_CAPTURE}}": vpn_capture(*vpn), "{{VPN_LOG}}": html.escape(vpn[0].strip()), "{{HOME_PROOF}}": home_proof(f"{tour}\n{log}", bom, vpn)}
-    versions = {"tls": tls_version, "readiness": readiness_version, "vpn": vpn_version}
+    versions = {"edge": tls_version, "readiness": readiness_version, "vpn": vpn_version}
     mark = logo()
     pages = [(src.relative_to(SRC), src.read_text(encoding="utf-8")) for src in sorted(SRC.rglob("*.html"))]
     pages += [(Path(section, "manual.html"), manual(section)) for section in SECTIONS]

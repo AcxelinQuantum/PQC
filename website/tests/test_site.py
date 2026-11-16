@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import build_site  # noqa: E402
 
 PRODUCTS = {"readiness": ("Acxelin Readiness", "See Acxelin Readiness", "sh install.sh"),
-            "tls": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh"),
+            "edge": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh"),
             "vpn": ("Acxelin VPN", "See Acxelin VPN", "sh install.sh")}
 PAGES = ["index.html"] + [f"{s}/{p}" for s, (_, pages) in build_site.SECTIONS.items() for p, _ in pages]
 OLD = re.compile(r"Wolf ?Pack|wolfpack", re.I)
@@ -88,7 +88,7 @@ def test_demos_are_real_output(browser, site):
     page.goto(base + "/readiness/sample.html")
     page.frame_locator("iframe.report").get_by_text("payments-api").first.wait_for()
     assert '"specVersion": "1.6"' in (out / "readiness/sample-cbom.json").read_text()
-    page.goto(base + "/tls/demo.html")
+    page.goto(base + "/edge/demo.html")
     tour = page.locator("pre code").first.inner_text()
     assert "refused, as it should be" in tour and "MLKEM768" in tour and "ML-DSA" in tour
     page.goto(base + "/vpn/demo.html")
@@ -136,7 +136,7 @@ def test_every_page_passes_axe_and_does_not_scroll_sideways(browser, site, schem
 def test_skip_link_reaches_the_main_content(browser, site):
     base, _ = site
     page = browser.new_page()
-    page.goto(base + "/tls/index.html")
+    page.goto(base + "/edge/index.html")
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.className") == "skip"
     page.keyboard.press("Enter")

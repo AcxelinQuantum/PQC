@@ -25,7 +25,7 @@ It never changes the files it scans and never sends them anywhere.
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/AQPQCSuite/releases/tag/readiness-v1.3.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/readiness-v1.3.0) and save them in one folder:
 
 - `acxelin-readiness-1.3.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access, including the code crawler that follows values through JavaScript, TypeScript, Java and Go
 - `SHA256SUMS`: a fingerprint of every file in the release
@@ -228,7 +228,7 @@ acxelin-readiness scan . --baseline cbom.json --fail-on high
 **GitHub Actions:**
 
 ```
-- uses: AcxelinQuantum/AQPQCSuite/products/readiness@<tag>
+- uses: AcxelinQuantum/PQC/products/readiness@<tag>
   with:
     path: .
     fail-on: high

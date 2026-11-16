@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Breaking for the GitHub Action: the repository moved, so the Action is now `AcxelinQuantum/PQC/products/readiness@<tag>`.
+  Change `uses:`; the inputs are the same. Release downloads are on the PQC repository's release pages.
+
 ## 1.3.0
 
 - Fixed: on a machine without OpenSSL 3.5, `grade` and the endpoint scans name what the server did (a refused port, an unknown
