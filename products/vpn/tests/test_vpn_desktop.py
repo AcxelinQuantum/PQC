@@ -124,7 +124,7 @@ class DesktopTest(unittest.TestCase):
             if sys.platform == "darwin":
                 import plistlib
                 self.assertIs(plistlib.loads((path / "Contents" / "Info.plist").read_bytes())["LSUIElement"], True)
-                self.assertTrue(os.access(path / "Contents" / "MacOS" / "acxelin-qvpn", os.X_OK))
+                self.assertTrue(os.access(path / "Contents" / "MacOS" / "acxelin-vpn", os.X_OK))
             elif os.name != "nt":
                 text = path.read_text()
                 self.assertIn("Name=Acxelin QVPN", text)

@@ -29,7 +29,7 @@ ENV PATH=/opt/strongswan/sbin:$PATH
 COPY core /src/core
 COPY products/vpn /src/vpn
 # pip is not needed at run time and carries its own vendored packages, so it leaves the image.
-RUN pip install --no-cache-dir /src/core "/src/vpn[vpn]" && cp /src/vpn/deploy/entrypoint.sh /usr/local/bin/acxelin-qvpn-entrypoint \
+RUN pip install --no-cache-dir /src/core "/src/vpn[vpn]" && cp /src/vpn/deploy/entrypoint.sh /usr/local/bin/acxelin-vpn-entrypoint \
  && rm -rf /src && pip uninstall -y pip && acxelin-qvpn doctor
 VOLUME /etc/acxelin-vpn
 ENTRYPOINT ["acxelin-vpn-entrypoint"]

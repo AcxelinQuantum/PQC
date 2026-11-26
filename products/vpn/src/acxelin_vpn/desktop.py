@@ -369,7 +369,7 @@ def launcher(remove=False):
         run.write_text(f"#!/bin/sh\nexec {shlex.quote(exe)} {args}\n", encoding="utf-8")
         run.chmod(0o755)
         (path / "Contents" / "Info.plist").write_bytes(plistlib.dumps({
-            "CFBundleName": NAME, "CFBundleIdentifier": "com.acxelin.vpn", "CFBundleExecutable": "acxelin-vpn",
+            "CFBundleName": TITLE, "CFBundleIdentifier": "com.acxelin.vpn", "CFBundleExecutable": "acxelin-vpn",
             "CFBundleIconFile": "acxelin-vpn", "CFBundlePackageType": "APPL", "LSUIElement": True}))
         return path
     path = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "applications" / "acxelin-vpn.desktop"
