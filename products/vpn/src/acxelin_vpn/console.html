@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Acxelin VPN</title>
+<title>Acxelin QVPN</title>
 <style>
 /*SHELL*/
 .tunnel{border-top:1px solid var(--rule);padding:14px 0}
@@ -14,7 +14,7 @@
 </head>
 <body>
 <main>
-<header class="brandbar"><div class="logo"><!--LOGO--></div><span class="product">Acxelin VPN</span><small>Local console. Only this computer can open it.</small></header>
+<header class="brandbar"><div class="logo"><!--LOGO--></div><span class="product">Acxelin QVPN</span><small>Local console. Only this computer can open it.</small></header>
 <p class="msg" id="msg" role="alert"></p>
 <div id="app" aria-live="polite"><p class="lede">Opening the console…</p></div>
 </main>
@@ -37,8 +37,8 @@ const field = (id, label, input, hint) => [h("label", {for: id}, label), input, 
 
 function signedOut() {
   $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "This link has expired"),
-    h("p", {class: "lede"}, "Each launch link works once. In a terminal, run ", h("code", {class: "cmd"}, "acxelin-vpn console"), " to open a new one."),
-    h("p", {class: "lede"}, "On a remote server, forward the port with SSH, then run ", h("code", {class: "cmd"}, "acxelin-vpn console link"), " in that session.")));
+    h("p", {class: "lede"}, "Each launch link works once. In a terminal, run ", h("code", {class: "cmd"}, "acxelin-qvpn console"), " to open a new one."),
+    h("p", {class: "lede"}, "On a remote server, forward the port with SSH, then run ", h("code", {class: "cmd"}, "acxelin-qvpn console link"), " in that session.")));
 }
 
 function noCa() {
@@ -92,7 +92,7 @@ const removeButton = (name, after) => h("button", {class: "btn quiet small", "ar
 
 async function sitesView() {
   $("#panel").replaceChildren(h("h1", {}, "Sites"), h("div", {class: "split"},
-    serviceForm("site", "Add a site", "The status address of a gateway running `acxelin-vpn up` with `metrics = \"HOST:PORT\"` in its `[site]`.", paintSites),
+    serviceForm("site", "Add a site", "The status address of a gateway running `acxelin-qvpn up` with `metrics = \"HOST:PORT\"` in its `[site]`.", paintSites),
     h("div", {id: "site-list"})));
   await paintSites();
 }
@@ -122,7 +122,7 @@ async function peopleView() {
   const sname = h("input", {type: "text", id: "server-name", value: s.server_name || "", placeholder: "vpn.example.com", autocomplete: "off"});
   const save = async () => { try { await call("people/settings", {enroll: enroll.value, gateway: gateway.value, server_name: sname.value || null}); state.status = await call("status"); say(""); $("#saved").textContent = "Saved."; } catch (e) {} };
   const ready = s.enroll && s.gateway;
-  const where = () => [...field("enroll", "Enrollment service", enroll, "Where `acxelin-vpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway),
+  const where = () => [...field("enroll", "Enrollment service", enroll, "Where `acxelin-qvpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway),
     ...field("server-name", "Gateway certificate name (if different from its host)", sname),
     h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet", onclick: save}, "Save"), h("span", {id: "saved", class: "ok-msg", role: "status"}))];
   const who = h("input", {type: "text", id: "who", autocomplete: "off", placeholder: "alice"});
@@ -138,7 +138,7 @@ async function peopleView() {
       h("form", {onsubmit: invite}, h("h2", {}, "Invite someone"), ...field("who", "Their name", who, "The name on their certificate. If the gateway lists users, add it there too."),
         ...field("hours", "Valid for (hours)", hours), h("div", {class: "row", style: "margin-top:14px"}, h("button", {class: "btn", type: "submit"}, "Download invitation")), h("div", {id: "invited", "aria-live": "polite"})),
       ready ? h("details", {style: "margin-top:24px"}, h("summary", {}, "Where invitations point"), ...where()) : "",
-      h("div", {style: "margin-top:24px"}, serviceForm("gateway", "Add a gateway", "The status address of `acxelin-vpn gateway` with `metrics = \"HOST:PORT\"` in its `[wireguard]`.", paintPeople))),
+      h("div", {style: "margin-top:24px"}, serviceForm("gateway", "Add a gateway", "The status address of `acxelin-qvpn gateway` with `metrics = \"HOST:PORT\"` in its `[wireguard]`.", paintPeople))),
     h("div", {id: "people-list"})));
   await paintPeople();
 }
@@ -194,7 +194,7 @@ async function healthView() {
     out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", ...(acts ? ["What to do"] : [])].map((c) => h("th", {}, c)))),
       h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, ...acxText(c.message)), acts ? h("td", {}, ...acxText(c.action)) : ""))))));
   };
-  $("#panel").replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run Acxelin VPN, whether the certificate authority is in good shape, and whether every site and gateway answers."),
+  $("#panel").replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run Acxelin QVPN, whether the certificate authority is in good shape, and whether every site and gateway answers."),
     h("div", {class: "row", style: "margin-bottom:18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);
   await run();
 }

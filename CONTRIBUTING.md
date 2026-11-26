@@ -28,12 +28,12 @@ python -m pytest -q products/vpn/tests
 
 Run the pytest commands separately: the products each have a `test_install.py`, which clash in one run. Installer tests
 run with `ACXELIN_INSTALL_TEST=1`. CI pins OpenSSL 3.5 (the LTS line customers run) with `ACXELIN_REQUIRE_OPENSSL=3.5`: a different or
-unloadable OpenSSL stops the run instead of skipping the tests that need 3.5; set it yourself to get the same on your machine. Readiness's labelled corpus (`products/readiness/bench`) is a quality gate: precision and
+unloadable OpenSSL stops the run instead of skipping the tests that need 3.5; set it yourself to get the same on your machine. QReadiness's labelled corpus (`products/readiness/bench`) is a quality gate: precision and
 recall must not drop, and `truth.json` changes only in commits titled `truth:` that the owner approves.
 
 ## Releases
 
-One tag per product, core first: `core-vX.Y.Z`, then `tls-vX.Y.Z`, `vpn-vX.Y.Z` or `readiness-vX.Y.Z`. Set the version in that package's
+One tag per product, core first: `core-vX.Y.Z`, then `qguard-vX.Y.Z`, `qvpn-vX.Y.Z` or `qreadiness-vX.Y.Z` (before the rename: `tls-`, `vpn-`, `readiness-`). Set the version in that package's
 `pyproject.toml` and add `## X.Y.Z` to its CHANGELOG first. `.github/workflows/release-products.yml` gates the tag with
 `tools/release_check.py` and publishes a wheelhouse with the installers, SHA-256 checksums, build provenance and the GHCR
 image; a VPN release also attaches the desktop installers. Nothing is uploaded to PyPI.
@@ -44,5 +44,5 @@ image; a VPN release also attaches the desktop installers. Nothing is uploaded t
 - Every security behaviour has a test showing the attack refused.
 - Python only; the runtime cryptography is `cryptography` and OpenSSL 3.5 through core's binding, never the `openssl` command.
 - Everything must work on Windows.
-- Readiness still reads Wolf Pack's old names (`wolfpack:ignore`, `.wolfpack.toml`, `wolfpack:*` CBOM properties) through
+- QReadiness still reads Wolf Pack's old names (`wolfpack:ignore`, `.wolfpack.toml`, `wolfpack:*` CBOM properties) through
   its 1.x line, with a warning. Breaking changes go in the product's CHANGELOG.

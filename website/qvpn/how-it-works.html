@@ -1,5 +1,5 @@
-<!-- title: How Acxelin VPN works -->
-<!-- description: How Acxelin VPN agrees each tunnel's keys over post-quantum mutual TLS, rotates them, cuts off a revoked site or person, and what the gateways report. -->
+<!-- title: How Acxelin QVPN works -->
+<!-- description: How Acxelin QVPN agrees each tunnel's keys over post-quantum mutual TLS, rotates them, cuts off a revoked site or person, and what the gateways report. -->
 <section>
 <h1>How a tunnel gets its keys</h1>
 <p class="lead">The same four steps for a branch site and for a person's laptop. A peer that fails any of them gets no keys, and nothing falls back to a key exchange a quantum computer could break.</p>
@@ -13,7 +13,7 @@
 
 <section aria-labelledby="ipsec">
 <h2 id="ipsec">Site to site</h2>
-<p>strongSwan 6.1 carries the traffic. Acxelin VPN loads each agreed key into it, sets the IKE proposal, and starts or replaces the tunnel. Both ends of a tunnel use the same profile.</p>
+<p>strongSwan 6.1 carries the traffic. Acxelin QVPN loads each agreed key into it, sets the IKE proposal, and starts or replaces the tunnel. Both ends of a tunnel use the same profile.</p>
 <div class="scroll" tabindex="0" role="region" aria-label="Profiles"><table>
 <thead><tr><th>Profile</th><th>IKE key exchange</th><th>Encryption</th></tr></thead>
 <tbody>
@@ -39,5 +39,5 @@
 <tr><td><code>acxelin_vpn_events_total</code></td><td>key agreements, refusals and revoked peers</td></tr>
 <tr><td><code>acxelin_vpn_wireguard_client_up</code></td><td>1 while that person's computer has completed a recent handshake</td></tr>
 </tbody></table></div>
-<p><code>acxelin-vpn inventory</code> writes what the VPN uses as a CycloneDX 1.6 CBOM, for an audit: tunnels, key exchanges, ciphers, certificates, and whether a PSK and PPK are present, by type and size, never a value.</p>
+<p><code>acxelin-qvpn inventory</code> writes what the VPN uses as a CycloneDX 1.6 CBOM, for an audit: tunnels, key exchanges, ciphers, certificates, and whether a PSK and PPK are present, by type and size, never a value.</p>
 </section>

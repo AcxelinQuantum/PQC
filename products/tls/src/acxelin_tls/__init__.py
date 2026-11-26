@@ -1,2 +1,2 @@
-NAME = "acxelin-tls"
-__version__ = "1.2.0"
+NAME = "acxelin-qguard"
+__version__ = "1.3.0"

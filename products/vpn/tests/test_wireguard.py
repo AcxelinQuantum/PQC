@@ -268,7 +268,7 @@ class GatewayTest(unittest.TestCase):
         code, text = run("invite", "bob", "--dir", str(self.d / "pki"), "--enroll", f"https://localhost:{srv.port}",
                          "--gateway", f"127.0.0.1:{self.gw.server.port}", "--server-name", "localhost", "--out", str(invite))
         self.assertEqual(code, 0, text)
-        self.assertIn("acxelin-vpn join laptop.acxinvite", text)
+        self.assertIn("acxelin-qvpn join laptop.acxinvite", text)
         good = invite.read_text()
         os.environ["ACXELIN_TEST_PW"] = "device pass"
         self.addCleanup(os.environ.pop, "ACXELIN_TEST_PW", None)
@@ -279,7 +279,7 @@ class GatewayTest(unittest.TestCase):
                 bad.write_text(json.dumps(change(json.loads(good))))
                 code, text = run("join", str(bad), "--no-apply", "--once", "--key-passphrase-env", "ACXELIN_TEST_PW")
                 self.assertEqual(code, 1)
-                self.assertIn({"tampered": "do not trust", "expired": "expired", "malformed": "not an Acxelin VPN invitation"}[name], text)
+                self.assertIn({"tampered": "do not trust", "expired": "expired", "malformed": "not an Acxelin QVPN invitation"}[name], text)
                 self.assertFalse((self.d / name / "key.pem").exists())
         from acxelin_vpn import join
         with mock.patch.object(join, "administrator", return_value=False):
@@ -646,7 +646,7 @@ def sh(*cmd, check=True):
 
 
 class Namespaces(unittest.TestCase):
-    """Network namespaces joined by veth pairs, a CA, and acxelin-vpn processes run inside them."""
+    """Network namespaces joined by veth pairs, a CA, and acxelin-qvpn processes run inside them."""
     NAMESPACES, TUNNELS = (), ()
 
     def setUp(self):

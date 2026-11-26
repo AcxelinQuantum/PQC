@@ -1,4 +1,4 @@
-"""`acxelin-tls evidence create` packs what a pilot needs to show: the build and whether its installed files still match the wheel,
+"""`acxelin-qguard evidence create` packs what a pilot needs to show: the build and whether its installed files still match the wheel,
 the configuration, the doctor's findings, the certificates (public parts only), live handshakes and the edge's counters, all
 signed with an ML-DSA key from the customer's CA. `evidence verify` checks it. Keys and passphrases never go in."""
 import json
@@ -58,8 +58,8 @@ def test_a_pilot_bundle_holds_the_build_config_certificates_handshake_and_counte
     e = entries(create(d, conf, port, status))
     assert e["config.toml"] == conf.read_bytes()
     build = json.loads(e["build.json"])
-    assert build["product"] == "acxelin-tls" and build["environment"]["openssl"].startswith("OpenSSL 3.")
-    assert {p["name"] for p in build["packages"]} >= {"acxelin-tls", "acxelin-core", "cryptography"}
+    assert build["product"] == "acxelin-qguard" and build["environment"]["openssl"].startswith("OpenSSL 3.")
+    assert {p["name"] for p in build["packages"]} >= {"acxelin-qguard", "acxelin-core", "cryptography"}
     certs = json.loads(e["certificates.json"])
     assert certs[0]["route"] == "web" and certs[0]["role"] == "cert" and certs[0]["algorithm"] == "ML-DSA-65" and len(certs[0]["sha256"]) == 64
     hello = json.loads(e["connect-1.json"])

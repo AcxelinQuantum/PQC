@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Renamed: Acxelin TLS is now Acxelin QGuard. The command and package are `acxelin-qguard`; `acxelin-tls` still works through 1.x and says so on
+  stderr. Release tags are `qguard-vX.Y.Z`, downloads `acxelin-qguard-1.3.0-wheelhouse.tar.gz`, the image `ghcr.io/acxelinquantum/acxelin-qguard`.
+  The certificate authority inside it is called QCertificate. Data folders, settings files, service names and every output format are unchanged.
+
 ## 1.2.0
 
 - Fixed: an ACME order whose signing failed for a reason other than its request (a KMS or HSM out of reach) goes back to

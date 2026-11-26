@@ -1,7 +1,7 @@
-<!-- title: Acxelin Readiness security -->
-<!-- description: What Acxelin Readiness reads, what it never does, how it treats hostile input, and what its console exposes. -->
+<!-- title: Acxelin QReadiness security -->
+<!-- description: What Acxelin QReadiness reads, what it never does, how it treats hostile input, and what its console exposes. -->
 <section>
-<h1>What Acxelin Readiness does with your code</h1>
+<h1>What Acxelin QReadiness does with your code</h1>
 <p class="lead">It reads the files and endpoints you name and writes reports. It never changes the scanned files and never sends their content anywhere.</p>
 <dl class="rows">
 <div><dt>Hostile input</dt><dd>A scanned repository, image or capture may be hostile. Source files over 2 MB are skipped and named in the report. Project scans stop at 50,000 files, 512 MB or 300 seconds. Container archives are unpacked with path checks, and entries that escape the target folder are refused.</dd></div>

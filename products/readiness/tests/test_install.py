@@ -24,25 +24,25 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     bin_ = env_dir / ("Scripts" if os.name == "nt" else "bin")
     clean = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV")}
     run = lambda *cmd: subprocess.run(cmd, cwd=tmp_path, env=clean, capture_output=True, text=True, check=True)
-    run(str(bin_ / "python"), "-m", "pip", "install", "--quiet", "--no-index", "--find-links", str(house), "acxelin-readiness")
+    run(str(bin_ / "python"), "-m", "pip", "install", "--quiet", "--no-index", "--find-links", str(house), "acxelin-qreadiness")
     installed = {d["name"].lower(): d for d in json.loads(run(str(bin_ / "python"), "-m", "pip", "list", "--format", "json", "-v").stdout)}
-    assert "acxelin-readiness" in installed and "acxelin-core" in installed
+    assert "acxelin-qreadiness" in installed and "acxelin-core" in installed
     assert not any("editable_project_location" in d for d in installed.values())
-    assert not set(installed) & {"acxelin-tls", "acxelin-vpn"}
+    assert not set(installed) & {"acxelin-qguard", "acxelin-qvpn"}
     where = run(str(bin_ / "python"), "-c", "import acxelin_readiness, acxelin_core; print(acxelin_readiness.__file__); print(acxelin_core.__file__)").stdout.split()
     assert all(str(env_dir) in w for w in where), where
-    lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-readiness', 'acxelin-core'):\n"
+    lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-qreadiness', 'acxelin-core'):\n"
               "    dist = m.distribution(d); print(any(f.name == 'LICENSE' for f in dist.files), 'Proprietary' in ' '.join(dist.metadata.get_all('Classifier')))").stdout
     assert lic.split() == ["True", "True", "True", "True"], lic
     project = tmp_path / "project"
     shutil.copytree(Path(__file__).parent / "fixtures/project", project)
-    run(str(bin_ / "acxelin-readiness"), "scan", str(project), "-o", str(tmp_path / "out"), "-q")
+    run(str(bin_ / "acxelin-qreadiness"), "scan", str(project), "-o", str(tmp_path / "out"), "-q")
     bom = json.loads((tmp_path / "out/cbom.json").read_text())
     assert bom["specVersion"] == "1.6" and any(c["name"].startswith("RSA") for c in bom["components"])
     report = (tmp_path / "out/report.html").read_text()
-    assert "@font-face" in report and "Acxelin Readiness" in report
-    assert "full TLS handshakes" in run(str(bin_ / "acxelin-readiness"), "doctor").stdout
-    assert run(str(bin_ / "acxelin-readiness"), "--version").stdout.strip() == f"acxelin-readiness {__version__}"
+    assert "@font-face" in report and "Acxelin QReadiness" in report
+    assert "full TLS handshakes" in run(str(bin_ / "acxelin-qreadiness"), "doctor").stdout
+    assert run(str(bin_ / "acxelin-qreadiness"), "--version").stdout.strip() == f"acxelin-qreadiness {__version__}"
     # the console starts from the installed wheel: its page, fonts and script ship, and nothing works without a session
     import socket
     import time
@@ -51,7 +51,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
-    server = subprocess.Popen([str(bin_ / "acxelin-readiness"), "console", "--no-browser", "--port", str(port), "--home", str(tmp_path / "home")],
+    server = subprocess.Popen([str(bin_ / "acxelin-qreadiness"), "console", "--no-browser", "--port", str(port), "--home", str(tmp_path / "home")],
                               cwd=tmp_path, env=clean, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         for _ in range(100):
@@ -62,7 +62,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
                 time.sleep(0.1)
         else:
             raise AssertionError("the console did not start")
-        assert "Acxelin Readiness" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
+        assert "Acxelin QReadiness" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
         with pytest.raises(urllib.error.HTTPError) as refused:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=2)
         assert refused.value.code == 401

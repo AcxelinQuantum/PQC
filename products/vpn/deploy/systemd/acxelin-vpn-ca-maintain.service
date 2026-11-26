@@ -1,5 +1,5 @@
 [Unit]
-Description=Acxelin VPN CA maintenance: renew expiring certificates, re-sign the revocation list
+Description=Acxelin QVPN CA maintenance: renew expiring certificates, re-sign the revocation list
 ConditionPathExists=/var/lib/acxelin-vpn/ca/ca.crt
 
 [Service]

@@ -1,4 +1,4 @@
-"""The Acxelin Readiness console: projects (scan a repository, track findings) and endpoints (grade live TLS and SSH servers).
+"""The Acxelin QReadiness console: projects (scan a repository, track findings) and endpoints (grade live TLS and SSH servers).
 
 Runs on acxelin-core's console mechanism; this module is only the product's pages, routes and state.
 """
@@ -291,7 +291,7 @@ class Readiness:
                 self.job["error"] = str(error)
         except Exception:  # source-sensitive failures are never echoed or logged with their contents
             with self.lock:
-                self.job["error"] = "The project scan failed. Check the folder's permissions and the source's syntax, then try again; `acxelin-readiness scan` shows details."
+                self.job["error"] = "The project scan failed. Check the folder's permissions and the source's syntax, then try again; `acxelin-qreadiness scan` shows details."
 
     # --- every project at once
 
@@ -572,7 +572,7 @@ def summary(board, actions, services, libraries):
 
 
 def watch_runs(home):
-    """The scheduled scans `acxelin-readiness watch` recorded for this console, newest first."""
+    """The scheduled scans `acxelin-qreadiness watch` recorded for this console, newest first."""
     try:
         runs = json.loads((Path(home) / "watch.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -602,7 +602,7 @@ def run(home, port=8900, open_browser=True, host="127.0.0.1"):
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/#{app.sessions.ticket()}"
     if open_browser and core.open_in_browser(url, home):
-        print(f"Acxelin Readiness console is open in your browser (http://127.0.0.1:{port}). Press Ctrl+C to stop.")
+        print(f"Acxelin QReadiness console is open in your browser (http://127.0.0.1:{port}). Press Ctrl+C to stop.")
     else:
         core.link_running(port, home)
     try:

@@ -1,4 +1,4 @@
-"""What Acxelin TLS's commands share: the CA passphrase and the TLS client options."""
+"""What Acxelin QGuard's commands share: the CA passphrase and the TLS client options."""
 import os
 from pathlib import Path
 

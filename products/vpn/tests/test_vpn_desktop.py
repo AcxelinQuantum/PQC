@@ -39,9 +39,9 @@ class DesktopTest(unittest.TestCase):
         tray = self.desktop.Tray(home=self.d, apply=False)
         texts = lambda: [i.text for i in tray.menu().items if i.visible and i.text and not i.text.startswith("- ")]
         tray.state = None
-        self.assertEqual(texts(), ["VPN service not running", "Open Acxelin VPN", "Start VPN service", "Start at login", "Quit and disconnect"])
+        self.assertEqual(texts(), ["VPN service not running", "Open Acxelin QVPN", "Start VPN service", "Start at login", "Quit and disconnect"])
         tray.state = {"invitation": {"name": "bob"}, "status": {"state": "protected", "address": "10.99.0.2/24"}}
-        self.assertEqual(texts(), ["Protected · 10.99.0.2", "Open Acxelin VPN", "Disconnect", "Start at login", "Quit and disconnect"])
+        self.assertEqual(texts(), ["Protected · 10.99.0.2", "Open Acxelin QVPN", "Disconnect", "Start at login", "Quit and disconnect"])
 
     def test_administrator_prompts_keep_the_command_intact(self):
         command = [sys.executable, "-m", "acxelin_vpn", "app", "--folder", '/Users/a "b"\\c/vpn', "x'y.acxinvite"]
@@ -55,7 +55,7 @@ class DesktopTest(unittest.TestCase):
             linux = self.desktop.elevated(command)
         self.assertEqual(linux, ["pkexec", *isolated])
         self.assertNotIn("PYTHONPATH", " ".join(linux), "nothing of the person's import path goes to root")
-        with mock.patch.object(sys, "platform", "linux"), mock.patch("shutil.which", return_value=None), self.assertRaisesRegex(ValueError, "sudo acxelin-vpn app"):
+        with mock.patch.object(sys, "platform", "linux"), mock.patch("shutil.which", return_value=None), self.assertRaisesRegex(ValueError, "sudo acxelin-qvpn app"):
             self.desktop.elevated(command)
 
     def test_the_tray_starts_reuses_and_stops_the_service(self):
@@ -90,7 +90,7 @@ class DesktopTest(unittest.TestCase):
         import subprocess
         code = ("import time, pystray\nfrom acxelin_vpn import desktop\nt = desktop.Tray(apply=False)\nt.state = None\n"
                 "def setup(icon):\n    icon.visible = True\n    time.sleep(2)\n    print('shown:', icon.visible, flush=True)\n    icon.stop()\n"
-                "pystray.Icon('acxelin-vpn-test', desktop.image('protected'), 'Acxelin VPN', t.menu()).run(setup)\n")
+                "pystray.Icon('acxelin-vpn-test', desktop.image('protected'), 'Acxelin QVPN', t.menu()).run(setup)\n")
         env = {k: v for k, v in os.environ.items() if k != "PYSTRAY_BACKEND"} | {"HOME": str(self.d), "USERPROFILE": str(self.d)}
         r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60, env=env)
         self.assertEqual((r.returncode, r.stdout.strip()), (0, "shown: True"), r.stderr)
@@ -124,10 +124,10 @@ class DesktopTest(unittest.TestCase):
             if sys.platform == "darwin":
                 import plistlib
                 self.assertIs(plistlib.loads((path / "Contents" / "Info.plist").read_bytes())["LSUIElement"], True)
-                self.assertTrue(os.access(path / "Contents" / "MacOS" / "acxelin-vpn", os.X_OK))
+                self.assertTrue(os.access(path / "Contents" / "MacOS" / "acxelin-qvpn", os.X_OK))
             elif os.name != "nt":
                 text = path.read_text()
-                self.assertIn("Name=Acxelin VPN", text)
+                self.assertIn("Name=Acxelin QVPN", text)
                 self.assertIn("-m acxelin_vpn desktop", text)
                 self.assertTrue(Path(re.search(r"^Icon=(.*)$", text, re.M).group(1)).exists())
             self.desktop.launcher(remove=True)
@@ -168,8 +168,8 @@ class DesktopTest(unittest.TestCase):
 
     def test_a_launcher_path_with_spaces_and_quotes_survives(self):
         with mock.patch.object(Path, "home", return_value=self.d):
-            text = self.desktop.desktop_entry(["/opt/Acxelin VPN/run", 'say "hi" $x', "plain"])
-        self.assertIn('Exec="/opt/Acxelin VPN/run" "say \\"hi\\" \\$x" plain', text)
+            text = self.desktop.desktop_entry(["/opt/Acxelin QVPN/run", 'say "hi" $x', "plain"])
+        self.assertIn('Exec="/opt/Acxelin QVPN/run" "say \\"hi\\" \\$x" plain', text)
 
 
     def test_a_service_that_will_not_start_is_explained_in_the_menu_and_a_notice(self):
@@ -179,7 +179,7 @@ class DesktopTest(unittest.TestCase):
         with mock.patch.object(tray, "start", side_effect=ValueError(refused)), mock.patch.object(self.desktop, "open_window") as window:
             tray.open()
         window.assert_not_called()
-        tray.icon.notify.assert_called_once_with(f"The VPN service did not start: {refused}", "Acxelin VPN")
+        tray.icon.notify.assert_called_once_with(f"The VPN service did not start: {refused}", "Acxelin QVPN")
         self.assertIn(refused, [i.text for i in tray.menu().items if i.visible])
         tray.problem = None
         with mock.patch.object(tray, "start", return_value=False):
@@ -209,7 +209,7 @@ class DesktopTest(unittest.TestCase):
             tray.quit()
         self.assertTrue(tray.stop.is_set())
         tray.icon.stop.assert_called_once()
-        self.assertEqual(tray.icon.title, "Acxelin VPN: VPN service not running")
+        self.assertEqual(tray.icon.title, "Acxelin QVPN: VPN service not running")
 
     def test_the_tray_tells_the_person_when_protection_changes(self):
         tray = self.desktop.Tray(home=self.d, apply=False)
@@ -226,5 +226,5 @@ class DesktopTest(unittest.TestCase):
 class WithoutTheExtraTest(unittest.TestCase):
     def test_says_how_to_get_it(self):
         from acxelin_vpn import desktop
-        with mock.patch.dict(sys.modules, {"pystray": None}), self.assertRaisesRegex(ImportError, r"acxelin-vpn\[desktop\]"):
+        with mock.patch.dict(sys.modules, {"pystray": None}), self.assertRaisesRegex(ImportError, r"acxelin-qvpn\[desktop\]"):
             desktop.main()

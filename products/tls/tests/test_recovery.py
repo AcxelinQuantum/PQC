@@ -20,7 +20,7 @@ from support_tls import REASON
 def cli(*args, cwd):
     r = subprocess.run([sys.executable, "-m", "acxelin_tls", *map(str, args)], cwd=cwd, capture_output=True, text=True, env={**os.environ, "ACXELIN_TLS_CA_PASSPHRASE": "ca-pass"})
     if r.returncode:
-        raise AssertionError(f"acxelin-tls {' '.join(map(str, args))} failed: {r.stderr}")
+        raise AssertionError(f"acxelin-qguard {' '.join(map(str, args))} failed: {r.stderr}")
     return r.stdout
 
 

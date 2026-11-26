@@ -1,5 +1,5 @@
 [Unit]
-Description=acxelin-tls CA maintenance: renew expiring certificates, re-sign the CRL
+Description=acxelin-qguard CA maintenance: renew expiring certificates, re-sign the CRL
 ConditionPathExists=/var/lib/acxelin-tls/pki/ca.crt
 
 [Service]

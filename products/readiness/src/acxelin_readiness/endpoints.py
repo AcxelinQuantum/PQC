@@ -473,4 +473,4 @@ def to_json(results):
 
 
 def page(title, kicker, sub, body):
-    return _page(title, kicker, title, sub, body, f"Acxelin Readiness {__version__}")
+    return _page(title, kicker, title, sub, body, f"Acxelin QReadiness {__version__}")

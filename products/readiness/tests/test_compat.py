@@ -1,4 +1,4 @@
-"""Old names keep working through acxelin-readiness 1.x, with a one-line warning; the new name always wins."""
+"""Old names keep working through acxelin-qreadiness 1.x, with a one-line warning; the new name always wins."""
 import json
 
 from acxelin_readiness import cli, compliance, inventory, pipeline

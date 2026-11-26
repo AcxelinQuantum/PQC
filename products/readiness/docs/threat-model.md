@@ -1,6 +1,6 @@
 # Threat model
 
-## What Acxelin Readiness does
+## What Acxelin QReadiness does
 
 It reads files and talks to the endpoints you name, then writes reports. It never changes the scanned files and never sends their content anywhere.
 

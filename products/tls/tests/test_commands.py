@@ -1,4 +1,4 @@
-"""Acxelin TLS's commands fail with one clear line and exit code 1, never a traceback or a silent success."""
+"""Acxelin QGuard's commands fail with one clear line and exit code 1, never a traceback or a silent success."""
 import contextlib
 import io
 import os
@@ -134,7 +134,7 @@ class CommandProblemsTest(CommandTest):
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
             main([])
         self.assertEqual(e.exception.code, 0)
-        self.assertIn("acxelin-tls try", out.getvalue())
+        self.assertIn("acxelin-qguard try", out.getvalue())
         cfg = self.d / "edge.toml"
         cfg.write_text('[[route]]\nlisten = "0.0.0.0:443"\n')
         self.assertIn("found [[route]]", self.fails("edge", "--config", cfg))
@@ -180,4 +180,4 @@ def test_doctor_does_not_contradict_the_openssl_message(capsys):
     with patch("acxelin_core.openssl.available", return_value=too_old), contextlib.suppress(SystemExit):
         main(["doctor"])
     line = next(x for x in capsys.readouterr().out.splitlines() if x.startswith("FAIL"))
-    assert ".." not in line and line.count("ACXELIN_OPENSSL") == 1 and line.endswith("run `acxelin-tls doctor` again")
+    assert ".." not in line and line.count("ACXELIN_OPENSSL") == 1 and line.endswith("run `acxelin-qguard doctor` again")

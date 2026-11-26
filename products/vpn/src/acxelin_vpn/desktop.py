@@ -1,6 +1,6 @@
-"""Acxelin VPN on the desktop: a tray icon that shows whether this computer is protected, and the VPN window.
+"""Acxelin QVPN on the desktop: a tray icon that shows whether this computer is protected, and the VPN window.
 
-The tray runs as the person. The part that changes the network is `acxelin-vpn app`, which the tray starts with
+The tray runs as the person. The part that changes the network is `acxelin-qvpn app`, which the tray starts with
 administrator rights through the system's own prompt (UAC, polkit, the macOS password dialog) and then talks to over the
 window's loopback API with a key only this account can read. Closing the window or the tray leaves the VPN as it is;
 "Quit" disconnects and stops it. Needs the `desktop` extra (pystray, Pillow)."""
@@ -21,7 +21,8 @@ from acxelin_core.console import launch_page, open_in_browser
 from acxelin_core.files import write
 from . import app, platforms
 
-NAME = "Acxelin VPN"
+NAME = "Acxelin VPN"  # the autostart entry's name; kept so upgrades replace it instead of adding a second
+TITLE = "Acxelin QVPN"
 TONES = {"protected": "#26734d", "connecting": "#c98a00", "agreed": "#c98a00", "degraded": "#a85d00", "not_protected": "#b3431f"}
 WORDS = {"protected": "Protected", "connecting": "Connecting", "agreed": "Keys agreed, not protected", "not_protected": "Not protected",
          "degraded": "Degraded: on the last key, renewal failing",
@@ -116,7 +117,7 @@ def python():
 
 
 def entry():
-    """How to start Acxelin VPN: the packaged app's own program, or this Python with `-m acxelin_vpn`."""
+    """How to start Acxelin QVPN: the packaged app's own program, or this Python with `-m acxelin_vpn`."""
     return [sys.executable] if getattr(sys, "frozen", False) else [python(), "-m", "acxelin_vpn"]
 
 
@@ -128,12 +129,12 @@ def elevated(command):
         script = shlex.join(command) + " >/dev/null 2>&1 &"
         return ["osascript", "-e", f'do shell script "{script.replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34))}" with administrator privileges']
     if not shutil.which("pkexec"):
-        raise ValueError("this desktop has no administrator prompt (polkit's pkexec); start the VPN service with `sudo acxelin-vpn app` instead")
+        raise ValueError("this desktop has no administrator prompt (polkit's pkexec); start the VPN service with `sudo acxelin-qvpn app` instead")
     return ["pkexec", *command]
 
 
 def start_service(command, apply):
-    """Start `acxelin-vpn app` in the background, through the administrator prompt when it will change the network. That prompt is
+    """Start `acxelin-qvpn app` in the background, through the administrator prompt when it will change the network. That prompt is
     only used for code an ordinary user cannot change (`platforms.require_protected_code`), checked before any prompt appears."""
     from .join import administrator
     if not apply or administrator():
@@ -241,14 +242,14 @@ class Tray:
 
     def notify(self, message):
         try:
-            self.icon.notify(message, NAME)
+            self.icon.notify(message, TITLE)
         except Exception:  # not every tray host shows notifications; the icon and menu still say it
             pass
 
     def show(self):
         if self.icon:
             word = summary(self.state)
-            self.icon.icon, self.icon.title = image(word), f"{NAME}: {headline(self.state)}"
+            self.icon.icon, self.icon.title = image(word), f"{TITLE}: {headline(self.state)}"
             self.icon.update_menu()
 
     def watch(self):
@@ -266,7 +267,7 @@ class Tray:
         return pystray.Menu(
             pystray.MenuItem(lambda _: headline(self.state), None, enabled=False),
             pystray.MenuItem(lambda _: self.problem, None, enabled=False, visible=lambda _: bool(self.problem) and self.state is None),
-            pystray.MenuItem(f"Open {NAME}", self.opening, default=True),
+            pystray.MenuItem(f"Open {TITLE}", self.opening, default=True),
             pystray.MenuItem("Disconnect", self.disconnect, visible=running),
             pystray.MenuItem("Start VPN service", self.opening, visible=lambda _: self.state is None),
             pystray.Menu.SEPARATOR,
@@ -282,7 +283,7 @@ class Tray:
 
     def run(self, open_window=True):
         import pystray
-        self.icon = pystray.Icon("acxelin-vpn", image(summary(self.state)), NAME, self.menu())
+        self.icon = pystray.Icon("acxelin-vpn", image(summary(self.state)), TITLE, self.menu())
 
         def setup(icon):
             icon.visible = True
@@ -299,7 +300,7 @@ def desktop_entry(command, extra=""):
     icon = folder() / "acxelin-vpn.png"
     icon.parent.mkdir(parents=True, exist_ok=True)
     image("protected", 256).save(icon)
-    return (f"[Desktop Entry]\nType=Application\nName={NAME}\nComment=Post-quantum VPN: connect, and see whether this computer is protected\n"
+    return (f"[Desktop Entry]\nType=Application\nName={TITLE}\nComment=Post-quantum VPN: connect, and see whether this computer is protected\n"
             f"Exec={' '.join(map(quote, command))}\nIcon={icon}\nTerminal=false\nCategories=Network;Security;\n{extra}")
 
 
@@ -340,7 +341,7 @@ def autostart(enable=None):
 
 
 def launcher(remove=False):
-    """Add Acxelin VPN to the Start menu, Applications or the desktop's application list (or remove it); returns its path."""
+    """Add Acxelin QVPN to the Start menu, Applications or the desktop's application list (or remove it); returns its path."""
     command = [*entry(), "desktop"]
     exe, args = command[0], subprocess.list2cmdline(command[1:]) if os.name == "nt" else shlex.join(command[1:])
     icons = folder()
@@ -385,7 +386,7 @@ def main(invitation=None, interface="wg0", apply=True, background=False):
     try:
         import PIL, pystray  # noqa: F401
     except ImportError:
-        raise ImportError('the desktop app needs its extra: pip install "acxelin-vpn[desktop]" (or use `acxelin-vpn app` for the window in your browser)') from None
+        raise ImportError('the desktop app needs its extra: pip install "acxelin-qvpn[desktop]" (or use `acxelin-qvpn app` for the window in your browser)') from None
     tray = Tray(invitation, interface, apply)
     held, _ = app.claim(tray.folder, f"{interface}.desktop")
     if not held:

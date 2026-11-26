@@ -1,4 +1,4 @@
-"""Acxelin TLS console journeys in a real browser: what a customer does, not what the API returns."""
+"""Acxelin QGuard console journeys in a real browser: what a customer does, not what the API returns."""
 import json
 from pathlib import Path
 
@@ -76,7 +76,7 @@ def test_first_run_signs_in_without_a_ticket_or_cookie_and_creates_the_ca(page, 
     again = page.context.new_page()
     again.goto(f"{base}/#{ticket}")
     again.get_by_role("heading", name="This link has expired").wait_for()
-    assert "acxelin-tls console" in again.content()
+    assert "acxelin-qguard console" in again.content()
 
 
 def test_an_encrypted_ca_asks_for_its_passphrase_after_a_restart(page, console, browser):
@@ -272,7 +272,7 @@ def test_an_issued_server_certificate_says_where_it_is_and_how_to_use_it(page, c
     folder = next((home / "issued").iterdir())
     text = page.locator("#issued").inner_text()
     assert str(folder / "chain.pem") in text and str(folder / "key.pem") in text, text
-    assert "acxelin-tls edge --listen" in text
+    assert "acxelin-qguard edge --listen" in text
     assert page.get_by_role("button", name="Copy command").is_visible()
     assert "on the left" not in page.content()
 

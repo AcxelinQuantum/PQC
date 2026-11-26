@@ -1,4 +1,4 @@
-# Deliberately weak cryptography that Acxelin Readiness's quality corpus and example project must find, not product code;
+# Deliberately weak cryptography that Acxelin QReadiness's quality corpus and example project must find, not product code;
 # and tests, which use TLS 1.0, world-readable files and the like on purpose to prove the products refuse or report them.
 # None of these is shipped.
 paths-ignore:

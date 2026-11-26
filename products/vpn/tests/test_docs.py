@@ -1,5 +1,5 @@
 """The commands the manual, upgrade notes and README show are ones the product accepts: every command in a code block parses in
-full, and every `acxelin-vpn ...` named in the text is a real command, so the docs cannot drift from the product."""
+full, and every `acxelin-qvpn ...` named in the text is a real command, so the docs cannot drift from the product."""
 import re
 import shlex
 from pathlib import Path
@@ -14,13 +14,13 @@ DOCS = [Path(__file__).resolve().parents[1] / p for p in ("README.md", "docs/man
 def blocks(text):
     for block in re.findall(r"```\n(.*?)```", text, re.S):
         for line in block.replace("\\\n", " ").splitlines():
-            parts = re.split(r"(?:^|\s)acxelin-vpn\s", line)
-            if len(parts) > 1 and not line.startswith(("wrote", "Send")) and not re.match(r"acxelin-vpn \d", line):
+            parts = re.split(r"(?:^|\s)acxelin-qvpn\s", line)
+            if len(parts) > 1 and not line.startswith(("wrote", "Send")) and not re.match(r"acxelin-qvpn \d", line):
                 yield parts[-1].split("  #")[0].strip()
 
 
 def named(text):
-    for span in re.findall(r"`acxelin-vpn ([^`]+)`", re.sub(r"```.*?```", "", text, flags=re.S)):
+    for span in re.findall(r"`acxelin-qvpn ([^`]+)`", re.sub(r"```.*?```", "", text, flags=re.S)):
         for alternative in span.split("\\|"):
             yield alternative.split()[:2]
 

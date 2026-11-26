@@ -1,5 +1,5 @@
 [Unit]
-Description=Acxelin VPN enrollment service (EST over post-quantum TLS), where invitations enroll
+Description=Acxelin QVPN enrollment service (EST over post-quantum TLS), where invitations enroll
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/var/lib/acxelin-vpn/ca/ca.crt

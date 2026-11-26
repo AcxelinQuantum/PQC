@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,10 @@ def pip(*args):
     subprocess.run([sys.executable, "-m", "pip", *args], check=True)
 
 
+def name(product):
+    return tomllib.loads((ROOT / "products" / product / "pyproject.toml").read_text())["project"]["name"]
+
+
 def build(product, out, extras=""):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -35,7 +40,7 @@ def build(product, out, extras=""):
                 pip("download", "--quiet", "--no-deps", *target, "--dest", str(out), *pins)
             with tempfile.TemporaryDirectory() as t:  # the whole product must resolve from the folder alone, for each one
                 pip("install", "--quiet", "--dry-run", "--ignore-installed", "--no-index", "--find-links", str(out), *target,
-                    "--target", t, f"acxelin-{product}{extras}")
+                    "--target", t, f"{name(product)}{extras}")
     return out
 
 

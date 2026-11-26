@@ -1,4 +1,4 @@
-"""`acxelin-vpn inventory --cbom`: what the VPN protects traffic with, as a CycloneDX 1.6 CBOM. Every tunnel's algorithms, the
+"""`acxelin-qvpn inventory --cbom`: what the VPN protects traffic with, as a CycloneDX 1.6 CBOM. Every tunnel's algorithms, the
 key agreement's groups and signatures, the certificates, and PSK/PPK/private-key presence (type and size, never a value). The
 file validates, is the same bytes every time for the same configuration, and holds no secret in any common encoding."""
 import base64

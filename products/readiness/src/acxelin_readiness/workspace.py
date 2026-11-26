@@ -236,7 +236,7 @@ def imported(path, name):
     assets = [{"name": a["name"], "algorithm": a["algo"], "tier": a["tier"], "action": a["recommendation"],
                "why": "Priority estimated from the algorithm: the CBOM gives none" if a["estimated"] else "",
                "confidence": None, "test_only": False, "declared": False,
-               "uncertainty": f"Imported from {system['tool']}; not verified by Acxelin Readiness",
+               "uncertainty": f"Imported from {system['tool']}; not verified by Acxelin QReadiness",
                "locations": sorted({(str(o.get("location", "")), line_of(o.get("line"))) for o in a["occurrences"] or [] if isinstance(o, dict)}),
                "impact": None, "hybrid_context": [], "seen": ["imported"], "missing": [], "confidence_level": None}
               for a in system["assets"] if a["tier"]]

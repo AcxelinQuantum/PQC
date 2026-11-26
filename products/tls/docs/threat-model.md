@@ -1,6 +1,6 @@
 # Threat model
 
-## What Acxelin TLS protects
+## What Acxelin QGuard protects
 
 Traffic between clients and the services behind an edge, against an attacker who records it now and decrypts it later with a quantum computer (harvest now, decrypt later), and against one who forces a weaker negotiation.
 

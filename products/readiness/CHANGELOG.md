@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
+- Renamed: Acxelin Readiness is now Acxelin QReadiness. The command and package are `acxelin-qreadiness`; `acxelin-readiness` still works through 1.x and says so on
+  stderr. Release tags are `qreadiness-vX.Y.Z`, downloads `acxelin-qreadiness-1.4.0-wheelhouse.tar.gz`, the image `ghcr.io/acxelinquantum/acxelin-qreadiness`.
+  Data folders, settings files, service names and every output format are unchanged.
 - Breaking for the GitHub Action: the repository moved, so the Action is now `AcxelinQuantum/PQC/products/readiness@<tag>`.
   Change `uses:`; the inputs are the same. Release downloads are on the PQC repository's release pages.
 

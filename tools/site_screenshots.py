@@ -84,7 +84,7 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(viewport={"width": 1280, "height": 900}, color_scheme="light")
-        page.goto((BUILD / "readiness/sample-report.html").as_uri())
+        page.goto((BUILD / "qreadiness/sample-report.html").as_uri())
         page.screenshot(path=str(ROOT / "website/assets/readiness-report.png"))
         tls_console(browser)
         vpn_console(browser)

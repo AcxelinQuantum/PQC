@@ -52,7 +52,7 @@ def cmd_ca(a):
         out, r = ca.issue(a.common_name, a.kind, a.san, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env), hours=a.hours)
         print(f"issued {r.kind} certificate {r.serial} for {r.common_name} ({r.algorithm}), valid until {r.not_after}")
         if a.hours:
-            print(f"  this certificate lives {a.hours:g} hours: run `acxelin-tls ca maintain --dir {a.dir}` at least every {a.hours / 3:g} hours (a scheduled task or cron), or it expires and the service stops")
+            print(f"  this certificate lives {a.hours:g} hours: run `acxelin-qguard ca maintain --dir {a.dir}` at least every {a.hours / 3:g} hours (a scheduled task or cron), or it expires and the service stops")
         print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA: what servers and mTLS clients present)\n  {out / 'key.pem'}")
     elif a.ca_cmd == "sign-csr":
         cert, r = ca.sign_csr(Path(a.csr).read_bytes(), a.kind, a.days)
@@ -96,7 +96,7 @@ def cmd_ca(a):
         s = configure(ca, a.issuer, a.audience, a.jwks_file, a.jwks_url, a.name_claim, a.domain, a.groups_claim, a.group)
         limits = ", ".join(x for x in (f"domains {', '.join(s['domains'])}" if s["domains"] else "", f"groups {', '.join(s['groups'])}" if s["groups"] else "") if x)
         print(f"people signed in at {s['issuer']} can now enrol for a client certificate named by their {s['name_claim']} claim" + (f" ({limits})" if limits else " (any account at the provider: add --domain or --group to limit it)"))
-        print("start `ca serve` as before; they run `acxelin-tls ca enroll URL --oidc --cn THEIR-NAME` with their ID token in ACXELIN_TLS_OIDC_TOKEN")
+        print("start `ca serve` as before; they run `acxelin-qguard ca enroll URL --oidc --cn THEIR-NAME` with their ID token in ACXELIN_TLS_OIDC_TOKEN")
     elif a.ca_cmd == "serve":
         from cryptography.x509 import load_pem_x509_certificate
         from acxelin_core.pki.est import fingerprint, serve
@@ -191,18 +191,18 @@ def cmd_enroll(a):
     ca = a.ca
     if not ca:
         if not a.ca_fingerprint:
-            raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `acxelin-tls ca serve`) so the CA can be trusted")
+            raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `acxelin-qguard ca serve`) so the CA can be trusted")
         ca = Path(a.out) / "ca.crt"
         est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
     cert = est.enroll(a.url, token, a.common_name, a.san, a.out, ca, passphrase=key_passphrase, server_name=a.server_name, oidc=a.oidc)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
-    print(f"renew it daily from cron: acxelin-tls ca enroll {a.url} --renew {a.out} --within-days 30")
+    print(f"renew it daily from cron: acxelin-qguard ca enroll {a.url} --renew {a.out} --within-days 30")
     return 0
 
 def add(sub, common):
     ca = sub.add_parser("ca", help="TLS 1.3 + mTLS: the post-quantum certificate authority, EST and ACME").add_subparsers(dest="ca_cmd", required=True)
     p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA",
-                      epilog='example: acxelin-tls ca init --name "Example Root CA" --dir pki')
+                      epilog='example: acxelin-qguard ca init --name "Example Root CA" --dir pki')
     p.add_argument("--name", required=True, help="the CA's name, shown in every certificate it issues, e.g. \"Acme PQC Root\"")
     p.add_argument("--algorithm", choices=CA_ALGORITHMS, default="ML-DSA-87", help="SLH-DSA keys need OpenSSL 3.5+")
     p.add_argument("--parent", help="the CA folder that signs this one, making it an intermediate CA")
@@ -221,8 +221,8 @@ def add(sub, common):
                      help=f"leave the CA key unencrypted (by default it is encrypted, passphrase from {CA_PASS_ENV} or a prompt)")
     for name in ("issue", "renew"):
         p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names",
-                          epilog="example: acxelin-tls ca issue server web.corp.example --dir pki --out web" if name == "issue" else
-                          "example: acxelin-tls ca renew 3f9a1c2e7b --dir pki --out web (serials from `ca list`)")
+                          epilog="example: acxelin-qguard ca issue server web.corp.example --dir pki --out web" if name == "issue" else
+                          "example: acxelin-qguard ca renew 3f9a1c2e7b --dir pki --out web (serials from `ca list`)")
         if name == "issue":
             p.add_argument("kind", choices=["server", "client", "site"], help="site: a VPN gateway (server and client)")
             p.add_argument("common_name", help="the name it certifies: a host name such as web.corp.example, or a person or device")

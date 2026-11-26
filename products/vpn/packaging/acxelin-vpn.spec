@@ -1,4 +1,4 @@
-# PyInstaller: one folder holding "Acxelin VPN" (the desktop app, no console) and "acxelin-vpn" (the same program with a
+# PyInstaller: one folder holding "Acxelin QVPN" (the desktop app, no console) and "acxelin-qvpn" (the same program with a
 # console, for support and scripts), sharing one copy of Python and the libraries. Built by build.py next to it.
 import os
 import sys
@@ -18,9 +18,9 @@ a = Analysis([str(here / "launcher.py")], binaries=binaries,
              hiddenimports=collect_submodules("acxelin_vpn") + ["PIL.Image", "PIL.ImageDraw"] + [f"pystray._{b}" for b in TRAYS],
              excludes=["tkinter", "acxelin_tls", "acxelin_readiness", "boto3", "botocore", "pytest", "hypothesis"])
 pyz = PYZ(a.pure)
-gui = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Acxelin VPN", console=False, icon=icon)
-cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="acxelin-vpn", console=True, icon=icon)
-coll = COLLECT(gui, cli, a.binaries, a.datas, name="Acxelin VPN")
+gui = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Acxelin QVPN", console=False, icon=icon)
+cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="acxelin-qvpn", console=True, icon=icon)
+coll = COLLECT(gui, cli, a.binaries, a.datas, name="Acxelin QVPN")
 if sys.platform == "darwin":
     app = BUNDLE(coll, name="Acxelin VPN.app", icon=icon, bundle_identifier="com.acxelin.vpn",
                  info_plist={"LSUIElement": True, "CFBundleShortVersionString": version, "CFBundleVersion": version,

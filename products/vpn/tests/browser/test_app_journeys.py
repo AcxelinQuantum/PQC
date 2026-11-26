@@ -1,4 +1,4 @@
-"""The Acxelin VPN window in a real browser, against a real CA, enrollment service and WireGuard gateway on this machine (with
+"""The Acxelin QVPN window in a real browser, against a real CA, enrollment service and WireGuard gateway on this machine (with
 a stand-in for `wg`): one-time addresses, opening an invitation, enrolling, connecting and disconnecting, axe in light and dark
 at desktop and phone width, and the guided tour. Moved from the suite's Playwright specs with their assertions."""
 import re
@@ -85,7 +85,7 @@ def test_without_a_valid_one_time_address_the_window_shows_no_state(browser, win
     w, base = window
     page = browser.new_page()
     page.goto(base)
-    expect(page.locator("#error")).to_contain_text("tray icon, or the address printed by acxelin-vpn app")
+    expect(page.locator("#error")).to_contain_text("tray icon, or the address printed by acxelin-qvpn app")
     page.goto("about:blank")
     page.goto(base + "#wrong")
     expect(page.locator("#error")).to_contain_text("already used or has expired")

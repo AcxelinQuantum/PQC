@@ -1,4 +1,4 @@
-"""The interop matrix: which real TLS implementations talk to Acxelin TLS under each policy, and which do not, with what was negotiated.
+"""The interop matrix: which real TLS implementations talk to Acxelin QGuard under each policy, and which do not, with what was negotiated.
 
     python tests/interop/matrix.py [--write FILE.md] [--json FILE.json]
 
@@ -313,7 +313,7 @@ def markdown(peers, clients, servers, when):
     lines = ["# Interop matrix", "", f"Generated {when} by `products/tls/tests/interop/matrix.py` on {sys.platform}, Python {sys.version.split()[0]}, "
              f"{tls.openssl.version() if hasattr(tls, 'openssl') and hasattr(tls.openssl, 'version') else 'OpenSSL via acxelin-core'}. A cell reads `pass, <group negotiated>` or `refused`; "
              "`!=` marks a cell that differs from what the peer's library predicts.", "",
-             "## Real clients against the Acxelin TLS edge", "", "| Client | strict | transition | cnsa2 |", "|---|---|---|---|"]
+             "## Real clients against the Acxelin QGuard edge", "", "| Client | strict | transition | cnsa2 |", "|---|---|---|---|"]
     for row in clients:
         lines.append(f"| {row['peer']} | " + " | ".join(cell_text(row["cells"][m]) + ("" if row["cells"][m]["match"] else " (!= expected)") for m in MODES) + " |")
     lines += ["", "## The Acxelin client against real servers", "", "| Server | strict | transition | cnsa2 |", "|---|---|---|---|"]

@@ -202,7 +202,7 @@ class Inventory:
                       endpoint=g.endpoint, pool=g.pool, full_tunnel="yes" if g.full_tunnel else "no", config=Path(path).as_posix())
 
 
-def cbom(configs, name="Acxelin VPN"):
+def cbom(configs, name="Acxelin QVPN"):
     """The CBOM, as the text to write, for the site and gateway configurations in `configs`."""
     inv = Inventory()
     for path in sorted(map(Path, configs), key=lambda p: p.as_posix()):
@@ -212,7 +212,7 @@ def cbom(configs, name="Acxelin VPN"):
         elif "wireguard" in doc:
             inv.gateway(path)
         else:
-            raise ValueError(f"{path}: no [site] or [wireguard] section, so it is not an Acxelin VPN configuration")
+            raise ValueError(f"{path}: no [site] or [wireguard] section, so it is not an Acxelin QVPN configuration")
     components = [inv.components[k] for k in sorted(inv.components)]
     body = json.dumps(components, sort_keys=True)
     bom = {"bomFormat": "CycloneDX", "specVersion": "1.6",

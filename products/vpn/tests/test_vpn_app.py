@@ -57,7 +57,7 @@ class WindowServerTest(unittest.TestCase):
     def test_a_file_that_is_not_an_invitation_is_refused_and_not_kept(self):
         status, body = self.window.handle("POST", "/api/invitation", {"name": "x.acxinvite", "text": "{\"acxelin_invite\": 1}"})
         self.assertEqual(status, 400)
-        self.assertIn("not an Acxelin VPN invitation", body["error"])
+        self.assertIn("not an Acxelin QVPN invitation", body["error"])
         self.assertEqual(list(self.d.glob("*.acxinvite")), [])
         self.assertEqual(self.window.handle("POST", "/api/connect", {"passphrase": "x"})[1]["error"][:24], "open the invitation file")
 

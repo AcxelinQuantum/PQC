@@ -1,10 +1,10 @@
-"""Build the Acxelin VPN installer for this operating system, or check an installed one.
+"""Build the Acxelin QVPN installer for this operating system, or check an installed one.
 
     python products/vpn/packaging/build.py --openssl DIR    Windows: DIR holds libssl-3-x64.dll; macOS: openssl@3's lib folder
     LD_LIBRARY_PATH=DIR python products/vpn/packaging/build.py    Linux: DIR is OpenSSL 3.5's lib folder
     python products/vpn/packaging/build.py smoke PROGRAM     check an installed acxelin-vpn
 
-Writes dist/installers/ (at the repository root): : Acxelin-VPN-VERSION-Setup.exe (Inno Setup), Acxelin-VPN-VERSION.dmg, or acxelin-vpn_VERSION_ARCH.deb.
+Writes dist/installers/ (at the repository root): : Acxelin-QVPN-VERSION-Setup.exe (Inno Setup), Acxelin-QVPN-VERSION.dmg, or acxelin-vpn_VERSION_ARCH.deb.
 Needs PyInstaller and the desktop extra; on Windows, Inno Setup 6. The installers are not code-signed."""
 import argparse
 import json
@@ -99,14 +99,14 @@ def bundle(libs):
 ISS = r'''#define Version "{version}"
 [Setup]
 AppId={{{{6B0F3C1E-5A7D-4E2B-9C8A-ACE1A1B00001}}
-AppName=Acxelin VPN
+AppName=Acxelin QVPN
 AppVersion={{#Version}}
 AppPublisher=Acxelin Quantum
 AppPublisherURL=https://acxelinquantum.github.io/PQC/
 DefaultDirName={{autopf}}\Acxelin VPN
 DisableProgramGroupPage=yes
 OutputDir={out}
-OutputBaseFilename=Acxelin-VPN-{{#Version}}-Setup
+OutputBaseFilename=Acxelin-QVPN-{{#Version}}-Setup
 SetupIconFile={icon}
 UninstallDisplayIcon={{app}}\Acxelin VPN.exe
 Compression=lzma2
@@ -118,21 +118,25 @@ ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 
 [Tasks]
-Name: "startatlogin"; Description: "Show Acxelin VPN in the tray when I log in"
+Name: "startatlogin"; Description: "Show Acxelin QVPN in the tray when I log in"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
 [Files]
 Source: "{bundle}\*"; DestDir: "{{app}}"; Flags: recursesubdirs ignoreversion
 
+[InstallDelete]
+Type: files; Name: "{{autoprograms}}\Acxelin VPN.lnk"
+Type: files; Name: "{{autodesktop}}\Acxelin VPN.lnk"
+
 [Icons]
-Name: "{{autoprograms}}\Acxelin VPN"; Filename: "{{app}}\Acxelin VPN.exe"
-Name: "{{autodesktop}}\Acxelin VPN"; Filename: "{{app}}\Acxelin VPN.exe"; Tasks: desktopicon
+Name: "{{autoprograms}}\Acxelin QVPN"; Filename: "{{app}}\Acxelin VPN.exe"
+Name: "{{autodesktop}}\Acxelin QVPN"; Filename: "{{app}}\Acxelin VPN.exe"; Tasks: desktopicon
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Acxelin VPN"; ValueData: """{{app}}\Acxelin VPN.exe"" desktop --background"; Tasks: startatlogin; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{{app}}\Acxelin VPN.exe"; Description: "Open Acxelin VPN"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{{app}}\Acxelin VPN.exe"; Description: "Open Acxelin QVPN"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
 Filename: "{{sys}}\taskkill.exe"; Parameters: "/F /IM ""Acxelin VPN.exe"""; Flags: runhidden; RunOnceId: "StopAcxelinVPN"
@@ -142,7 +146,7 @@ procedure CurPageChanged(CurPageID: Integer);
 begin
   if (CurPageID = wpFinished) and not FileExists(ExpandConstant('{{commonpf64}}\WireGuard\wireguard.exe')) then
     WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10#13#10 +
-      'Acxelin VPN uses WireGuard for the tunnel. Install WireGuard for Windows from https://www.wireguard.com/install/ before you connect.';
+      'Acxelin QVPN uses WireGuard for the tunnel. Install WireGuard for Windows from https://www.wireguard.com/install/ before you connect.';
 end;
 '''
 
@@ -155,7 +159,7 @@ def windows(folder, out):
     script = BUILD / "acxelin-vpn.iss"
     script.write_text(ISS.format(version=__version__, out=out, icon=BUILD / "acxelin-vpn.ico", bundle=folder / NAME), encoding="utf-8")
     run(iscc, "/Q", script)
-    return out / f"Acxelin-VPN-{__version__}-Setup.exe"
+    return out / f"Acxelin-QVPN-{__version__}-Setup.exe"
 
 
 def macos(folder, out):
@@ -164,7 +168,7 @@ def macos(folder, out):
     stage.mkdir(parents=True)
     run("ditto", folder / f"{NAME}.app", stage / f"{NAME}.app")
     (stage / "Applications").symlink_to("/Applications")
-    dmg = out / f"Acxelin-VPN-{__version__}.dmg"
+    dmg = out / f"Acxelin-QVPN-{__version__}.dmg"
     dmg.unlink(missing_ok=True)
     run("hdiutil", "create", "-volname", NAME, "-srcfolder", stage, "-ov", "-format", "UDZO", dmg)
     return dmg
@@ -178,20 +182,21 @@ def linux(folder, out):
     shutil.copytree(folder / NAME, app, symlinks=True)
     (stage / "usr" / "bin").mkdir(parents=True)
     (stage / "usr" / "bin" / "acxelin-vpn").symlink_to("/opt/acxelin-vpn/acxelin-vpn")
+    (stage / "usr" / "bin" / "acxelin-qvpn").symlink_to("/opt/acxelin-vpn/acxelin-vpn")
     icons = stage / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps"
     icons.mkdir(parents=True)
     shutil.copy2(BUILD / "acxelin-vpn.png", icons / "acxelin-vpn.png")
     apps = stage / "usr" / "share" / "applications"
     apps.mkdir(parents=True)
     (apps / "acxelin-vpn.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Acxelin VPN\nComment=Post-quantum VPN: connect, and see whether this computer is protected\n"
+        "[Desktop Entry]\nType=Application\nName=Acxelin QVPN\nComment=Post-quantum VPN: connect, and see whether this computer is protected\n"
         'Exec="/opt/acxelin-vpn/Acxelin VPN"\nIcon=acxelin-vpn\nTerminal=false\nCategories=Network;Security;\n', encoding="utf-8")
     (stage / "DEBIAN").mkdir()
     size = sum(f.stat().st_size for f in stage.rglob("*") if f.is_file() and not f.is_symlink()) // 1024
     (stage / "DEBIAN" / "control").write_text(
         f"Package: acxelin-vpn\nVersion: {__version__}\nArchitecture: {arch}\nMaintainer: Acxelin Quantum <noreply@acxelin.example>\n"
         f"Installed-Size: {size}\nDepends: wireguard-tools, pkexec | policykit-1\nSection: net\nPriority: optional\n"
-        "Homepage: https://acxelinquantum.github.io/PQC/\nDescription: Acxelin VPN, the post-quantum VPN client\n"
+        "Homepage: https://acxelinquantum.github.io/PQC/\nDescription: Acxelin QVPN, the post-quantum VPN client\n"
         " A tray icon that shows whether this computer is protected, and a window to join from an\n"
         " invitation file, connect and disconnect. OpenSSL 3.5 is included.\n", encoding="utf-8")
     deb = out / f"acxelin-vpn_{__version__}_{arch}.deb"

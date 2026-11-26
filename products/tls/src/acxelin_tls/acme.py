@@ -1,7 +1,7 @@
-"""ACME (RFC 8555) in front of the Acxelin TLS CA, so standard ACME clients obtain and renew ML-DSA certificates.
+"""ACME (RFC 8555) in front of the Acxelin QGuard CA, so standard ACME clients obtain and renew ML-DSA certificates.
 
 Accounts sign requests with classical keys (RS256, ES256/384/512 or EdDSA), as every ACME client does. The certificates they
-get are ML-DSA: the CSR must carry an ML-DSA public key (certbot `--csr`, or `acxelin-tls ca csr` generating it). Identifiers are
+get are ML-DSA: the CSR must carry an ML-DSA public key (certbot `--csr`, or `acxelin-qguard ca csr` generating it). Identifiers are
 proved with http-01 (RFC 8555) for DNS names and IP addresses (RFC 8738), and, when the operator provides a DNS lookup command, with dns-01
 (which also makes wildcard names possible). External account binding (RFC 8555 7.3.4) keeps
 strangers from registering. The ACME service itself speaks ordinary HTTPS: give it a classical certificate for broad client
@@ -598,7 +598,7 @@ class Service:
             cert, rec = self.ca.sign(csr.public_key(), cn[0] if cn else values[0], "server", values, self.days)
         except CAError as e:
             o["status"] = "ready"
-            raise Problem("badCSR", f"{e}; ask for an ML-DSA key (for example certbot --csr with a CSR from `acxelin-tls ca csr`)") from None
+            raise Problem("badCSR", f"{e}; ask for an ML-DSA key (for example certbot --csr with a CSR from `acxelin-qguard ca csr`)") from None
         except Exception:  # noqa: BLE001  a signer that failed (a KMS or HSM away): the client may finalize again later
             o["status"] = "ready"
             log.exception("signing the certificate for order %s failed", oid)

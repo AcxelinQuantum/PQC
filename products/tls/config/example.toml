@@ -1,5 +1,5 @@
 # Two routes in one process: each [[edge]] table is one route, a port the edge listens on and where its traffic goes.
-# Start with: acxelin-tls edge --config edge.toml
+# Start with: acxelin-qguard edge --config edge.toml
 
 [metrics]
 listen = "127.0.0.1:9100"          # /healthz, /metrics (Prometheus), /status (JSON)
@@ -18,7 +18,7 @@ key_passphrase_env = "EDGE_KEY_PASSPHRASE"
 ca = "pki/ca.crt"
 require_client_cert = true
 crl = "pki/crl.pem"
-# On a machine other than the CA's, fetch the CRL instead of copying it: `acxelin-tls ca publish` serves it, and a revocation
+# On a machine other than the CA's, fetch the CRL instead of copying it: `acxelin-qguard ca publish` serves it, and a revocation
 # reaches this edge within crl_every seconds. Only a CRL the CA signed, not expired and not older than the copy is kept.
 # crl_url = "http://ca.internal:8080/crl.pem"
 # crl_every = 60

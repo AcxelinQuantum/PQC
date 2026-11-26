@@ -1,5 +1,5 @@
 """AWS KMS keys and ACM certificates, read with the caller's own AWS credentials. Only list and describe calls: no key material, no
-certificate bodies. Needs boto3 (`pip install "acxelin-readiness[aws]"`)."""
+certificate bodies. Needs boto3 (`pip install "acxelin-qreadiness[aws]"`)."""
 import datetime as dt
 
 from ..model import Detection
@@ -12,7 +12,7 @@ def session():
     try:
         import boto3
     except ImportError:
-        raise ValueError('reading AWS needs boto3: pip install "acxelin-readiness[aws]"') from None
+        raise ValueError('reading AWS needs boto3: pip install "acxelin-qreadiness[aws]"') from None
     return boto3.Session()
 
 

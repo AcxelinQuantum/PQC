@@ -1,4 +1,4 @@
-"""Problems found by using Acxelin VPN as a first-time customer would; each test shows the problem fixed."""
+"""Problems found by using Acxelin QVPN as a first-time customer would; each test shows the problem fixed."""
 import os
 import shlex
 import subprocess
@@ -11,7 +11,7 @@ from acxelin_vpn import setup
 def test_the_printed_next_steps_survive_a_folder_with_spaces(tmp_path):
     folder = tmp_path / "VPN Ops Ünï" / "acxelin-vpn"
     text = setup.next_steps(folder / "gateway.toml", "vpn.acme.example")
-    commands = [line.strip() for line in text.splitlines() if line.strip().startswith("acxelin-vpn ")]
+    commands = [line.strip() for line in text.splitlines() if line.strip().startswith("acxelin-qvpn ")]
     assert len(commands) == 3, text
     for line in commands:
         args = shlex.split(line) if os.name != "nt" else line

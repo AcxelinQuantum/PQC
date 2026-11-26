@@ -1,4 +1,4 @@
-"""Acxelin VPN: post-quantum site-to-site IPsec, and WireGuard remote access for people.
+"""Acxelin QVPN: post-quantum site-to-site IPsec, and WireGuard remote access for people.
 
 Key exchange is IKEv2 with a hybrid classical + ML-KEM exchange (RFC 9370), on the initial exchange and on every rekey. The
 `cnsa2-rfc9370` profile is NSA's CNSA 2.0 form for IKEv2 (P-384, then ML-KEM-1024); the older `cnsa2` uses ML-KEM-1024 alone.
@@ -15,8 +15,8 @@ from acxelin_core.config import build, read_toml
 
 from .grace import check_minutes
 
-NAME = "acxelin-vpn"
-__version__ = "1.2.0"
+NAME = "acxelin-qvpn"
+__version__ = "1.3.0"
 
 PROFILES = {
     "standard": ("aes256gcm16-prfsha384-x25519-ke1_mlkem768", "aes256gcm16-x25519-ke1_mlkem768"),

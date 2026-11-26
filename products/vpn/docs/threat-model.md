@@ -1,6 +1,6 @@
 # Threat model
 
-## What Acxelin VPN protects
+## What Acxelin QVPN protects
 
 Traffic between your sites, and between people's computers and your network, against an attacker who records it now and
 decrypts it later with a quantum computer (harvest now, decrypt later), against one who sits in the middle of a key agreement,
@@ -18,7 +18,7 @@ and against one who holds a certificate you have revoked.
 | Traffic leaking while a full tunnel is down | the kill switch blocks it, and on Linux it fails closed at every instant while its rules change: the new chain is in place before the old one goes (`test_vpn_platforms::test_linux_fails_closed_while_the_rules_change`). The macOS anchor is checked by what it writes, not on a live system; Windows can lift for a moment (below). No test installs a new release over a running one yet |
 | Secrets in an export | the CBOM records PSK and PPK type and size only; a test searches it for every key, token and passphrase as bytes, hex, base64 and PEM (`test_inventory`) |
 | A web page attacking the console or the app window | loopback host names and same-origin requests only, no cookies, one-time launch links, lockout after ten wrong attempts (`test_console`, core console tests) |
-| A user changing code that the VPN runs with administrator rights | the tray and `acxelin-vpn install` refuse to start anything as root or administrator unless the interpreter, every folder it imports from and the folder OpenSSL loads from can be written only by administrators, and what they start ignores `PYTHONPATH`, the user-site folder and the current folder; on Windows OpenSSL must come from a named folder, never `PATH` (`test_elevation`, `test_protected_location` in core) |
+| A user changing code that the VPN runs with administrator rights | the tray and `acxelin-qvpn install` refuse to start anything as root or administrator unless the interpreter, every folder it imports from and the folder OpenSSL loads from can be written only by administrators, and what they start ignores `PYTHONPATH`, the user-site folder and the current folder; on Windows OpenSSL must come from a named folder, never `PATH` (`test_elevation`, `test_protected_location` in core) |
 | An old gateway during an upgrade | the exporter labels and contexts are pinned, and both ends of one session derive the same keys (`test_agreement::test_labels_and_contexts_are_pinned`, `test_agreement::test_one_session_gives_both_sides_the_same_keys`). This pins today's constants; no test runs a gateway from the previous release against this one yet |
 | A key agreement outage dropping everyone, and the opt-in grace that rides it out being used to keep a revoked device connected | `outage_grace_minutes` is off by default and capped at 24 hours; the cap is hard however long the outage lasts (`test_wireguard::test_the_cap_is_hard_however_long_the_control_plane_stays_away`, `test_vpn::test_the_cap_is_hard_however_long_the_control_plane_stays_away`); someone revoked inside the grace is removed or cut at the next pass (`test_wireguard::test_a_client_revoked_inside_the_grace_window_is_removed_at_the_next_pass`, `test_vpn::test_a_peer_revoked_inside_the_grace_window_is_cut_at_the_next_pass`); a missing, damaged or expired CRL cancels it (`test_wireguard::test_a_crl_that_cannot_be_used_cancels_the_grace`, `test_vpn::test_a_crl_that_cannot_be_used_cancels_the_grace`) |
 
@@ -34,7 +34,7 @@ and against one who holds a certificate you have revoked.
 - **Phones** are not supported.
 - **Validation on your network.** Tunnels were exercised in Linux network namespaces with strongSwan 6.1 and OpenSSL 3.5.9, and
   on GitHub's Windows and macOS runners, not on customer networks or hardware.
-- **Running the VPN as root from a per-user install.** `sudo acxelin-vpn gateway` or `up`, started by an administrator, runs
+- **Running the VPN as root from a per-user install.** `sudo acxelin-qvpn gateway` or `up`, started by an administrator, runs
   whatever that install contains with root's rights, and nothing stops it: install gateways as root under `/opt/acxelin-vpn`
   (the manual shows how), as the systemd units expect. The product's own elevation (the tray, the boot service) is the part
   that refuses.

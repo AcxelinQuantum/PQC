@@ -16,9 +16,9 @@ web
 
 Acxelin Quantum sells post-quantum security products, each standalone, so a customer installs only the one that fits the problem:
 
-- Acxelin Readiness + CBOM: finds the cryptography an organisation depends on, shows what a quantum computer breaks, ranks what to migrate first, writes a CycloneDX 1.6 CBOM.
-- Acxelin TLS: post-quantum TLS 1.3 and mutual TLS in front of services that do not change, with its own ML-DSA certificate authority.
-- Acxelin VPN: post-quantum site-to-site IPsec and WireGuard remote access with a desktop app.
+- Acxelin QReadiness + CBOM: finds the cryptography an organisation depends on, shows what a quantum computer breaks, ranks what to migrate first, writes a CycloneDX 1.6 CBOM.
+- Acxelin QGuard: post-quantum TLS 1.3 and mutual TLS in front of services that do not change, with QCertificate, its own ML-DSA certificate authority.
+- Acxelin QVPN: post-quantum site-to-site IPsec and WireGuard remote access with a desktop app.
 
 The website's job: let a visitor see, within a minute, which product answers their problem, that it really works, and how to start safely.
 
@@ -41,14 +41,14 @@ Visitors evaluate it at work, often on a laptop between meetings, sometimes on a
 
 ## Brand Commitments
 
-- Name and logo: Acxelin Quantum (`website/assets/acxelin-quantum.svg`); product names Acxelin Readiness, Acxelin TLS, Acxelin VPN.
+- Name and logo: Acxelin Quantum (`website/assets/acxelin-quantum.svg`); product names Acxelin QReadiness, Acxelin QGuard (with QCertificate), Acxelin QVPN.
 - Amber is the brand colour; Host Grotesk is the display face (both kept by owner decision).
 - Voice: plain, precise, honest; short sentences; no hype; British spelling.
 - Copyright line: © 2026 Acxelin Quantum, all rights reserved.
 
 ## Evidence on Hand
 
-- Real artifacts: `acxelin-tls try` output, the Readiness sample report and CBOM (generated at build time), console screenshots (`website/assets/*.png`).
+- Real artifacts: `acxelin-qguard try` output, the QReadiness sample report and CBOM (generated at build time), console screenshots (`website/assets/*.png`).
 - Standards the products implement: ML-KEM (FIPS 203), ML-DSA (FIPS 204), CycloneDX 1.6, EST (RFC 7030), ACME (RFC 8555), NIST IR 8547 and CNSA 2.0 checks, IKEv2 hybrid key exchange (RFC 9370), post-quantum PPK (RFC 8784).
 - No public customers, testimonials, case studies, benchmarks or prices exist: none may be shown or implied.
 

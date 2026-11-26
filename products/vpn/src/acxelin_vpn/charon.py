@@ -22,7 +22,7 @@ def connect(uri):
     try:
         import vici
     except ImportError:
-        raise CharonError('the site-to-site VPN needs its extra: pip install "acxelin-vpn[vpn]"') from None
+        raise CharonError('the site-to-site VPN needs its extra: pip install "acxelin-qvpn[vpn]"') from None
     u = urlparse(uri)
     s = None
     try:

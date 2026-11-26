@@ -1,4 +1,4 @@
-"""The Acxelin VPN administrator console: Sites (each IPsec tunnel, its algorithms, its last key rotation and the peer's
+"""The Acxelin QVPN administrator console: Sites (each IPsec tunnel, its algorithms, its last key rotation and the peer's
 certificate), People (invite someone, who is connected and since when, revoke someone) and Health.
 
 Runs on acxelin-core's console mechanism; this module is only the product's page, routes and state. Sites and gateways are read
@@ -97,7 +97,7 @@ class VPNConsole:
 
     def _ca(self, sign=True):
         if not self._exists():
-            raise ValueError(f"There is no certificate authority in {self.ca_dir} yet: create it with `acxelin-vpn ca init --dir {self.ca_dir}`")
+            raise ValueError(f"There is no certificate authority in {self.ca_dir} yet: create it with `acxelin-qvpn ca init --dir {self.ca_dir}`")
         if sign and encrypted(self.ca_dir / "ca.key") and not self.passphrase:
             raise ValueError("The CA key is locked: unlock it with its passphrase")
         return CA(self.ca_dir, self.passphrase if sign else None)
@@ -233,7 +233,7 @@ class VPNConsole:
         enroll, gateway = _text(body, "enroll", "the enrollment service address"), _text(body, "gateway", "the gateway's address")
         server_name = body.get("server_name") or None
         if not enroll.startswith("https://"):
-            raise ValueError("The enrollment service is the https:// address of `acxelin-vpn ca serve`")
+            raise ValueError("The enrollment service is the https:// address of `acxelin-qvpn ca serve`")
         from acxelin_core.http import hostport
         hostport(gateway)
         if server_name is not None and not (isinstance(server_name, str) and NAME.fullmatch(server_name)):
@@ -301,7 +301,7 @@ def run(home, port=8900, open_browser=True, ca_dir=None, host="127.0.0.1"):
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/#{app.sessions.ticket()}"
     if open_browser and core.open_in_browser(url, home):
-        print(f"Acxelin VPN console is open in your browser (http://127.0.0.1:{port}). Press Ctrl+C to stop.")
+        print(f"Acxelin QVPN console is open in your browser (http://127.0.0.1:{port}). Press Ctrl+C to stop.")
     else:
         core.link_running(port, home)
     try:
@@ -318,9 +318,9 @@ def cmd_console(a):
     if a.action == "link":
         try:
             if core.link_running(a.port, home) is None:
-                print("acxelin-vpn: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
+                print("acxelin-qvpn: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
         except (OSError, ValueError) as e:
-            sys.exit(f"acxelin-vpn: no console is running on port {a.port} ({e}); start one with `acxelin-vpn console`")
+            sys.exit(f"acxelin-qvpn: no console is running on port {a.port} ({e}); start one with `acxelin-qvpn console`")
         return 0
     ca = a.ca or ("pki" if Path("pki/ca.crt").exists() else None)  # the folder the manual creates with `ca init --dir pki`
     return run(home, a.port, open_browser=not a.no_browser and not a.container, ca_dir=ca, host="0.0.0.0" if a.container else "127.0.0.1")

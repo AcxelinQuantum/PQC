@@ -83,7 +83,7 @@ def detect(root, scope=False, tls_targets=(), ssh_targets=(), captures=(), cache
         for path in unparsed:
             h.crawler.gap("Python (syntax errors)", path)
         h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, nesting too deep "
-                       f"to analyse, or not Python 3. Only their strings and comments were read, so calls in them were missed; run Acxelin Readiness on the "
+                       f"to analyse, or not Python 3. Only their strings and comments were read, so calls in them were missed; run Acxelin QReadiness on the "
                        f"project's Python or newer (the Docker image and GitHub Action use 3.14): "
                        + ", ".join(unparsed[:5]) + (" ..." if len(unparsed) > 5 else ""))
     big = oversized(root, scope)

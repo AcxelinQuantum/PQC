@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily acxelin-tls CA maintenance
+Description=Daily acxelin-qguard CA maintenance
 
 [Timer]
 OnCalendar=daily

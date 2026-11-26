@@ -1,4 +1,4 @@
-name: acxelin-readiness
+name: acxelin-qreadiness
 on:
   push:
     branches: [main]  # branches other than main run once, as a pull request
@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: pip install ./core "./products/readiness[test,crawler]"
-      - run: acxelin-readiness doctor
+      - run: acxelin-qreadiness doctor
       - name: Playwright's Chromium and axe-core, for the console and website journeys
         shell: bash
         run: |
@@ -50,7 +50,7 @@ jobs:
             powershell -ExecutionPolicy RemoteSigned -File products/readiness/install.ps1
             "$LOCALAPPDATA/Acxelin/bin/acxelin-readiness.cmd" doctor
           else
-            sh products/readiness/install.sh && "$HOME/.local/bin/acxelin-readiness" doctor
+            sh products/readiness/install.sh && "$HOME/.local/bin/acxelin-qreadiness" doctor
           fi
       - name: Tests, the browser journeys and the clean-wheel install
         run: python -m pytest -q products/readiness/tests
@@ -61,10 +61,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build the image and scan the sample project with it
         run: |
-          docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness:ci .
-          docker run --rm acxelin-readiness:ci doctor
+          docker build -f products/readiness/deploy/Dockerfile -t acxelin-qreadiness:ci .
+          docker run --rm acxelin-qreadiness:ci doctor
           mkdir out  # owned by the runner's user, as a customer's folder would be; the image's own user cannot write to it
-          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/products/readiness/examples/payments-api:/scan:ro" -v "$PWD/out:/out" acxelin-readiness:ci scan /scan -o /out -q || test $? = 2
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/products/readiness/examples/payments-api:/scan:ro" -v "$PWD/out:/out" acxelin-qreadiness:ci scan /scan -o /out -q || test $? = 2
           test -s out/cbom.json && test -s out/report.html
       - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
         env:
@@ -73,8 +73,8 @@ jobs:
         run: |
           curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
           echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
-          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-readiness:ci
-          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-readiness:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-qreadiness:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-qreadiness:ci
   real-world:
     # Real repositories in Python, JavaScript and Go: the scan must finish, write a valid CBOM, and find their cryptography
     runs-on: ubuntu-latest
@@ -88,7 +88,7 @@ jobs:
         run: |
           for r in jpadilla/pyjwt paramiko/paramiko digitalbazaar/forge go-jose/go-jose; do
             n=$(basename $r); git clone -q --depth 1 https://github.com/$r $n
-            acxelin-readiness scan $n -o out-$n -q || test $? = 2
+            acxelin-qreadiness scan $n -o out-$n -q || test $? = 2
             python products/readiness/tools/validate_cbom.py out-$n/cbom.json
             python -c "import json,sys; a=[c for c in json.load(open('out-$n/cbom.json'))['components'] if c.get('type')=='cryptographic-asset']; print('$n', len(a), 'assets'); sys.exit(not a)"
           done

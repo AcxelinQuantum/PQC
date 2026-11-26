@@ -1,4 +1,4 @@
-"""Problems found by using Acxelin TLS as a first-time customer would; each test shows the problem fixed."""
+"""Problems found by using Acxelin QGuard as a first-time customer would; each test shows the problem fixed."""
 import os
 import socket
 import subprocess

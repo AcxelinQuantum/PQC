@@ -7,7 +7,7 @@ reaches it over WireGuard with a pre-shared key agreed over ML-DSA mutual TLS. R
     sudo python products/vpn/demo.py            # pauses before each step; press Enter to go on
     sudo python products/vpn/demo.py --auto     # runs straight through and checks every result
 
-Needs Linux, root, iproute2 and acxelin-vpn with OpenSSL 3.5+. The branch part needs strongSwan 6.0.2+ (set ACXELIN_STRONGSWAN to
+Needs Linux, root, iproute2 and acxelin-qvpn with OpenSSL 3.5+. The branch part needs strongSwan 6.0.2+ (set ACXELIN_STRONGSWAN to
 its install prefix if charon is not in /usr/lib/ipsec); the laptop part needs wireguard-tools and WireGuard (the kernel
 module, or wireguard-go). A part whose software is missing is skipped with a message.
 """
@@ -22,8 +22,8 @@ import textwrap
 import time
 from pathlib import Path
 
-# The certificate authority's commands come with Acxelin VPN.
-CA = "acxelin-vpn"
+# The certificate authority's commands come with Acxelin QVPN.
+CA = "acxelin-qvpn"
 
 HQ, BRANCH, LAPTOP = "dbk-hq", "dbk-branch", "dbk-laptop"
 PLACES = {HQ: "headquarters", BRANCH: "branch 0417", LAPTOP: "laptop", None: "CA"}
@@ -100,10 +100,10 @@ class Demo:
 
 
 class VPNDemo(Demo):
-    def at(self, ns, *args, expect=0, contains=(), tool="acxelin-vpn"):
+    def at(self, ns, *args, expect=0, contains=(), tool="acxelin-qvpn"):
         """Run a command at one place, printed as the person there would type it."""
         tool = CA if args[:1] == ("ca",) else tool
-        cmd = [sys.executable, "-m", "acxelin_vpn", *map(str, args)] if tool == "acxelin-vpn" else [tool, *map(str, args)]
+        cmd = [sys.executable, "-m", "acxelin_vpn", *map(str, args)] if tool == "acxelin-qvpn" else [tool, *map(str, args)]
         shown = " ".join(f'"{a}"' if " " in str(a) else str(a) for a in args)
         print(f"\n[{PLACES[ns]}] $ {tool} {shown}")
         return self.attempt(lambda: subprocess.run(["ip", "netns", "exec", ns, *cmd] if ns else cmd, cwd=self.work, capture_output=True,
@@ -213,7 +213,7 @@ def branch_part(d, charon):
     print("\n  Start the controller at each site; the branch dials headquarters.")
     d.spawn(HQ, "vpn-hq", sys.executable, "-m", "acxelin_vpn", "up", "--config", "hq.toml")
     d.spawn(BRANCH, "vpn-branch", sys.executable, "-m", "acxelin_vpn", "up", "--config", "branch.toml")
-    print("\n[headquarters] $ acxelin-vpn up --config hq.toml\n[branch 0417] $ acxelin-vpn up --config branch.toml")
+    print("\n[headquarters] $ acxelin-qvpn up --config hq.toml\n[branch 0417] $ acxelin-qvpn up --config branch.toml")
     status = lambda: sh("ip", "netns", "exec", HQ, sys.executable, "-m", "acxelin_vpn", "status", "--config", str(work / "hq.toml")).stdout
     d.wait(lambda: "ESTABLISHED" in status() and "PPK yes" in status(), "the tunnel did not come up with a PPK")
 
@@ -264,12 +264,12 @@ def laptop_part(d):
         state = "{work}/gateway-state.json"
         """), encoding="utf-8")
     d.spawn(HQ, "wireguard-gateway", sys.executable, "-m", "acxelin_vpn", "gateway", "--config", "gateway.toml")
-    print("\n[headquarters] $ acxelin-vpn gateway --config gateway.toml")
+    print("\n[headquarters] $ acxelin-qvpn gateway --config gateway.toml")
     d.wait(lambda: sh("ip", "netns", "exec", HQ, "wg", "show", "dbk-wg0", check=False).returncode == 0, "the WireGuard gateway did not start")
     time.sleep(0.5)
     d.spawn(LAPTOP, "wireguard-laptop", sys.executable, "-m", "acxelin_vpn", "connect", "10.40.0.1:7443", "--cert-dir", "certs/priya",
             "--server-name", "vpn.demobank.example", "--interface", "dbk-wg1")
-    print("[laptop] $ acxelin-vpn connect 10.40.0.1:7443 --cert-dir certs/priya --server-name vpn.demobank.example")
+    print("[laptop] $ acxelin-qvpn connect 10.40.0.1:7443 --cert-dir certs/priya --server-name vpn.demobank.example")
     d.wait(lambda: d.pings(LAPTOP, "192.168.10.1"), "no traffic through the WireGuard tunnel")
     d.at(LAPTOP, "-c", "3", "192.168.10.1", tool="ping", contains=["3 received"])
     d.at(HQ, "show", "dbk-wg0", tool="wg", contains=["preshared key"])

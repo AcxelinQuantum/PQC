@@ -1,16 +1,16 @@
-# Acxelin TLS: How It Works
+# Acxelin QGuard: How It Works
 
 Acxelin Quantum · October 2026
 
 ## In one page
 
-**Acxelin TLS puts a quantum-safe lock on the connections a company already has, and the company's software doesn't change.**
+**Acxelin QGuard puts a quantum-safe lock on the connections a company already has, and the company's software doesn't change.**
 
 Whenever two computers talk over a network, they first agree on a secret key and then scramble everything they say with it. A phone app and a bank, two offices, or a website and its database all work this way. The agreement is called TLS. Today's TLS relies on maths that a large quantum computer will be able to break.
 
 The danger has already started. An attacker can record scrambled traffic today and unscramble it years from now, once a quantum computer exists. This is called **harvest now, decrypt later**. Bank records, health data and contracts must stay secret for longer than that.
 
-Acxelin TLS has three parts:
+Acxelin QGuard has three parts:
 
 | Part | Think of it as | What it does |
 | --- | --- | --- |
@@ -29,21 +29,21 @@ Six ideas explain the whole product. Each starts with an everyday picture, then 
 1. **TLS is a sealed envelope.** When two computers talk, TLS puts every message in an envelope only the other side can open. First they exchange a short greeting, the *handshake*, to agree on a secret key. Everything after that is scrambled with the key (AES-256-GCM or ChaCha20-Poly1305). TLS 1.3 is the current version.
 2. **Key exchange is agreeing a secret in public.** Two people agree on a secret while everyone listens, and never say the secret out loud. Today this uses elliptic-curve maths (X25519). A quantum computer could solve that maths, so recorded handshakes could be opened later.
 3. **ML-KEM is the quantum-safe way to agree a secret.** It uses a different kind of maths (lattices) that no known quantum method breaks. NIST published it as FIPS 203 in August 2024.
-4. **Hybrid means two locks on one door.** Acxelin TLS uses **X25519MLKEM768**, the old lock and the quantum-safe lock together, so an attacker has to break both. If ML-KEM ever turned out weak, X25519 still protects you today. If a quantum computer breaks X25519, ML-KEM still protects you. Chrome, Edge, Firefox, Cloudflare and Google already use the same pair.
+4. **Hybrid means two locks on one door.** Acxelin QGuard uses **X25519MLKEM768**, the old lock and the quantum-safe lock together, so an attacker has to break both. If ML-KEM ever turned out weak, X25519 still protects you today. If a quantum computer breaks X25519, ML-KEM still protects you. Chrome, Edge, Firefox, Cloudflare and Google already use the same pair.
 5. **Certificates are ID cards for computers.** A certificate says "this is web.example.com, and here is its public key", signed by someone you trust. It stops an attacker from pretending to be your server. **ML-DSA** (FIPS 204) is the quantum-safe signature on those cards.
-6. **A certificate authority (CA) is the passport office.** The CA is whoever signs the ID cards. Public websites buy theirs from commercial CAs. Inside a company (servers talking to servers, partner connections, devices), the company can run its **own** CA, and Acxelin TLS gives it one that signs with ML-DSA.
+6. **A certificate authority (CA) is the passport office.** The CA is whoever signs the ID cards. Public websites buy theirs from commercial CAs. Inside a company (servers talking to servers, partner connections, devices), the company can run its **own** CA, and Acxelin QGuard gives it one that signs with ML-DSA.
 
 **Mutual TLS (mTLS)** means both sides show an ID card, not just the server. A bank's partner connection uses it so that only approved partners can connect at all.
 
 ## At a glance
 
-*Diagram: Acxelin TLS · 5 parts and what passes between them (see the PDF version).*
+*Diagram: Acxelin QGuard · 5 parts and what passes between them (see the PDF version).*
 
 Clients reach the edge over quantum-safe TLS 1.3, and the edge passes plain traffic to the unchanged application on the same machine. The CA gives the edge and the clients their ML-DSA certificates. The console, on the administrator's own computer, runs the CA and reads each edge's metrics.
 
 ## Tech stack
 
-**Acxelin TLS is written in Python and does its cryptography through OpenSSL 3.5, with one Python library (`cryptography`) besides.** There is no C code of our own, and it never runs the `openssl` command.
+**Acxelin QGuard is written in Python and does its cryptography through OpenSSL 3.5, with one Python library (`cryptography`) besides.** There is no C code of our own, and it never runs the `openssl` command.
 
 | Piece | What we use | Why |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ Clients reach the edge over quantum-safe TLS 1.3, and the edge passes plain traf
 | Package | Lines of Python | Holds |
 | --- | --- | --- |
 | `acxelin-core` (version 1.1.0) | about 2,800 | The shared machinery: the bridge to OpenSSL, the TLS server, the certificate authority, machine enrolment (EST) and the console's safety rules. Every Acxelin product uses it. |
-| `acxelin-tls` (version 1.0.2) | about 2,300, plus the console page | The product itself: the edge, its policies, the commands, ACME and the console's pages. |
+| `acxelin-qguard` (version 1.0.2) | about 2,300, plus the console page | The product itself: the edge, its policies, the commands, ACME and the console's pages. |
 
 The rule between them is simple. **Core knows *how* to do things; the product decides *what* is allowed.** Core can run a TLS handshake; the TLS product decides which algorithms that handshake may use.
 
@@ -157,10 +157,10 @@ The edge's own log agrees: `X25519MLKEM768 TLS_AES_256_GCM_SHA384` for the first
 ### Trying it on Windows
 
 1. Install Wireshark from wireshark.org. In the Npcap step, tick **Support loopback traffic**.
-2. In PowerShell, make a CA and a certificate, then start a small web server: `acxelin-tls ca init --name "Demo Root CA" --dir pki --no-encrypt`, then `acxelin-tls ca issue server localhost --san 127.0.0.1 --dir pki --out web`, then `py -m http.server 8080 --bind 127.0.0.1`.
-3. In a second window, start the edge: `acxelin-tls edge --listen 127.0.0.1:8443 --target 127.0.0.1:8080 --cert web\chain.pem --key web\key.pem`.
+2. In PowerShell, make a CA and a certificate, then start a small web server: `acxelin-qguard ca init --name "Demo Root CA" --dir pki --no-encrypt`, then `acxelin-qguard ca issue server localhost --san 127.0.0.1 --dir pki --out web`, then `py -m http.server 8080 --bind 127.0.0.1`.
+3. In a second window, start the edge: `acxelin-qguard edge --listen 127.0.0.1:8443 --target 127.0.0.1:8080 --cert web\chain.pem --key web\key.pem`.
 4. In Wireshark, record **Adapter for loopback traffic capture** with the filter `tls`.
-5. Send a quantum-safe visitor: `acxelin-tls connect 127.0.0.1:8443 --ca pki\ca.crt --server-name localhost`.
+5. Send a quantum-safe visitor: `acxelin-qguard connect 127.0.0.1:8443 --ca pki\ca.crt --server-name localhost`.
 6. Send an old-style visitor: `py -c "import ssl,socket; c=ssl.create_default_context(cafile='pki/ca.crt'); c.set_ecdh_curve('X25519'); c.wrap_socket(socket.create_connection(('127.0.0.1',8443)),server_hostname='localhost')"`. It fails with HANDSHAKE\_FAILURE, which is the refusal you want to see.
 7. Click each Client Hello and open **Extension: key\_share** to compare the group and the size.
 
@@ -203,7 +203,7 @@ fallback_cert = "letsencrypt/fullchain.pem"   # public certificate browsers trus
 fallback_key = "letsencrypt/privkey.pem"
 ```
 
-Start it with `acxelin-tls edge --config website.toml`. The edge refuses a backup certificate under any other policy or direction.
+Start it with `acxelin-qguard edge --config website.toml`. The edge refuses a backup certificate under any other policy or direction.
 
 ### What it protects, and what it doesn't yet
 
@@ -226,19 +226,19 @@ This follows the code: a backup certificate is accepted only on a `terminate` ro
 ### Opening it
 
 1. Open PowerShell (Windows) or a terminal (Linux, macOS).
-2. Run `acxelin-tls console`.
+2. Run `acxelin-qguard console`.
 3. Your browser opens at `http://127.0.0.1:8900`, already signed in. Keep the terminal open, and press **Ctrl+C** there to stop.
 
-Useful options: `--port 9000` (another port), `--home DIR` (where it keeps the CA and certificates; the default is `~/.acxelin-tls`), `--ca DIR` (manage an existing CA folder) and `--no-browser` (print the link instead). Each launch link works **once**. `acxelin-tls console link` prints a fresh one for a console that is already running. On a remote server, run `ssh -L 8900:127.0.0.1:8900 server`, then run `acxelin-tls console link` there and open the link on your laptop.
+Useful options: `--port 9000` (another port), `--home DIR` (where it keeps the CA and certificates; the default is `~/.acxelin-tls`), `--ca DIR` (manage an existing CA folder) and `--no-browser` (print the link instead). Each launch link works **once**. `acxelin-qguard console link` prints a fresh one for a console that is already running. On a remote server, run `ssh -L 8900:127.0.0.1:8900 server`, then run `acxelin-qguard console link` there and open the link on your laptop.
 
 ### The tabs
 
 | Tab | What you do there |
 | --- | --- |
 | First run | Create the certificate authority: a name, and a passphrase typed twice. |
-| **Certificates** | See the CA: its algorithm, how many certificates are valid, cancelled or running out within 30 days, and whether the cancellation list is current. Issue a certificate (server or client, name, extra names, days). The result shows where the files are and a ready-to-copy `acxelin-tls edge` command. Download, download with key, renew, cancel (two clicks), refresh the cancellation list, run maintenance, and see recent activity from the logbook. |
+| **Certificates** | See the CA: its algorithm, how many certificates are valid, cancelled or running out within 30 days, and whether the cancellation list is current. Issue a certificate (server or client, name, extra names, days). The result shows where the files are and a ready-to-copy `acxelin-qguard edge` command. Download, download with key, renew, cancel (two clicks), refresh the cancellation list, run maintenance, and see recent activity from the logbook. |
 | **Edges** | Add a running edge by its metrics address to see its policy, its connections and which key exchanges were used. Test a connection to any host and port, with a chosen policy and, if you like, a client certificate for mutual TLS. It says "Connected, quantum-safe" or why not. |
-| **Health** | Can this computer run Acxelin TLS (the OpenSSL version), and is the CA in good shape (cancellation list current, certificates not about to run out)? |
+| **Health** | Can this computer run Acxelin QGuard (the OpenSSL version), and is the CA in good shape (cancellation list current, certificates not about to run out)? |
 
 ### How the console is kept safe
 
@@ -263,7 +263,7 @@ In the code: `acxelin_core/console.py` (the safety rules every Acxelin console s
 
 Each release (now **1.0.2**, tag `tls-v1.0.2` on GitHub, on top of core 1.1.0) has two files:
 
-- `acxelin-tls-1.0.2-wheelhouse.tar.gz`: the program and every library it needs, for Linux (Intel and ARM), Windows and Apple-silicon Macs, Python 3.11 to 3.14. Inside are the installers, the README, the manual, the licence, example settings and service files for Linux.
+- `acxelin-qguard-1.0.2-wheelhouse.tar.gz`: the program and every library it needs, for Linux (Intel and ARM), Windows and Apple-silicon Macs, Python 3.11 to 3.14. Inside are the installers, the README, the manual, the licence, example settings and service files for Linux.
 - `SHA256SUMS`: a fingerprint of each file, so the customer can prove the download wasn't damaged or changed.
 
 There is also a Docker image, `ghcr.io/qubitman-hub/acxelin-tls:1.0.2`, which brings its own OpenSSL 3.5 for machines that don't have it.
@@ -271,10 +271,10 @@ There is also a Docker image, `ghcr.io/qubitman-hub/acxelin-tls:1.0.2`, which br
 ### Installing
 
 1. Check the fingerprint (`sha256sum -c SHA256SUMS --ignore-missing`, or `Get-FileHash` on Windows).
-2. Unpack it: `tar xzf acxelin-tls-1.0.2-wheelhouse.tar.gz`.
+2. Unpack it: `tar xzf acxelin-qguard-1.0.2-wheelhouse.tar.gz`.
 3. Run `sh install.sh` (Linux, macOS) or `install.ps1` (Windows).
-4. The installer checks Python, finds OpenSSL 3.5, puts `acxelin-tls` where the system can find it, and runs `acxelin-tls doctor`.
-5. `acxelin-tls try` shows the whole product in one minute: a CA, a plain web server, the edge in front of it, a quantum-safe visitor let in and an old-style visitor refused.
+4. The installer checks Python, finds OpenSSL 3.5, puts `acxelin-qguard` where the system can find it, and runs `acxelin-qguard doctor`.
+5. `acxelin-qguard try` shows the whole product in one minute: a CA, a plain web server, the edge in front of it, a quantum-safe visitor let in and an old-style visitor refused.
 
 ### How a release is made
 
@@ -286,13 +286,13 @@ The owner pushes a tag such as `tls-v1.0.2`, always after the matching core tag.
 
 - The source is `website/`, one folder per product. `tools/build_site.py` adds the shared header and footer to each page and writes `build/site`.
 - The TLS section has six pages: **Overview**, **How it works**, **Set up**, **Manual** (built from `products/tls/docs/manual.md`, the same file the release ships), **Demo** and **Security**.
-- The **Demo** page isn't made up. The build really runs `acxelin-tls try` and puts the real output on the page, so it always matches the code.
+- The **Demo** page isn't made up. The build really runs `acxelin-qguard try` and puts the real output on the page, so it always matches the code.
 - Each product has its own section and menu, and its pages name only that product.
 - Tests (`website/tests/test_site.py`) check the links, check that the pages work for screen readers and keyboards, and check that the pages say nothing the docs don't.
 
 ## Use cases
 
-**Acxelin TLS has five groups of uses, and the code does all of them today.** They are grouped by what the customer is protecting.
+**Acxelin QGuard has five groups of uses, and the code does all of them today.** They are grouped by what the customer is protecting.
 
 ### 1. Services the customer already runs (the edge in `terminate` mode)
 
@@ -334,13 +334,13 @@ The owner pushes a tag such as `tls-v1.0.2`, always after the matching core tag.
 | US government rules | The `cnsa2` policy: ML-KEM-1024, ML-DSA-87 and AES-256 only |
 | Moving over gradually | Start on `transition`, watch the Edges tab for who uses quantum-safe keys, then switch to `strict` |
 | Proof for auditors | A logbook of every CA action, a log line per connection naming the key exchange, and Prometheus metrics |
-| Demos and pilots | `acxelin-tls try` in one minute; bundles bring up nginx, PostgreSQL, pgvector or MQTT already protected |
+| Demos and pilots | `acxelin-qguard try` in one minute; bundles bring up nginx, PostgreSQL, pgvector or MQTT already protected |
 
 ### What it doesn't cover
 
 - **Browser ID cards:** ML-DSA certificates for browsers wait for public CAs and browsers.
 - **UDP traffic:** the edge handles TCP only, so no DNS or video calls.
-- **Whole networks:** it protects one service at a time. Connecting whole networks or laptops is Acxelin VPN's job.
+- **Whole networks:** it protects one service at a time. Connecting whole networks or laptops is Acxelin QVPN's job.
 - **The hop to the app:** traffic between the edge and the application stays plain, so they should share a machine or a private network.
 
 ## Code tour
@@ -373,7 +373,7 @@ The owner pushes a tag such as `tls-v1.0.2`, always after the matching core tag.
 | `bundles.py` | 94 | Makes a Docker Compose project with nginx, PostgreSQL, pgvector or MQTT already behind the edge. |
 | `checks.py` | 127 | What `doctor` checks: the OpenSSL version, the CA folder and an edge's settings. |
 | `console.py` + `console.html` | 472 + the page | The console's actions and its single page. |
-| `cli.py` | 181 | The `acxelin-tls` command; `try` runs a one-minute tour. |
+| `cli.py` | 181 | The `acxelin-qguard` command; `try` runs a one-minute tour. |
 
 ### Design decisions worth discussing
 
@@ -390,7 +390,7 @@ The owner pushes a tag such as `tls-v1.0.2`, always after the matching core tag.
 
 1. **The risk, in their words.** "Your partner connection carries account data that must stay secret for 10 years or more. Anyone recording that traffic today can read it once a quantum computer exists. Regulators such as the RBI, NIST and the EU now expect a plan to move over."
 2. **The fix, without disruption.** "We put a guard in front of the connection. Your application doesn't change; only connections that use quantum-safe locks get through."
-3. **Show it.** Run `acxelin-tls try` (one minute). The quantum-safe visitor gets through and the old-style visitor is refused.
+3. **Show it.** Run `acxelin-qguard try` (one minute). The quantum-safe visitor gets through and the old-style visitor is refused.
 4. **Show control.** Open the console: create the CA, issue a certificate for their partner, test the connection, cancel the certificate, test again: refused.
 5. **The path.** Start with `transition` on one service, watch the Edges tab show which visitors already use quantum-safe keys, then switch to `strict`.
 
@@ -447,7 +447,7 @@ The owner pushes a tag such as `tls-v1.0.2`, always after the matching core tag.
 | SLH-DSA | A very cautious, hash-based quantum-safe signature (FIPS 205), used for roots that sign rarely. |
 | TLS 1.3 | The current version of the method that protects network connections. |
 | X25519 | Today's ordinary key exchange; a large quantum computer could break it. |
-| X25519MLKEM768 | The hybrid key exchange browsers and Acxelin TLS use by default. |
+| X25519MLKEM768 | The hybrid key exchange browsers and Acxelin QGuard use by default. |
 
 ---
 

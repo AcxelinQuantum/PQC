@@ -1,8 +1,8 @@
-# Acxelin Readiness manual
+# Acxelin QReadiness manual
 
-Acxelin Readiness finds every piece of cryptography your organisation depends on, shows which of it a quantum computer breaks, and ranks what to migrate first. It writes a CycloneDX 1.6 cryptographic bill of materials (CBOM), SARIF for code scanning, and a report a manager can read.
+Acxelin QReadiness finds every piece of cryptography your organisation depends on, shows which of it a quantum computer breaks, and ranks what to migrate first. It writes a CycloneDX 1.6 cryptographic bill of materials (CBOM), SARIF for code scanning, and a report a manager can read.
 
-This manual covers installing it, a first scan in five minutes, the everyday work, running it in CI, and what to do when something goes wrong. Acxelin Readiness installs and runs on its own; it needs no other Acxelin product.
+This manual covers installing it, a first scan in five minutes, the everyday work, running it in CI, and what to do when something goes wrong. Acxelin QReadiness installs and runs on its own; it needs no other Acxelin product.
 
 ## 1. What you get
 
@@ -25,9 +25,9 @@ It never changes the files it scans and never sends them anywhere.
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/readiness-v1.3.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qreadiness-v1.4.0) and save them in one folder:
 
-- `acxelin-readiness-1.3.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access, including the code crawler that follows values through JavaScript, TypeScript, Java and Go
+- `acxelin-qreadiness-1.4.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access, including the code crawler that follows values through JavaScript, TypeScript, Java and Go
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 Then open a terminal in that folder. On Windows, use PowerShell.
@@ -45,24 +45,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-readiness-1.3.0-wheelhouse.tar.gz
+shasum -a 256 acxelin-qreadiness-1.4.0-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-readiness-1.3.0-wheelhouse.tar.gz
+Get-FileHash .\acxelin-qreadiness-1.4.0-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-readiness-1.3.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-qreadiness-1.4.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-readiness-1.3.0-wheelhouse.tar.gz
-cd acxelin-readiness-1.3.0-wheelhouse
+tar xzf acxelin-qreadiness-1.4.0-wheelhouse.tar.gz
+cd acxelin-qreadiness-1.4.0-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -74,13 +74,13 @@ cd acxelin-readiness-1.3.0-wheelhouse
 
 On Windows, the first command tells Windows you trust this downloaded script, and the second runs it.
 
-The installer checks your Python, puts `acxelin-readiness` on your PATH, runs `acxelin-readiness doctor` and says what to do next. To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). Your scan results stay where they were written.
+The installer checks your Python, puts `acxelin-qreadiness` on your PATH, runs `acxelin-qreadiness doctor` and says what to do next. To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). Your scan results stay where they were written.
 
 **With Docker instead:** each release publishes an image. Pull it and give it a short name:
 
 ```
-docker pull ghcr.io/acxelinquantum/acxelin-readiness:1.3.0
-docker tag ghcr.io/acxelinquantum/acxelin-readiness:1.3.0 acxelin-readiness
+docker pull ghcr.io/acxelinquantum/acxelin-qreadiness:1.4.0
+docker tag ghcr.io/acxelinquantum/acxelin-qreadiness:1.4.0 acxelin-qreadiness
 ```
 
 ## 4. Your first scan in five minutes
@@ -88,13 +88,13 @@ docker tag ghcr.io/acxelinquantum/acxelin-readiness:1.3.0 acxelin-readiness
 ### Step 1: scan a folder
 
 ```
-acxelin-readiness scan path/to/your/project
+acxelin-qreadiness scan path/to/your/project
 ```
 
 The terminal shows the ranking at once:
 
 ```
-acxelin-readiness 1.3.0  payments-api
+acxelin-qreadiness 1.4.0  payments-api
 detectors 49 raw  ->  verify 26 verified, 0 held, 0 rejected, 0 suppressed  ->  rank 0 promoted, 1 trails  ->  16 assets
 quantum-safe asymmetric: 1/6 (17%)   hybrid KEX: yes
 
@@ -112,7 +112,7 @@ Open `readiness-out/report.html` in a browser. Start with the critical and high 
 ### Step 3: add your live servers
 
 ```
-acxelin-readiness scan path/to/your/project --tls api.example.com:443 --ssh bastion.example.com
+acxelin-qreadiness scan path/to/your/project --tls api.example.com:443 --ssh bastion.example.com
 ```
 
 Live endpoints show what your servers actually negotiate, which configuration files alone cannot.
@@ -134,21 +134,21 @@ server. `scan` and `watch` probe their endpoints one after another unless you gi
 
 | Task | Command |
 |---|---|
-| Scan a repository | `acxelin-readiness scan PATH` |
-| Scan a GitHub repository | `acxelin-readiness scan https://github.com/OWNER/REPO` (a branch: `…/tree/BRANCH`) |
-| Scan this computer's keys and certificates | `acxelin-readiness scan ~/.ssh`, `scan /etc/ssl` or, on Windows, a folder of exported `.pfx` files |
-| Scan a container image | `docker save IMAGE -o image.tar`, then `acxelin-readiness scan image.tar` |
-| Include live endpoints | `acxelin-readiness scan PATH --tls HOST:443 --ssh HOST` (paced; `--rate`, `--workers`, `--aggressive`) |
-| Read handshakes from a packet capture | `acxelin-readiness scan PATH --pcap traffic.pcapng` |
-| Read AWS KMS keys and ACM certificates | `acxelin-readiness scan PATH --aws eu-west-1` |
-| Scan again every day and report what changed | `acxelin-readiness watch PATH --every 24` |
-| Rank by how long each system's data stays secret | `acxelin-readiness scan PATH --owners owners.csv` (see Owners) |
-| Grade endpoints A to F | `acxelin-readiness grade hosts.txt --html grades.html` |
-| Evidence for an audit | `acxelin-readiness report --certs certs/ --targets hosts.txt --cbom readiness-out` |
-| Check against standards | `acxelin-readiness scan PATH --policy nist-ir-8547 --policy cnsa-2.0 --policy india-dst` |
-| One view of many systems | `acxelin-readiness merge out-a out-b other.cbom.json --name "Example Bank"` |
-| Leave out folders | `acxelin-readiness scan PATH --exclude generated --exclude "*.min.js"` |
-| See what this machine can scan | `acxelin-readiness doctor` |
+| Scan a repository | `acxelin-qreadiness scan PATH` |
+| Scan a GitHub repository | `acxelin-qreadiness scan https://github.com/OWNER/REPO` (a branch: `…/tree/BRANCH`) |
+| Scan this computer's keys and certificates | `acxelin-qreadiness scan ~/.ssh`, `scan /etc/ssl` or, on Windows, a folder of exported `.pfx` files |
+| Scan a container image | `docker save IMAGE -o image.tar`, then `acxelin-qreadiness scan image.tar` |
+| Include live endpoints | `acxelin-qreadiness scan PATH --tls HOST:443 --ssh HOST` (paced; `--rate`, `--workers`, `--aggressive`) |
+| Read handshakes from a packet capture | `acxelin-qreadiness scan PATH --pcap traffic.pcapng` |
+| Read AWS KMS keys and ACM certificates | `acxelin-qreadiness scan PATH --aws eu-west-1` |
+| Scan again every day and report what changed | `acxelin-qreadiness watch PATH --every 24` |
+| Rank by how long each system's data stays secret | `acxelin-qreadiness scan PATH --owners owners.csv` (see Owners) |
+| Grade endpoints A to F | `acxelin-qreadiness grade hosts.txt --html grades.html` |
+| Evidence for an audit | `acxelin-qreadiness report --certs certs/ --targets hosts.txt --cbom readiness-out` |
+| Check against standards | `acxelin-qreadiness scan PATH --policy nist-ir-8547 --policy cnsa-2.0 --policy india-dst` |
+| One view of many systems | `acxelin-qreadiness merge out-a out-b other.cbom.json --name "Example Bank"` |
+| Leave out folders | `acxelin-qreadiness scan PATH --exclude generated --exclude "*.min.js"` |
+| See what this machine can scan | `acxelin-qreadiness doctor` |
 
 ### Mark a line that is not about security
 
@@ -162,7 +162,7 @@ The finding is kept as *suppressed* in `findings.json`, so the decision stays vi
 
 ### Grade endpoints
 
-`acxelin-readiness grade hosts.txt` grades each TLS and SSH endpoint in the file (one `host:port` per line), paced as described in step 3 (`--rate`, `--workers`, `--aggressive`). A TLS protocol
+`acxelin-qreadiness grade hosts.txt` grades each TLS and SSH endpoint in the file (one `host:port` per line), paced as described in step 3 (`--rate`, `--workers`, `--aggressive`). A TLS protocol
 can be written as its scheme, which gives its usual port: `mqtts://broker` (8883), `amqps://` (5671), `ldaps://` (636),
 `imaps://` (993), `pop3s://` (995), `smtps://` (465), `ftps://` (990), `sips://` (5061). CoAP over DTLS (`coaps://`) cannot be
 checked live: record its traffic and read it with `scan --pcap`.
@@ -181,7 +181,7 @@ unencrypted unless the sender insists. Your MX hosts are the names `nslookup -ty
 
 ### The evidence report
 
-`acxelin-readiness report` maps what you give it to NIST IR 8547 and CNSA 2.0 on one page, ordered by what to do first:
+`acxelin-qreadiness report` maps what you give it to NIST IR 8547 and CNSA 2.0 on one page, ordered by what to do first:
 
 - `--certs DIR`: every certificate in a folder of PEM files (algorithm, expiry, whether it needs ML-DSA-87)
 - `--targets HOST ...`: endpoints, graded now (paced like `grade`, with the same `--rate`, `--workers`, `--aggressive` and `--config`)
@@ -210,7 +210,7 @@ private CA) are left out, as the limits apply only to public ones.
 
 `--aws REGION` (repeatable, or `aws = [...]` in the settings) lists the region's KMS keys and ACM certificates with your
 usual AWS credentials and ranks each key type like any other finding, at `aws://kms/REGION/KEY` or `aws://acm/REGION/ID`.
-It needs the `aws` extra (`pip install "acxelin-readiness[aws]"`; the release folder and the Docker image include it) and
+It needs the `aws` extra (`pip install "acxelin-qreadiness[aws]"`; the release folder and the Docker image include it) and
 only these read permissions: `kms:ListKeys`, `kms:DescribeKey`, `acm:ListCertificates` and `acm:DescribeCertificate`. It never
 asks for key material or certificate bodies. A region the credentials cannot read becomes a note, and certificates that have
 expired or expire within 30 days are named in the notes.
@@ -220,7 +220,7 @@ expired or expire within 30 days are named in the notes.
 Scan on every pull request, and fail only when someone adds new cryptography at a tier you care about:
 
 ```
-acxelin-readiness scan . --baseline cbom.json --fail-on high
+acxelin-qreadiness scan . --baseline cbom.json --fail-on high
 ```
 
 `--baseline` compares with the CBOM you kept, so old findings do not block new work. `--changed-since origin/main` scans only the files a pull request changes. With `-q` the scan prints nothing on success; when a gate fires it still prints why (`failing: 2 asset(s) at high or worse introduced since the baseline`) on stderr and exits 2.
@@ -236,7 +236,7 @@ acxelin-readiness scan . --baseline cbom.json --fail-on high
     upload-sarif: true
 ```
 
-**Docker** (any CI): `docker run --rm -v "$PWD:/scan" acxelin-readiness`. On Linux, add `--user "$(id -u):$(id -g)"` so the scan can write `readiness-out` into your folder.
+**Docker** (any CI): `docker run --rm -v "$PWD:/scan" acxelin-qreadiness`. On Linux, add `--user "$(id -u):$(id -g)"` so the scan can write `readiness-out` into your folder.
 
 ### Test code
 
@@ -274,19 +274,19 @@ findings that appeared and the ones no longer found since its previous scan. It 
 endpoints and AWS regions there are checked each time.
 
 ```
-acxelin-readiness watch PATH --every 24 --on-change "notify-team"
+acxelin-qreadiness watch PATH --every 24 --on-change "notify-team"
 ```
 
 `--on-change` runs a command when something changed, with `ACXELIN_READINESS_CHANGES` set to the path of `changes.json`.
 To let the system's scheduler start it instead, use `--once`: from cron, a systemd timer, or Windows Task Scheduler
-(`schtasks /create /sc daily /tn Readiness /tr "acxelin-readiness watch C:\code\shop --once"`). The first scan only sets the
+(`schtasks /create /sc daily /tn Readiness /tr "acxelin-qreadiness watch C:\code\shop --once"`). The first scan only sets the
 starting point. Each run is also added to `watch.json` in the console's home folder (`--home`, default
 `ACXELIN_READINESS_HOME` or `~/.acxelin-readiness`), so the console's Overview lists it.
 
 ## 7. The console
 
 ```
-acxelin-readiness console
+acxelin-qreadiness console
 ```
 
 Your browser opens, already signed in, with three parts:
@@ -301,14 +301,14 @@ The console listens only on this machine. From a remote server, forward a port a
 
 ```
 ssh -L 8900:127.0.0.1:8900 server
-acxelin-readiness console link --port 8900
+acxelin-qreadiness console link --port 8900
 ```
 
 In Docker, start it with `--container` and publish the port on loopback only:
 
 ```
-docker run -d --name readiness -v readiness:/data -p 127.0.0.1:8900:8900 acxelin-readiness console --container
-docker exec -it readiness acxelin-readiness console link
+docker run -d --name readiness -v readiness:/data -p 127.0.0.1:8900:8900 acxelin-qreadiness console --container
+docker exec -it readiness acxelin-qreadiness console link
 ```
 
 ### Many repositories at once
@@ -361,7 +361,7 @@ first.
 tracking, history and score. Priorities come from the file's own `acxelin:*` properties when it has them, otherwise from
 the algorithm alone, and the page says so. Names the catalogue does not recognise are counted, not rated. Nothing in the
 file is re-checked: it describes what the other tool found. Importing a file with the same name again replaces it and
-compares, like a rescan. Files up to 16 MB; for larger ones, use `acxelin-readiness merge`.
+compares, like a rescan. Files up to 16 MB; for larger ones, use `acxelin-qreadiness merge`.
 
 ### Owners
 
@@ -462,7 +462,7 @@ The **What it tracks** tab lists the five kinds of asset Readiness records (algo
 
 ### Full TLS handshakes
 
-Grades, accepted groups and SSH algorithms need nothing extra. To read the certificate of a server that offers only post-quantum key exchange, Acxelin Readiness completes a real TLS 1.3 handshake through OpenSSL 3.5 or newer, in `scan --tls` and in `grade`. Point `ACXELIN_OPENSSL` at the folder that holds it; `doctor` says whether it is found. Without it, the report says those certificates were not observed. It never marks them as passing.
+Grades, accepted groups and SSH algorithms need nothing extra. To read the certificate of a server that offers only post-quantum key exchange, Acxelin QReadiness completes a real TLS 1.3 handshake through OpenSSL 3.5 or newer, in `scan --tls` and in `grade`. Point `ACXELIN_OPENSSL` at the folder that holds it; `doctor` says whether it is found. Without it, the report says those certificates were not observed. It never marks them as passing.
 
 ## 8. How a finding becomes a result
 
@@ -502,7 +502,7 @@ set `india_deadline = 2033` under `[policy]`.
 | Too many findings from generated or vendored code | Those folders are scanned like your own code. | Add them to `exclude` in `.acxelin-readiness.toml`. `vendor/` and `node_modules/` are skipped unless you pass `--include-vendor`. |
 | `certificates ... not observed` in the report | The server offers only post-quantum key exchange, and this machine has no OpenSSL 3.5. | Point `ACXELIN_OPENSSL` at OpenSSL 3.5, or run the scan from the Docker image. |
 | `Permission denied` writing `readiness-out` in Docker | The image runs as user 10001. | Add `--user "$(id -u):$(id -g)"` on Linux. |
-| `The project scan failed` in the console | The folder could not be read. | Check its permissions; `acxelin-readiness scan` on the same folder shows details. |
+| `The project scan failed` in the console | The folder could not be read. | Check its permissions; `acxelin-qreadiness scan` on the same folder shows details. |
 | CI fails on old findings | No baseline was given. | Keep `cbom.json` from a scan of your main branch and pass it with `--baseline`. |
 
 ### Exit codes

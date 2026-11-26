@@ -27,18 +27,18 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     bin_ = env_dir / ("Scripts" if os.name == "nt" else "bin")
     clean = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV")}
     run = lambda *cmd: subprocess.run(cmd, cwd=tmp_path, env=clean, capture_output=True, text=True, check=True)
-    run(str(bin_ / "python"), "-m", "pip", "install", "--quiet", "--no-index", "--find-links", str(house), "acxelin-tls")
+    run(str(bin_ / "python"), "-m", "pip", "install", "--quiet", "--no-index", "--find-links", str(house), "acxelin-qguard")
     installed = {d["name"].lower(): d for d in json.loads(run(str(bin_ / "python"), "-m", "pip", "list", "--format", "json", "-v").stdout)}
-    assert "acxelin-tls" in installed and "acxelin-core" in installed
+    assert "acxelin-qguard" in installed and "acxelin-core" in installed
     assert not any("editable_project_location" in d for d in installed.values())
-    assert not set(installed) & {"acxelin-readiness", "acxelin-vpn"}
+    assert not set(installed) & {"acxelin-qreadiness", "acxelin-qvpn"}
     where = run(str(bin_ / "python"), "-c", "import acxelin_tls, acxelin_core; print(acxelin_tls.__file__); print(acxelin_core.__file__)").stdout.split()
     assert all(str(env_dir) in w for w in where), where
-    lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-tls', 'acxelin-core'):\n"
+    lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-qguard', 'acxelin-core'):\n"
               "    dist = m.distribution(d); print(any(f.name == 'LICENSE' for f in dist.files), 'Proprietary' in ' '.join(dist.metadata.get_all('Classifier')))").stdout
     assert lic.split() == ["True", "True", "True", "True"], lic
-    cli = str(bin_ / "acxelin-tls")
-    assert run(cli, "--version").stdout.strip() == f"acxelin-tls {__version__}"
+    cli = str(bin_ / "acxelin-qguard")
+    assert run(cli, "--version").stdout.strip() == f"acxelin-qguard {__version__}"
     # the CA commands work from the wheel, with no other product
     pki = tmp_path / "pki"
     run(cli, "ca", "init", "--name", "Wheel CA", "--dir", str(pki), "--no-encrypt")
@@ -59,7 +59,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
                 time.sleep(0.1)
         else:
             raise AssertionError("the console did not start")
-        assert "Acxelin TLS" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
+        assert "Acxelin QGuard" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
         with pytest.raises(urllib.error.HTTPError) as refused:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=2)
         assert refused.value.code == 401

@@ -1,9 +1,9 @@
 name: release-products
-# One release per product: push core-vX.Y.Z, tls-vX.Y.Z, vpn-vX.Y.Z or readiness-vX.Y.Z. Core goes first; tools/release_check.py refuses a
+# One release per product: push core-vX.Y.Z, qguard-vX.Y.Z, qvpn-vX.Y.Z or qreadiness-vX.Y.Z. Core goes first; tools/release_check.py refuses a
 # product whose acxelin-core range has no released core in it.
 on:
   push:
-    tags: ["core-v*", "tls-v*", "vpn-v*", "readiness-v*"]
+    tags: ["core-v*", "qguard-v*", "qvpn-v*", "qreadiness-v*"]
 permissions:
   contents: read
 jobs:
@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       product: ${{ steps.tag.outputs.product }}
+      folder: ${{ steps.tag.outputs.folder }}
+      title: ${{ steps.tag.outputs.title }}
       version: ${{ steps.tag.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -21,6 +23,7 @@ jobs:
           python tools/release_check.py "$GITHUB_REF_NAME"
           echo "product=${GITHUB_REF_NAME%-v*}" >> "$GITHUB_OUTPUT"
           echo "version=${GITHUB_REF_NAME##*-v}" >> "$GITHUB_OUTPUT"
+          python -c "import sys; sys.path.insert(0, 'tools'); from release_check import FOLDERS, TITLES, ROOT, parse_tag; p = parse_tag(sys.argv[1])[0]; print(f'folder={FOLDERS[p].relative_to(ROOT).as_posix()}'); print(f'title={TITLES[p]}')" "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
   build:
     needs: gate
     runs-on: ubuntu-latest
@@ -32,6 +35,8 @@ jobs:
     env:
       PRODUCT: ${{ needs.gate.outputs.product }}
       VERSION: ${{ needs.gate.outputs.version }}
+      FOLDER: ${{ needs.gate.outputs.folder }}
+      TITLE: ${{ needs.gate.outputs.title }}
       ACXELIN_REQUIRE_OPENSSL: "3.5"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,12 +44,12 @@ jobs:
       - name: Test what is being released
         run: |
           if [ "$PRODUCT" = core ]; then pip install ./core pytest && python -m pytest -q core/tests; else
-            extra=$(python -c "import sys; sys.path.insert(0, 'tools'); from wheelhouse import EXTRAS; print(EXTRAS.get('$PRODUCT', '').strip('[]'))")
-            pip install ./core "./products/$PRODUCT[test${extra:+,$extra}]"  # with the optional parts the release folder carries
-            ACXELIN_INSTALL_TEST=1 python -m pytest -q "products/$PRODUCT/tests" --ignore="products/$PRODUCT/tests/browser"; fi
+            extra=$(python -c "import sys; sys.path.insert(0, 'tools'); from wheelhouse import EXTRAS; print(EXTRAS.get('${FOLDER#products/}', '').strip('[]'))")
+            pip install ./core "./$FOLDER[test${extra:+,$extra}]"  # with the optional parts the release folder carries
+            ACXELIN_INSTALL_TEST=1 python -m pytest -q "$FOLDER/tests" --ignore="$FOLDER/tests/browser"; fi
       - name: What the customer receives (the product's wheels with acxelin-core and every dependency, installers, manual, licence) with checksums
         run: |
-          if [ "$PRODUCT" = core ]; then pip wheel --wheel-dir wheelhouse ./core; else python tools/wheelhouse.py "$PRODUCT" wheelhouse; fi
+          if [ "$PRODUCT" = core ]; then pip wheel --wheel-dir wheelhouse ./core; else python tools/wheelhouse.py "${FOLDER#products/}" wheelhouse; fi
           python -m venv /tmp/check && /tmp/check/bin/pip install --no-index --find-links wheelhouse "acxelin-$PRODUCT"
           name="acxelin-$PRODUCT-$VERSION-wheelhouse"
           mv wheelhouse "$name"
@@ -64,8 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          folder=$([ "$PRODUCT" = core ] && echo core || echo "products/$PRODUCT")
-          python - "$folder/CHANGELOG.md" "$VERSION" > notes.md <<'PY'
+          python - "$FOLDER/CHANGELOG.md" "$VERSION" > notes.md <<'PY'
           import re, sys
           text = open(sys.argv[1]).read()
           m = re.search(rf"^## {re.escape(sys.argv[2])}\b.*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
@@ -75,7 +79,7 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" "acxelin-$PRODUCT-$VERSION-wheelhouse.tar.gz" SHA256SUMS "acxelin-$PRODUCT-$VERSION.cdx.json" --clobber
             gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --notes-file notes.md
           else
-            gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" "acxelin-$PRODUCT-$VERSION-wheelhouse.tar.gz" SHA256SUMS "acxelin-$PRODUCT-$VERSION.cdx.json" --title "Acxelin $PRODUCT $VERSION" --notes-file notes.md
+            gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" "acxelin-$PRODUCT-$VERSION-wheelhouse.tar.gz" SHA256SUMS "acxelin-$PRODUCT-$VERSION.cdx.json" --title "$TITLE $VERSION" --notes-file notes.md
           fi
   image:
     needs: [gate, build]
@@ -89,13 +93,15 @@ jobs:
     env:
       PRODUCT: ${{ needs.gate.outputs.product }}
       VERSION: ${{ needs.gate.outputs.version }}
+      FOLDER: ${{ needs.gate.outputs.folder }}
+      TITLE: ${{ needs.gate.outputs.title }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build, smoke-test and push the container image
         id: push
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/acxelin-$PRODUCT"
-          docker build -f "products/$PRODUCT/deploy/Dockerfile" -t "$image:$VERSION" .
+          docker build -f "$FOLDER/deploy/Dockerfile" -t "$image:$VERSION" .
           docker run --rm "$image:$VERSION" doctor
           echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           docker push "$image:$VERSION"
@@ -107,9 +113,9 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
   installers:
-    # Acxelin VPN's desktop app: the Windows Setup, the macOS disk image and the Linux package, each installed and checked before upload
+    # Acxelin QVPN's desktop app: the Windows Setup, the macOS disk image and the Linux package, each installed and checked before upload
     needs: [gate, build]
-    if: needs.gate.outputs.product == 'vpn'
+    if: needs.gate.outputs.product == 'qvpn'
     strategy:
       matrix:
         os: [ubuntu-24.04, windows-latest, macos-latest]
@@ -143,6 +149,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          gh release download "$GITHUB_REF_NAME" -R "$REPO" -p SHA256SUMS -p "Acxelin-VPN-*" -p "acxelin-vpn_*"
-          sha256sum Acxelin-VPN-* acxelin-vpn_* >> SHA256SUMS
+          gh release download "$GITHUB_REF_NAME" -R "$REPO" -p SHA256SUMS -p "Acxelin-QVPN-*" -p "acxelin-vpn_*"
+          sha256sum Acxelin-QVPN-* acxelin-vpn_* >> SHA256SUMS
           gh release upload "$GITHUB_REF_NAME" -R "$REPO" SHA256SUMS --clobber

@@ -1,4 +1,4 @@
-name: Acxelin Readiness
+name: Acxelin QReadiness
 description: Inventory the cryptography in a repository as a CycloneDX 1.6 CBOM and rank what to migrate for post-quantum
 branding:
   icon: shield
@@ -14,7 +14,7 @@ inputs:
     description: A previous cbom.json; with fail-on, only cryptography added since it fails the step
     default: ""
   args:
-    description: Extra arguments for acxelin-readiness scan, such as --tls api.example.com:443 or --exclude generated
+    description: Extra arguments for acxelin-qreadiness scan, such as --tls api.example.com:443 or --exclude generated
     default: ""
   output:
     description: Output folder
@@ -44,7 +44,7 @@ runs:
         OUT: ${{ inputs.output }}
       run: |
         set +e -f  # -f: args such as --exclude *.min.js reach the scanner as written, not expanded against the workspace
-        acxelin-readiness scan "$SCAN_PATH" -o "$OUT" ${FAIL_ON:+--fail-on "$FAIL_ON"} ${BASELINE:+--baseline "$BASELINE"} $ARGS
+        acxelin-qreadiness scan "$SCAN_PATH" -o "$OUT" ${FAIL_ON:+--fail-on "$FAIL_ON"} ${BASELINE:+--baseline "$BASELINE"} $ARGS
         code=$?
         echo "cbom=$OUT/cbom.json" >> "$GITHUB_OUTPUT"
         echo "code=$code" >> "$GITHUB_OUTPUT"
@@ -52,10 +52,10 @@ runs:
       uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
       with:
         sarif_file: ${{ inputs.output }}/readiness.sarif
-        category: acxelin-readiness
+        category: acxelin-qreadiness
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: acxelin-readiness
+        name: acxelin-qreadiness
         path: ${{ inputs.output }}
         overwrite: true
     - shell: bash

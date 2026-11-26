@@ -1,4 +1,4 @@
-"""The VPN's CBOM is something Acxelin Readiness can take in: `acxelin-readiness merge` reads it like any other system's CBOM and
+"""The VPN's CBOM is something Acxelin QReadiness can take in: `acxelin-qreadiness merge` reads it like any other system's CBOM and
 ranks what it finds. Neither product imports the other; only this repository-level test sees both."""
 import json
 import textwrap
@@ -31,7 +31,7 @@ def test_readiness_merges_the_vpn_cbom_and_sees_its_post_quantum_tunnels(tmp_pat
     (tmp_path / "vpn").mkdir()
     (tmp_path / "vpn" / "cbom.json").write_text(vpn.cbom([site], "Acme VPN"))
     systems = readiness.run([tmp_path / "vpn"], "Acme", tmp_path / "merged")
-    assert [s["name"] for s in systems] == ["Acme VPN"] and systems[0]["tool"].startswith("acxelin-vpn")
+    assert [s["name"] for s in systems] == ["Acme VPN"] and systems[0]["tool"].startswith("acxelin-qvpn")
     tiers = {a["name"]: a["tier"] for a in systems[0]["assets"]}
     assert tiers["ML-KEM-768"] == tiers["X25519MLKEM768"] == tiers["ML-DSA-65"] == "ok"
     assert tiers["X25519"] not in ("ok", None), "the classical half of the hybrid is still ranked as quantum-exposed"

@@ -1,8 +1,8 @@
-# Acxelin TLS manual
+# Acxelin QGuard manual
 
-Acxelin TLS puts post-quantum TLS 1.3 and mutual TLS in front of the services you already run, and issues the ML-DSA certificates they need from your own certificate authority. The service behind it does not change.
+Acxelin QGuard puts post-quantum TLS 1.3 and mutual TLS in front of the services you already run, and issues the ML-DSA certificates they need from your own certificate authority. The service behind it does not change.
 
-This manual covers installing it, a first edge in ten minutes, the everyday work, running it in production, and what to do when something goes wrong. Acxelin TLS installs and runs on its own; it needs no other Acxelin product.
+This manual covers installing it, a first edge in ten minutes, the everyday work, running it in production, and what to do when something goes wrong. Acxelin QGuard installs and runs on its own; it needs no other Acxelin product.
 
 ## 1. What you get
 
@@ -24,9 +24,9 @@ A connection that cannot meet your policy ends. Nothing falls back silently to a
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/tls-v1.2.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qguard-v1.3.0) and save them in one folder:
 
-- `acxelin-tls-1.2.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
+- `acxelin-qguard-1.3.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 Then open a terminal in that folder. On Windows, use PowerShell.
@@ -44,24 +44,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-tls-1.2.0-wheelhouse.tar.gz
+shasum -a 256 acxelin-qguard-1.3.0-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-tls-1.2.0-wheelhouse.tar.gz
+Get-FileHash .\acxelin-qguard-1.3.0-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-tls-1.2.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-qguard-1.3.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-tls-1.2.0-wheelhouse.tar.gz
-cd acxelin-tls-1.2.0-wheelhouse
+tar xzf acxelin-qguard-1.3.0-wheelhouse.tar.gz
+cd acxelin-qguard-1.3.0-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -73,10 +73,10 @@ cd acxelin-tls-1.2.0-wheelhouse
 
 On Windows, the first command tells Windows you trust this downloaded script, and the second runs it.
 
-The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-tls` on your PATH and runs a health check. A ready machine prints:
+The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-qguard` on your PATH and runs a health check. A ready machine prints:
 
 ```
-acxelin-tls 1.2.0, Python 3.11.15
+acxelin-qguard 1.3.0, Python 3.11.15
 ok    cryptography 50.0.2 issues ML-DSA certificates
 ok    OpenSSL 3.5.4 30 Sep 2025 can do post-quantum TLS 1.3
 ```
@@ -88,15 +88,15 @@ To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). You
 **With Docker instead:** each release publishes an image with OpenSSL 3.5 included. Pull it and give it a short name, which the rest of this manual uses:
 
 ```
-docker pull ghcr.io/acxelinquantum/acxelin-tls:1.2.0
-docker tag ghcr.io/acxelinquantum/acxelin-tls:1.2.0 acxelin-tls
-docker run --rm acxelin-tls doctor
+docker pull ghcr.io/acxelinquantum/acxelin-qguard:1.3.0
+docker tag ghcr.io/acxelinquantum/acxelin-qguard:1.3.0 acxelin-qguard
+docker run --rm acxelin-qguard doctor
 ```
 
 ## 4. See it work in one minute
 
 ```
-acxelin-tls try
+acxelin-qguard try
 ```
 
 The tour sets up a CA, an ordinary web server and an edge in front of it, then shows a post-quantum client getting through and a classical client being refused. It needs nothing else and leaves nothing behind.
@@ -110,7 +110,7 @@ These steps put post-quantum TLS in front of a web app listening on `127.0.0.1:8
 Choose a passphrase for its key; you need it whenever you issue or revoke.
 
 ```
-acxelin-tls ca init --name "Example Root CA" --dir pki
+acxelin-qguard ca init --name "Example Root CA" --dir pki
 ```
 
 It prints `created ML-DSA-87 root 'Example Root CA' in pki`. Keep the `pki` folder safe: `pki/ca.key` is the key every certificate depends on.
@@ -120,7 +120,7 @@ It prints `created ML-DSA-87 root 'Example Root CA' in pki`. Keep the `pki` fold
 Use the name your clients will connect to:
 
 ```
-acxelin-tls ca issue server web.example.com --dir pki --out web
+acxelin-qguard ca issue server web.example.com --dir pki --out web
 ```
 
 `web/chain.pem` is the certificate with the CA, and `web/key.pem` is its private key.
@@ -128,7 +128,7 @@ acxelin-tls ca issue server web.example.com --dir pki --out web
 ### Step 3: start the edge in front of the app
 
 ```
-acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.pem --key web/key.pem --metrics 127.0.0.1:9100
+acxelin-qguard edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.pem --key web/key.pem --metrics 127.0.0.1:9100
 ```
 
 ### Step 4: test it
@@ -136,7 +136,7 @@ acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.
 From any machine that has `pki/ca.crt`:
 
 ```
-acxelin-tls connect web.example.com:8443 --ca pki/ca.crt --send "GET / HTTP/1.0\r\n\r\n"
+acxelin-qguard connect web.example.com:8443 --ca pki/ca.crt --send "GET / HTTP/1.0\r\n\r\n"
 ```
 
 You see what was negotiated, then the app's reply:
@@ -151,7 +151,7 @@ You see what was negotiated, then the app's reply:
 
 ### Step 5: check the edge's counters
 
-`acxelin-tls status --url http://127.0.0.1:9100` prints the policy, the open connections and the key exchanges clients negotiated.
+`acxelin-qguard status --url http://127.0.0.1:9100` prints the policy, the open connections and the key exchanges clients negotiated.
 
 A client that cannot do post-quantum key exchange is refused, and the edge's log says why: `the client offers none of the key exchanges this policy allows`.
 
@@ -159,16 +159,16 @@ A client that cannot do post-quantum key exchange is refused, and the edge's log
 
 | Task | Command |
 |---|---|
-| Open the console | `acxelin-tls console` |
-| Issue a server certificate | `acxelin-tls ca issue server NAME --dir pki --out FOLDER` |
-| Issue a client certificate (mutual TLS) | `acxelin-tls ca issue client NAME --dir pki --out FOLDER` |
-| List what the CA issued | `acxelin-tls ca list --dir pki` |
-| Renew a certificate | `acxelin-tls ca renew SERIAL --dir pki` |
-| Certify a key made elsewhere | `acxelin-tls ca sign-csr request.csr --kind server --dir pki --out FOLDER` |
-| Revoke a certificate | `acxelin-tls ca revoke SERIAL --dir pki` |
-| Renew what expires soon and refresh the CRL | `acxelin-tls ca maintain --dir pki` (daily) |
-| Check a CA folder or an edge configuration | `acxelin-tls doctor --ca pki --config edge.toml` |
-| nginx, PostgreSQL, pgvector or MQTT behind an edge | `acxelin-tls bundle nginx --host web.example.com` |
+| Open the console | `acxelin-qguard console` |
+| Issue a server certificate | `acxelin-qguard ca issue server NAME --dir pki --out FOLDER` |
+| Issue a client certificate (mutual TLS) | `acxelin-qguard ca issue client NAME --dir pki --out FOLDER` |
+| List what the CA issued | `acxelin-qguard ca list --dir pki` |
+| Renew a certificate | `acxelin-qguard ca renew SERIAL --dir pki` |
+| Certify a key made elsewhere | `acxelin-qguard ca sign-csr request.csr --kind server --dir pki --out FOLDER` |
+| Revoke a certificate | `acxelin-qguard ca revoke SERIAL --dir pki` |
+| Renew what expires soon and refresh the CRL | `acxelin-qguard ca maintain --dir pki` (daily) |
+| Check a CA folder or an edge configuration | `acxelin-qguard doctor --ca pki --config edge.toml` |
+| nginx, PostgreSQL, pgvector or MQTT behind an edge | `acxelin-qguard bundle nginx --host web.example.com` |
 
 Passphrases come from `ACXELIN_TLS_CA_PASSPHRASE` or a prompt, never from the command line.
 
@@ -177,36 +177,36 @@ Passphrases come from `ACXELIN_TLS_CA_PASSPHRASE` or a prompt, never from the co
 Add three options to the edge. Then only machines holding a certificate from your CA, and not revoked, get through.
 
 ```
-acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.pem --key web/key.pem \
+acxelin-qguard edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.pem --key web/key.pem \
   --require-client-cert --ca pki/ca.crt --crl pki/crl.pem
 ```
 
-Give each client its own certificate (`acxelin-tls ca issue client laptop-01 --dir pki --out laptop`). It connects with `--cert laptop/chain.pem --key laptop/key.pem`. A client without one is refused, and the edge logs `peer did not return a certificate`.
+Give each client its own certificate (`acxelin-qguard ca issue client laptop-01 --dir pki --out laptop`). It connects with `--cert laptop/chain.pem --key laptop/key.pem`. A client without one is refused, and the edge logs `peer did not return a certificate`.
 
 ### Short-lived certificates
 
 A certificate that lives for a day needs no revocation: it is gone by tomorrow. To use them, issue with hours and renew automatically:
 
 ```
-acxelin-tls ca issue server payments.internal --dir pki --hours 24 --out payments
-acxelin-tls ca maintain --dir pki
+acxelin-qguard ca issue server payments.internal --dir pki --hours 24 --out payments
+acxelin-qguard ca maintain --dir pki
 ```
 
 `ca maintain` renews a short-lived certificate in the last third of its life (a 24-hour certificate at 8 hours) into the same folder, and edges pick the new one up without a restart. A renewal keeps the lifetime. Anything up to 7 days counts as short-lived; longer certificates renew for 397 days, as before. Use `--renew-within-hours N` to choose the window yourself.
 
-What you take on: **something must run `ca maintain` at least every third of the shortest lifetime** (every 8 hours for 24-hour certificates), on a machine that can reach the CA. If it stops, the services stop when their certificates expire. `acxelin-tls doctor` tells you the interval, and warns when a certificate is due and has not been renewed. The CRL still matters for mutual TLS: a revoked client is refused at once, not at expiry, and the CRL (7 days by default) is re-signed every time `maintain` runs.
+What you take on: **something must run `ca maintain` at least every third of the shortest lifetime** (every 8 hours for 24-hour certificates), on a machine that can reach the CA. If it stops, the services stop when their certificates expire. `acxelin-qguard doctor` tells you the interval, and warns when a certificate is due and has not been renewed. The CRL still matters for mutual TLS: a revoked client is refused at once, not at expiry, and the CRL (7 days by default) is re-signed every time `maintain` runs.
 
 ### Revoke a certificate
 
 ```
-acxelin-tls ca revoke 775089c0ad0f5832 --dir pki
+acxelin-qguard ca revoke 775089c0ad0f5832 --dir pki
 ```
 
-The CA re-signs `pki/crl.pem`. An edge that reads that file refuses the certificate from its next connection, without a restart. An edge on another machine needs the new CRL: run `acxelin-tls ca publish` next to the CA and set `crl_url` on the edge, which then fetches it every minute.
+The CA re-signs `pki/crl.pem`. An edge that reads that file refuses the certificate from its next connection, without a restart. An edge on another machine needs the new CRL: run `acxelin-qguard ca publish` next to the CA and set `crl_url` on the edge, which then fetches it every minute.
 
 ### Several routes in one edge
 
-Write the routes in a file and start the edge with `acxelin-tls edge --config edge.toml`. Each `[[edge]]` table is one route:
+Write the routes in a file and start the edge with `acxelin-qguard edge --config edge.toml`. Each `[[edge]]` table is one route:
 
 ```
 [metrics]
@@ -237,10 +237,10 @@ ca = "pki/ca.crt"
 Clients that ask can learn that the edge's own certificate is still good (or revoked) from an answer the CA signed, sent inside the handshake, so they do not have to contact the CA.
 
 ```
-acxelin-tls ca ocsp --dir pki --cert shop/chain.pem --out shop/staple.der --hours 24
+acxelin-qguard ca ocsp --dir pki --cert shop/chain.pem --out shop/staple.der --hours 24
 ```
 
-then set `ocsp_staple = "shop/staple.der"` on the route. `acxelin-tls connect` shows what the edge staples, and `acxelin-tls doctor --config` warns when the answer is missing or ends within a day. The route's `cert` must be the `chain.pem` that includes the CA. Run `ca ocsp` again before the answer ends (daily from cron is enough for 24 hours); the edge picks up the new file without a restart.
+then set `ocsp_staple = "shop/staple.der"` on the route. `acxelin-qguard connect` shows what the edge staples, and `acxelin-qguard doctor --config` warns when the answer is missing or ends within a day. The route's `cert` must be the `chain.pem` that includes the CA. Run `ca ocsp` again before the answer ends (daily from cron is enough for 24 hours); the edge picks up the new file without a restart.
 
 What it does and does not do:
 
@@ -316,7 +316,7 @@ handshake then succeeds. Clients that send their hello in several records, or so
 ## 7. The console
 
 ```
-acxelin-tls console
+acxelin-qguard console
 ```
 
 Your browser opens, already signed in. The first time, create the certificate authority. The console asks for the key's passphrase and keeps it in memory only, so it asks again after a restart.
@@ -325,7 +325,7 @@ Your browser opens, already signed in. The first time, create the certificate au
 |---|---|
 | **Certificates** | Issue, download, renew and revoke. A private key reaches the browser only when you choose With key, and never for a revoked certificate or an encrypted key. |
 | **Edges** | Add a running edge by its metrics address to see its policy and negotiated key exchanges. Test a connection to any host, with a client certificate for mutual TLS. |
-| **Health** | Whether this computer can run Acxelin TLS, and whether the CA, its CRL and its certificates are in good shape. |
+| **Health** | Whether this computer can run Acxelin QGuard, and whether the CA, its CRL and its certificates are in good shape. |
 
 Every action is written to an audit log that only you can read.
 
@@ -333,7 +333,7 @@ The console listens only on the machine it runs on. For a remote server, forward
 
 ```
 ssh -L 8900:127.0.0.1:8900 server
-acxelin-tls console link --port 8900
+acxelin-qguard console link --port 8900
 ```
 
 Run the second command in that SSH session, then open the address it prints on your laptop.
@@ -343,21 +343,21 @@ Run the second command in that SSH session, then open the address it prints on y
 **Docker.** One image, with OpenSSL 3.5 included. It runs as user 10001 and keeps its files in `/data`:
 
 ```
-docker run -d --name edge -v /etc/acxelin-tls:/data:ro -p 8443:8443 acxelin-tls edge --config /data/edge.toml
-docker run -d --name console -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container
-docker exec -it console acxelin-tls console link
+docker run -d --name edge -v /etc/acxelin-tls:/data:ro -p 8443:8443 acxelin-qguard edge --config /data/edge.toml
+docker run -d --name console -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-qguard console --container
+docker exec -it console acxelin-qguard console link
 ```
 
 The files in `/etc/acxelin-tls` must be readable by user 10001. Publish the console's port on `127.0.0.1` only, as above.
 
 **systemd.** `deploy/systemd` has `acxelin-tls-edge.service` for the edge, and `acxelin-tls-maintain.service` with a daily timer that runs `ca maintain`. They use `/etc/acxelin-tls`, `/var/lib/acxelin-tls` and the service user `acxelin`.
 
-**Before going live**, run `acxelin-tls doctor --strict --ca pki --config edge.toml`. It exits 0 only when nothing needs attention.
+**Before going live**, run `acxelin-qguard doctor --strict --ca pki --config edge.toml`. It exits 0 only when nothing needs attention.
 
 ### Keeping the CA safe
 
 - The CA key is encrypted by default. Keep the passphrase in your password manager, not on the server.
-- Keep the root offline and issue from an intermediate: `acxelin-tls ca init --name "Example Issuing CA" --parent ROOT_DIR --dir issuing`. If the issuing CA is compromised, the root revokes it and makes a new one. A certificate is only checked against the CRL of the CA that issued it, so give an edge the intermediate's CRL; to let the root's revocation of the intermediate count too, put both in one file: `cat issuing/crl.pem pki/crl.pem > crls.pem`, and use `issuing/chain.pem` as `ca`.
+- Keep the root offline and issue from an intermediate: `acxelin-qguard ca init --name "Example Issuing CA" --parent ROOT_DIR --dir issuing`. If the issuing CA is compromised, the root revokes it and makes a new one. A certificate is only checked against the CRL of the CA that issued it, so give an edge the intermediate's CRL; to let the root's revocation of the intermediate count too, put both in one file: `cat issuing/crl.pem pki/crl.pem > crls.pem`, and use `issuing/chain.pem` as `ca`.
 - An `originate` edge listens on 127.0.0.1 unless you give `--listen`: anyone who can reach its port is tunnelled in with its client certificate, so keep it local or firewalled.
 - The CA key can stay in a hardware security module: `--kms KEY_ID` keeps it in AWS KMS (install the `kms` extra), `--signer-command` hands each signature to your HSM's own tool, and `--pkcs11-module LIBRARY --pkcs11-token LABEL --pkcs11-key LABEL` signs inside any PKCS#11 token (add `--pkcs11-generate` to make the key there, sensitive and not extractable). The PIN is read from `ACXELIN_PKCS11_PIN`, never from a file or the command line. The token must offer `CKM_ML_DSA` (PKCS#11 3.2): SoftHSM2 does from its development branch, not in release 2.7.0 or the 2.6.1 that Ubuntu ships. This was run against SoftHSM2 only; none of the three has been run against a real HSM or a cloud account here, so test it with yours first.
 
@@ -376,13 +376,13 @@ With `--metrics HOST:PORT`, an edge serves `/healthz`, `/metrics` (Prometheus) a
 `evidence create` puts what an edge is and does into one zip, signed with an ML-DSA key from your CA:
 
 ```
-acxelin-tls evidence create --config edge.toml --connect 127.0.0.1:8443 --ca pki/ca.crt --server-name web.corp.example --status http://127.0.0.1:9100 --sign-cert auditor/chain.pem --sign-key auditor/key.pem --out pilot.zip
-acxelin-tls evidence verify pilot.zip --ca pki/ca.crt
+acxelin-qguard evidence create --config edge.toml --connect 127.0.0.1:8443 --ca pki/ca.crt --server-name web.corp.example --status http://127.0.0.1:9100 --sign-cert auditor/chain.pem --sign-key auditor/key.pem --out pilot.zip
+acxelin-qguard evidence verify pilot.zip --ca pki/ca.crt
 ```
 
 | File | What it holds |
 |---|---|
-| `build.json` | Versions of Acxelin TLS, core and `cryptography`, and whether each installed file still matches its wheel; Python, platform and OpenSSL |
+| `build.json` | Versions of Acxelin QGuard, core and `cryptography`, and whether each installed file still matches its wheel; Python, platform and OpenSSL |
 | `config.toml` | The configuration, byte for byte |
 | `doctor.json` | What `doctor` finds about this machine and the configuration |
 | `certificates.json` | Each route's certificates: subject, issuer, serial, algorithm, validity, SHA-256 fingerprint |
@@ -393,15 +393,15 @@ acxelin-tls evidence verify pilot.zip --ca pki/ca.crt
 `verify` reads the zip without unpacking it and fails if any file was changed, added or removed, if the signature does not match,
 or if the signer's certificate does not chain to the CA you give. It does not check whether that certificate was revoked since.
 Private keys, passphrases and the traffic itself never go in; a bundle that would hold a private key is refused. Issue the
-signing certificate with `acxelin-tls ca issue client auditor.acme --out auditor`.
+signing certificate with `acxelin-qguard ca issue client auditor.acme --out auditor`.
 
 ## 9. Enrolling many machines
 
 | Service | Command | For |
 |---|---|---|
-| EST (RFC 7030) | `acxelin-tls ca serve` | Machines enroll with a one-time token from `ca token` over post-quantum TLS, and renew with `ca enroll`. The key never leaves the machine. |
-| ACME (RFC 8555) | `acxelin-tls ca acme` | Standard ACME clients, such as certbot with `--csr`. `ca eab` makes an external account binding key; `ca csr` makes a key and CSR. |
-| CRL publishing | `acxelin-tls ca publish` | Serves `ca.crt` and `crl.pem` over HTTP, so edges can follow revocations (`crl_url`). |
+| EST (RFC 7030) | `acxelin-qguard ca serve` | Machines enroll with a one-time token from `ca token` over post-quantum TLS, and renew with `ca enroll`. The key never leaves the machine. |
+| ACME (RFC 8555) | `acxelin-qguard ca acme` | Standard ACME clients, such as certbot with `--csr`. `ca eab` makes an external account binding key; `ca csr` makes a key and CSR. |
+| CRL publishing | `acxelin-qguard ca publish` | Serves `ca.crt` and `crl.pem` over HTTP, so edges can follow revocations (`crl_url`). |
 
 Every enrollment attempt is written to an owner-only audit log that never contains the token's secret.
 
@@ -410,7 +410,7 @@ Every enrollment attempt is written to an owner-only audit log that never contai
 By default the ACME service proves a name by fetching a file over HTTP (http-01), which needs a web server on that name and cannot prove a wildcard. Give the service a command that looks up DNS TXT records and it also offers dns-01, which proves control by a record at `_acme-challenge.NAME` and is the only way to get a wildcard such as `*.corp.example`:
 
 ```
-acxelin-tls ca acme --dir pki --allow "*.corp.example" --dns-command dig +short TXT
+acxelin-qguard ca acme --dir pki --allow "*.corp.example" --dns-command dig +short TXT
 ```
 
 The service appends the name (`_acme-challenge.corp.example`) to your command, which must print the TXT records it finds, one per line (quotes are fine). Any resolver your bank trusts will do; a script that asks your internal DNS is a normal choice. On Windows use `--dns-command powershell -NoProfile -File lookup.ps1`.
@@ -422,7 +422,7 @@ The client publishes the record, as certbot does with its manual or DNS hooks. L
 A person can get a client certificate in their own name with the ID token their identity provider issues, instead of a one-time token you hand out.
 
 ```
-acxelin-tls ca oidc --dir pki --issuer https://idp.corp.example --audience acxelin-enroll \
+acxelin-qguard ca oidc --dir pki --issuer https://idp.corp.example --audience acxelin-enroll \
     --jwks-file idp-keys.json --domain corp.example --group pki-users
 ```
 
@@ -431,7 +431,7 @@ acxelin-tls ca oidc --dir pki --issuer https://idp.corp.example --audience acxel
 The person runs, with the token in the environment so it is not on a command line:
 
 ```
-acxelin-tls ca enroll https://ca.corp.example:9443 --oidc --cn ana@corp.example --ca-fingerprint SHA256 --out ana
+acxelin-qguard ca enroll https://ca.corp.example:9443 --oidc --cn ana@corp.example --ca-fingerprint SHA256 --out ana
 ```
 
 The certificate's name must be exactly the name the provider vouches for (the `email` claim, or the claim you chose with `--name-claim`). A token works once. The token must be RS256 or ES256 and signed by one of the provider's keys, for this issuer and audience, not expired, with a verified email; any other algorithm, including `none`, is refused. The CA keeps only a hash of each used token and never writes a token to its logs.
@@ -457,7 +457,7 @@ tshark -i lo -f "tcp port 8443" -w edge.pcapng
 **2. Connect a post-quantum client, then a classical one.**
 
 ```
-acxelin-tls connect 127.0.0.1:8443 --ca pki/ca.crt --server-name web.example.com
+acxelin-qguard connect 127.0.0.1:8443 --ca pki/ca.crt --server-name web.example.com
 curl -k --curves X25519 https://127.0.0.1:8443/
 ```
 
@@ -493,7 +493,7 @@ Wireshark 4.2 does not have names for most post-quantum code points, so it shows
 | `tls.alert_message.desc == 40` | handshake failures: clients the policy refused |
 | `tls.handshake.extensions_server_name == "web.example.com"` | connections for one name, on a port several routes share |
 
-What Wireshark cannot show you: the certificate, the HTTP inside, or the keys. The edge has no option to write session keys to a file for decryption, on purpose, so a capture taken anywhere on the network shows only what is above. To see the certificate the edge serves, use `acxelin-tls connect`, which prints its subject, key algorithm, serial and expiry, and what the edge staples about it.
+What Wireshark cannot show you: the certificate, the HTTP inside, or the keys. The edge has no option to write session keys to a file for decryption, on purpose, so a capture taken anywhere on the network shows only what is above. To see the certificate the edge serves, use `acxelin-qguard connect`, which prints its subject, key algorithm, serial and expiry, and what the edge staples about it.
 
 ## 12. When something goes wrong
 
@@ -503,13 +503,13 @@ What Wireshark cannot show you: the certificate, the HTTP inside, or the keys. T
 | `no suitable key share` in the edge's log | The client offers no post-quantum key exchange. | Use a client built on OpenSSL 3.5 or newer, or the `transition` policy while you migrate. |
 | `peer did not return a certificate` | Mutual TLS is on, and the client sent no certificate. | Give the client a certificate from your CA, and point it at its `chain.pem` and `key.pem`. |
 | `the server closed the connection right after the handshake` | The edge refused the client certificate (missing, untrusted or revoked), or the service behind the edge is down. | Read the edge's log, which says which one. Check that the target is listening. |
-| Every client is refused after a week | The CRL has expired, and mutual TLS fails closed. | Run `acxelin-tls ca maintain --dir pki` now, and schedule it daily. |
+| Every client is refused after a week | The CRL has expired, and mutual TLS fails closed. | Run `acxelin-qguard ca maintain --dir pki` now, and schedule it daily. |
 | `The CA key is locked` in the console | The console restarted and forgot the passphrase. | Enter the passphrase again. |
 | `doctor` exits 2 | A check failed. | The line marked `FAIL` names the problem and the fix. |
 
 ### Exit codes
 
-`doctor` exits 0 when everything passes, 1 on warnings with `--strict`, 2 when a check fails, and 3 when this machine cannot run Acxelin TLS. Other commands exit 1 with one line on stderr when they fail.
+`doctor` exits 0 when everything passes, 1 on warnings with `--strict`, 2 when a check fails, and 3 when this machine cannot run Acxelin QGuard. Other commands exit 1 with one line on stderr when they fail.
 
 ## 13. Questions
 

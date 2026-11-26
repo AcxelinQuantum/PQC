@@ -15,9 +15,9 @@ AXE = ROOT / "tools/browser/node_modules/axe-core/axe.min.js"
 sys.path.insert(0, str(ROOT / "tools"))
 import build_site  # noqa: E402
 
-PRODUCTS = {"readiness": ("Acxelin Readiness", "See Acxelin Readiness", "sh install.sh"),
-            "edge": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh"),
-            "vpn": ("Acxelin VPN", "See Acxelin VPN", "sh install.sh")}
+PRODUCTS = {"qreadiness": ("Acxelin QReadiness", "See Acxelin QReadiness", "sh install.sh"),
+            "qguard": ("Acxelin QGuard", "See Acxelin QGuard", "sh install.sh"),
+            "qvpn": ("Acxelin QVPN", "See Acxelin QVPN", "sh install.sh")}
 PAGES = ["index.html"] + [f"{s}/{p}" for s, (_, pages) in build_site.SECTIONS.items() for p, _ in pages]
 OLD = re.compile(r"Wolf ?Pack|wolfpack", re.I)
 
@@ -85,13 +85,13 @@ def test_each_product_page_names_only_its_own_product_and_the_home_page_only_rou
 def test_demos_are_real_output(browser, site):
     base, out = site
     page = browser.new_page()
-    page.goto(base + "/readiness/sample.html")
+    page.goto(base + "/qreadiness/sample.html")
     page.frame_locator("iframe.report").get_by_text("payments-api").first.wait_for()
-    assert '"specVersion": "1.6"' in (out / "readiness/sample-cbom.json").read_text()
-    page.goto(base + "/edge/demo.html")
+    assert '"specVersion": "1.6"' in (out / "qreadiness/sample-cbom.json").read_text()
+    page.goto(base + "/qguard/demo.html")
     tour = page.locator("pre code").first.inner_text()
     assert "refused, as it should be" in tour and "MLKEM768" in tour and "ML-DSA" in tour
-    page.goto(base + "/vpn/demo.html")
+    page.goto(base + "/qvpn/demo.html")
     log = page.locator("pre code").first.inner_text()
     assert "TLSv1.3 X25519MLKEM768" in log and "new keys" in log and "was revoked" in log and "discarded its keys" in log
     page.get_by_role("button", name=re.compile("Both sides derive the same keys")).click()
@@ -138,7 +138,7 @@ def test_every_page_passes_axe_and_does_not_scroll_sideways(browser, site, schem
 def test_skip_link_reaches_the_main_content(browser, site):
     base, _ = site
     page = browser.new_page()
-    page.goto(base + "/edge/index.html")
+    page.goto(base + "/qguard/index.html")
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.className") == "skip"
     page.keyboard.press("Enter")
@@ -173,7 +173,7 @@ def test_the_assets_page_shows_everything_readiness_tracks_from_the_product_itse
     from acxelin_readiness.catalog import CATALOG
     base, _ = site
     page = browser.new_page()
-    page.goto(base + "/readiness/assets.html")
+    page.goto(base + "/qreadiness/assets.html")
     text = page.locator("main").inner_text()
     missing = [name for name in CATALOG if name not in text]
     assert not missing, missing
@@ -183,4 +183,15 @@ def test_the_assets_page_shows_everything_readiness_tracks_from_the_product_itse
     sources = re.findall(r"^\| ([A-Z][^|]+?) \|", manual.split("### What it reads", 1)[1].split("###", 1)[0], re.M)
     assert len(sources) >= 6 and all(s.strip() in text for s in sources if s.strip() != "Source"), sources
     assert page.get_by_text("quantum-safe", exact=False).count() and page.get_by_text("broken today", exact=False).count()
+    page.close()
+
+
+def test_the_earlier_addresses_redirect_to_the_renamed_products(browser, site):
+    base, _ = site
+    page = browser.new_page()
+    for old, new in build_site.MOVED.items():
+        page.goto(f"{base}/{old}/set-up.html")
+        page.wait_for_url(f"{base}/{new}/set-up.html")
+        page.goto(f"{base}/{old}/")
+        page.wait_for_url(f"{base}/{new}/")
     page.close()

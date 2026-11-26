@@ -26,13 +26,16 @@ def install(script, tmp_path, *args):
 def test_install_from_a_checkout_then_use_reinstall_and_uninstall(tmp_path, product, first):
     r = install(ROOT / f"products/{product}/install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
-    cmd = tmp_path / "bin" / f"acxelin-{product}"
-    assert subprocess.run([str(cmd), "--version"], capture_output=True, text=True).stdout.strip() == f"acxelin-{product} {version(product)}"
-    assert f"acxelin-{product} {first}" in r.stdout, "the installer ends by saying what to do next"
+    name = {"readiness": "acxelin-qreadiness", "tls": "acxelin-qguard", "vpn": "acxelin-qvpn"}[product]
+    cmd, old = tmp_path / "bin" / name, tmp_path / "bin" / f"acxelin-{product}"
+    assert subprocess.run([str(cmd), "--version"], capture_output=True, text=True).stdout.strip() == f"{name} {version(product)}"
+    was = subprocess.run([str(old), "--version"], capture_output=True, text=True)
+    assert was.stdout.strip() == f"{name} {version(product)}" and f"now {name}" in was.stderr, "the 1.x name still works and says so"
+    assert f"{name} {first}" in r.stdout, "the installer ends by saying what to do next"
     again = install(ROOT / f"products/{product}/install.sh", tmp_path)
     assert again.returncode == 0, again.stderr
     gone = install(ROOT / f"products/{product}/install.sh", tmp_path, "--uninstall")
-    assert gone.returncode == 0 and not cmd.exists() and not (tmp_path / "prefix" / product).exists()
+    assert gone.returncode == 0 and not cmd.exists() and not old.exists() and not (tmp_path / "prefix" / product).exists()
 
 
 @slow
@@ -41,7 +44,7 @@ def test_the_readiness_folder_installs_offline_everywhere_with_the_crawler(tmp_p
     offline scan follows values through JavaScript, TypeScript, Java and Go like the image and the sample report."""
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package
-    house = package("readiness", tmp_path / f"acxelin-readiness-{version('readiness')}-wheelhouse")
+    house = package("readiness", tmp_path / f"acxelin-qreadiness-{version('readiness')}-wheelhouse")
     names = [w.name for w in house.glob("*.whl")]
     for dist in ("cryptography", "tree_sitter-", "tree_sitter_typescript"):
         for plat in ("win_amd64", "macosx_11_0_arm64", "manylinux2014_aarch64"):
@@ -57,7 +60,7 @@ def test_the_readiness_folder_installs_offline_everywhere_with_the_crawler(tmp_p
 def test_install_offline_from_a_release_wheelhouse(tmp_path):
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package
-    house = package("tls", tmp_path / f"acxelin-tls-{version('tls')}-wheelhouse")
+    house = package("tls", tmp_path / f"acxelin-qguard-{version('tls')}-wheelhouse")
     shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
     assert {"install.sh", "install.ps1", "README.md", "LICENSE", "docs/manual.md", "config/example.toml", "deploy/systemd/acxelin-tls-edge.service"} <= shipped
     assert not [n for n in shipped if n.startswith("acxelin_readiness")], shipped
@@ -72,26 +75,27 @@ def test_install_offline_from_a_release_wheelhouse(tmp_path):
 def test_the_vpn_release_folder_installs_offline_and_carries_its_units(tmp_path):
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package
-    house = package("vpn", tmp_path / f"acxelin-vpn-{version('vpn')}-wheelhouse")
+    house = package("vpn", tmp_path / f"acxelin-qvpn-{version('vpn')}-wheelhouse")
     shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
     units = {f"deploy/systemd/{u}" for u in ("acxelin-vpn-ipsec.service", "acxelin-vpn-wireguard.service", "strongswan-pqc.service",
                                               "acxelin-vpn-enroll.service", "acxelin-vpn-ca-maintain.service", "acxelin-vpn-ca-maintain.timer")}
     assert {"install.sh", "install.ps1", "README.md", "LICENSE", "CHANGELOG.md", "docs/manual.md", "config/site-hq.toml",
             "config/gateway.toml"} | units <= shipped
-    assert any(n.startswith("vici-") for n in shipped), "a gateway installs acxelin-vpn[vpn] from the folder, offline"
+    assert any(n.startswith("vici-") for n in shipped), "a gateway installs acxelin-qvpn[vpn] from the folder, offline"
     assert not [n for n in shipped if n.startswith(("acxelin_readiness", "acxelin_tls"))], shipped
     r = install(house / "install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "from the wheels next to it" in r.stdout and "acxelin-vpn join" in r.stdout
+    assert "from the wheels next to it" in r.stdout and "acxelin-qvpn join" in r.stdout
     cmd = str(tmp_path / "bin/acxelin-vpn")
-    assert "usage: acxelin-vpn" in subprocess.run([cmd, "--help"], capture_output=True, text=True).stdout
+    assert "usage: acxelin-qvpn" in subprocess.run([cmd, "--help"], capture_output=True, text=True).stdout
     doctor = subprocess.run([cmd, "doctor"], capture_output=True, text=True)
-    assert doctor.returncode in (0, 3) and f"acxelin-vpn {version('vpn')}" in doctor.stdout, doctor.stdout + doctor.stderr
+    assert doctor.returncode in (0, 3) and f"acxelin-qvpn {version('vpn')}" in doctor.stdout, doctor.stdout + doctor.stderr
 
 
 def test_the_installers_of_every_product_differ_only_in_the_product_name():
     for name in ("install.sh", "install.ps1"):
-        a, *rest = ((ROOT / f"products/{p}/{name}").read_text().replace(p, "PRODUCT") for p in ("tls", "readiness", "vpn"))
+        a, *rest = ((ROOT / f"products/{p}/{name}").read_text().replace(n, "NAME").replace(p, "PRODUCT")
+                    for p, n in (("tls", "qguard"), ("readiness", "qreadiness"), ("vpn", "qvpn")))
         assert all(a == b for b in rest), name
 
 

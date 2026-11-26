@@ -1,5 +1,5 @@
 [Unit]
-Description=Acxelin VPN WireGuard gateway: each person's PSK agreed over ML-DSA mutual TLS, rotated, cut on revocation
+Description=Acxelin QVPN WireGuard gateway: each person's PSK agreed over ML-DSA mutual TLS, rotated, cut on revocation
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/acxelin-vpn/gateway.toml
@@ -8,7 +8,7 @@ ConditionPathExists=/etc/acxelin-vpn/gateway.toml
 ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn gateway --config /etc/acxelin-vpn/gateway.toml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
-StateDirectory=acxelin-vpn
+StateDirectory=acxelin-qvpn
 NoNewPrivileges=yes
 # Sandboxing: systemd-analyze security scores this unit; it keeps only what the service needs.
 PrivateTmp=yes

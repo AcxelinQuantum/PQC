@@ -106,7 +106,7 @@ def settle(detections):
             s.verdict, s.reason = "quarantined", "in code that can never run (a constant-false branch, or after return or raise)"
 
 
-IGNORE = ("acxelin:ignore", "wolfpack:ignore")  # the second is the old name, honoured through acxelin-readiness 1.x
+IGNORE = ("acxelin:ignore", "wolfpack:ignore")  # the second is the old name, honoured through acxelin-qreadiness 1.x
 
 
 def ignored(ls, line):

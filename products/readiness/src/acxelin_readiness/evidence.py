@@ -150,7 +150,7 @@ def code(path):
         props = {p.get("name"): str(p.get("value", "")) for p in c.get("properties") or [] if isinstance(p, dict)}
         old = {"acxelin:" + k.removeprefix("wolfpack:"): v for k, v in props.items() if k.startswith("wolfpack:") and "acxelin:" + k.removeprefix("wolfpack:") not in props}
         if old and not warned:
-            warned = print(f"acxelin-readiness: {path}: read through the old wolfpack:* property names; scan again to write acxelin:* names", file=sys.stderr) or True
+            warned = print(f"acxelin-qreadiness: {path}: read through the old wolfpack:* property names; scan again to write acxelin:* names", file=sys.stderr) or True
         props |= old  # old prefix, read through 1.x
         tier, name = props.get("acxelin:tier"), str(c.get("name", "?"))
         estimated = tier is None
@@ -242,7 +242,7 @@ def to_html(rep, title="Post-quantum readiness"):
             f"<label>Status<select id=st><option value=''>All</option>{options}</select></label><span id=n role=status></span></div>"
             f"<div class=scroll tabindex=0 role=region aria-label='Every asset'><table><thead><tr><th>Area</th><th>Asset</th><th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Frameworks</th><th>Evidence</th></tr></thead>"
             f"<tbody id=rows>{rows}</tbody></table></div><p><small>{e(FRAMEWORK_NOTE)}</small></p></section>" + DASHBOARD)
-    return _page(title, "Readiness assessment", title, e(sub), body, f"Acxelin Readiness {__version__}")
+    return _page(title, "Readiness assessment", title, e(sub), body, f"Acxelin QReadiness {__version__}")
 
 
 DASHBOARD = """<style>.todo{list-style:none;display:grid;gap:10px}.todo small{color:var(--mute)}.filters{display:flex;flex-wrap:wrap;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}

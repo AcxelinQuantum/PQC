@@ -1,4 +1,4 @@
-<!-- title: How Acxelin TLS works -->
+<!-- title: How Acxelin QGuard works -->
 <!-- description: How the edge decides whether a connection is allowed, how the certificate authority keeps certificates and revocations current, and what the edge reports. -->
 <section>
 <h1>How a connection is decided</h1>
@@ -11,9 +11,9 @@
 </section>
 
 <section aria-labelledby="authority">
-<h2 id="authority">The certificate authority</h2>
+<h2 id="authority">QCertificate, the certificate authority</h2>
 <dl class="rows">
-<div><dt>Create</dt><dd><code>acxelin-tls ca init</code> makes a root (ML-DSA-87 by default) in a folder: its certificate, its key (encrypted unless you ask otherwise), an index of everything it issued, and the revocation list.</dd></div>
+<div><dt>Create</dt><dd><code>acxelin-qguard ca init</code> makes a root (ML-DSA-87 by default) in a folder: its certificate, its key (encrypted unless you ask otherwise), an index of everything it issued, and the revocation list.</dd></div>
 <div><dt>Issue and renew</dt><dd>Certificates are ML-DSA-65 by default and last 397 days. <code>ca issue</code> makes a key and certificate, <code>ca renew</code> reissues, and <code>ca sign-csr</code> certifies a key made elsewhere.</dd></div>
 <div><dt>Revoke</dt><dd><code>ca revoke SERIAL</code> marks the certificate revoked and signs a new list. The list is valid for 7 days, so run <code>ca maintain</code> daily to keep it fresh.</dd></div>
 <div><dt>Reach the edges</dt><dd><code>ca publish</code> serves the root certificate and the list over HTTP. An edge on another machine follows the list with <code>crl_url</code> and keeps only one the authority signed, that has not expired and is not older than its copy.</dd></div>

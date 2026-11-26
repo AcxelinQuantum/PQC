@@ -158,7 +158,7 @@ def test_the_console_signs_in_over_http_with_a_launch_ticket(app, home):
     port = server.server_address[1]
     try:
         page = urllib.request.urlopen(f"http://127.0.0.1:{port}/").read()
-        assert b"Acxelin Readiness" in page and page.count(b"<script>") == 1
+        assert b"Acxelin QReadiness" in page and page.count(b"<script>") == 1
         ticket = app.sessions.ticket()
         post = lambda path, body, token=None: urllib.request.urlopen(urllib.request.Request(
             f"http://127.0.0.1:{port}{path}", json.dumps(body).encode(), {"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {})}))

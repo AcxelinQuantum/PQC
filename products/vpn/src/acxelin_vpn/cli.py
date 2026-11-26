@@ -1,4 +1,4 @@
-"""The `acxelin-vpn` command: site-to-site IPsec, the WireGuard gateway, and people's computers (join, the app, the desktop tray)."""
+"""The `acxelin-qvpn` command: site-to-site IPsec, the WireGuard gateway, and people's computers (join, the app, the desktop tray)."""
 import argparse
 import json
 import logging
@@ -50,7 +50,7 @@ def cmd_vpn(a):
         if a.cmd != "status" or a.config or a.vici:
             raise
         print("Not connected. No VPN client is running on this machine and no strongSwan site is reachable here.\n"
-              "Laptop: acxelin-vpn join YOUR.acxinvite (administrator terminal). Gateway: start strongSwan, or give --config or --vici.")
+              "Laptop: acxelin-qvpn join YOUR.acxinvite (administrator terminal). Gateway: start strongSwan, or give --config or --vici.")
         return 1
     if a.cmd == "check":
         kems = ch.ml_kem()
@@ -100,7 +100,7 @@ def cmd_invite(a):
     from acxelin_core.files import write
     from . import join
     if not a.enroll.startswith("https://"):
-        raise ValueError("--enroll must be the https:// address of `acxelin-vpn ca serve`")
+        raise ValueError("--enroll must be the https:// address of `acxelin-qvpn ca serve`")
     out = Path(a.out or f"{a.name}.acxinvite")
     if out.exists():
         raise ValueError(f"{out} already exists; choose another --out")
@@ -109,7 +109,7 @@ def cmd_invite(a):
     audit.record(a.dir, "invite", name=a.name, expires=expires)
     print(f"wrote {out}: it lets {a.name} enroll once before {expires} and then connect to {a.gateway}.\n"
           f"Send it through a channel you trust (it holds a one-time token and the CA fingerprint the device will trust).\n"
-          f"On the device, in an administrator terminal: acxelin-vpn join {out.name}")
+          f"On the device, in an administrator terminal: acxelin-qvpn join {out.name}")
     return 0
 
 
@@ -119,7 +119,7 @@ def cmd_join(a):
     inv = join.read(a.invitation)
     device = join.device_for(a.invitation, a.device)
     if not a.no_apply:
-        join.preflight(f"acxelin-vpn join {a.invitation}")
+        join.preflight(f"acxelin-qvpn join {a.invitation}")
     enroll = join.must_enroll(inv, device)
     passphrase = env_passphrase(a.key_passphrase_env)
     if enroll:
@@ -146,7 +146,7 @@ def cmd_app(a):
     held, running = app.claim(window.folder, f"{a.interface}.app")
     if not held:
         if not running:
-            raise ValueError(f"another `acxelin-vpn app` holds {a.interface}; stop it, or use --interface")
+            raise ValueError(f"another `acxelin-qvpn app` holds {a.interface}; stop it, or use --interface")
         url = f"http://127.0.0.1:{running['port']}/#{app.request(running['port'], running['token'], 'POST', '/api/ticket')['ticket']}"
         print(f"The VPN window for {a.interface} is already running: {url}", flush=True)
         if not a.no_browser:
@@ -162,7 +162,7 @@ def cmd_app(a):
         for h in logging.getLogger().handlers:
             h.setStream(log)
     elif not a.no_apply:
-        join.preflight("acxelin-vpn app" + (f" {a.invitation}" if a.invitation else ""))
+        join.preflight("acxelin-qvpn app" + (f" {a.invitation}" if a.invitation else ""))
     srv = app.serve(window, ("127.0.0.1", port))
     window.on_quit = lambda: threading.Thread(target=srv.shutdown).start()
     port = srv.server_address[1]
@@ -224,7 +224,7 @@ def cmd_wireguard(a):
         print(f"{a.interface} is down and nothing is blocked any more")
         return 0
     if a.cmd == "uninstall":
-        print(f"removed {platforms.uninstall()}; the VPN no longer starts with this machine (acxelin-vpn disconnect takes it down now)")
+        print(f"removed {platforms.uninstall()}; the VPN no longer starts with this machine (acxelin-qvpn disconnect takes it down now)")
         return 0
     if a.cmd == "install":
         if encrypted(Path(a.cert_dir) / 'key.pem'):
@@ -279,7 +279,7 @@ def describe_vpn(s, details=False):
     elif state == "disconnected":
         lines = ["Disconnected. The tunnel is down and nothing is blocked."]
     elif state == "stopped":
-        lines = [f"Not running. The VPN client last reported at {s['last_seen']}; start it again with `acxelin-vpn join` or `acxelin-vpn connect`."]
+        lines = [f"Not running. The VPN client last reported at {s['last_seen']}; start it again with `acxelin-qvpn join` or `acxelin-qvpn connect`."]
     else:
         lines = [f"Not protected. {s.get('error') or 'Not connected yet'}. Retrying automatically; full-tunnel traffic stays blocked meanwhile."]
     if state in ("degraded", "not_protected"):
@@ -378,25 +378,25 @@ HELP = {
     "key": "the private key",
 }
 
-START = """Acxelin VPN: post-quantum site-to-site IPsec, and WireGuard remote access for people, with a desktop app.
+START = """Acxelin QVPN: post-quantum site-to-site IPsec, and WireGuard remote access for people, with a desktop app.
 
 Start here:
-  acxelin-vpn doctor                  check that this machine can run a gateway or join one
-  acxelin-vpn ca init --name NAME     the certificate authority for gateways and people
-  acxelin-vpn invite NAME ...         administrator: one file that lets a person join
-  acxelin-vpn join NAME.acxinvite     on the person's computer: enroll and connect in one step
-  acxelin-vpn --help                  every command (up, gateway, app, desktop, status ...)"""
+  acxelin-qvpn doctor                  check that this machine can run a gateway or join one
+  acxelin-qvpn ca init --name NAME     the certificate authority for gateways and people
+  acxelin-qvpn invite NAME ...         administrator: one file that lets a person join
+  acxelin-qvpn join NAME.acxinvite     on the person's computer: enroll and connect in one step
+  acxelin-qvpn --help                  every command (up, gateway, app, desktop, status ...)"""
 
 
 def parser():
-    ap = argparse.ArgumentParser(prog=NAME, description="Acxelin VPN: post-quantum site-to-site IPsec (strongSwan) and WireGuard remote access, with a desktop app.")
+    ap = argparse.ArgumentParser(prog=NAME, description="Acxelin QVPN: post-quantum site-to-site IPsec (strongSwan) and WireGuard remote access, with a desktop app.")
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true", help="log debugging detail")
     v = ap.add_subparsers(dest="cmd")
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
-    p = v.add_parser("doctor", help="check that this machine can run Acxelin VPN, and check a CA folder or a configuration")
+    p = v.add_parser("doctor", help="check that this machine can run Acxelin QVPN, and check a CA folder or a configuration")
     p.set_defaults(func=cmd_doctor)
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="a CA folder to check (repeatable)")
     p.add_argument("--config", action="append", default=[], metavar="FILE", help="a site or gateway configuration to check (repeatable)")
@@ -450,7 +450,7 @@ def parser():
     p.add_argument("invitation", nargs="?", help="the .acxinvite file (the window can also open one)")
     p.add_argument("--interface", default="wg0")
     p.add_argument("--no-apply", action="store_true", help="enroll and agree keys, but do not configure a tunnel (a check, not a connection)")
-    p.add_argument("--launcher", action="store_true", help="add Acxelin VPN to the Start menu, Applications or the application list")
+    p.add_argument("--launcher", action="store_true", help="add Acxelin QVPN to the Start menu, Applications or the application list")
     p.add_argument("--remove-launcher", action="store_true", help="remove what --launcher added")
     p.add_argument("--start-at-login", choices=("on", "off"), help="show the tray icon when you log in (it connects only when you ask)")
     p.add_argument("--background", action="store_true", help="start in the tray without opening the window")
@@ -474,10 +474,10 @@ def parser():
     p = v.add_parser("disconnect", help="take the tunnel down and lift the kill switch")
     p.add_argument("--interface", default="wg0")
     v.add_parser("uninstall", help="stop starting the VPN with this machine")
-    p = v.add_parser("inventory", help="the VPN's cryptography as a CycloneDX 1.6 CBOM, for Acxelin Readiness or any CBOM tool")
+    p = v.add_parser("inventory", help="the VPN's cryptography as a CycloneDX 1.6 CBOM, for Acxelin QReadiness or any CBOM tool")
     p.add_argument("--config", action="append", required=True, metavar="FILE", help="a site or gateway configuration (repeatable)")
     p.add_argument("--cbom", default="cbom.json", metavar="FILE", help="where to write it (default: cbom.json)")
-    p.add_argument("--name", default="Acxelin VPN", help="what the CBOM is about, e.g. \"Acme VPN\" (default: Acxelin VPN)")
+    p.add_argument("--name", default="Acxelin QVPN", help="what the CBOM is about, e.g. \"Acme VPN\" (default: Acxelin QVPN)")
     evidence_commands.add(v)
     p = v.add_parser("access", help="what each person may reach through the gateway: show it, or print the packet-filter rules that enforce it")
     p.add_argument("action", nargs="?", default="show", choices=["show", "rules"],
@@ -503,6 +503,8 @@ def parser():
 
 
 def main(argv=None):
+    if Path(sys.argv[0]).stem == "acxelin-vpn" and not getattr(sys, "frozen", False):  # the packaged app keeps its file name
+        print("acxelin-vpn is now acxelin-qvpn; the old name works through 1.x.", file=sys.stderr)
     ap = parser()
     a = ap.parse_args(argv)
     if not a.cmd:

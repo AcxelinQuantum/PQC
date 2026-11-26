@@ -1,4 +1,4 @@
-"""The `acxelin-tls` command."""
+"""The `acxelin-qguard` command."""
 import argparse
 import json
 import logging
@@ -100,7 +100,7 @@ def _tour():
         step(2, f"An ordinary web server starts on 127.0.0.1:{web.server_address[1]}. It has no post-quantum support.")
         edge = Edge(Route("try", "terminate", "127.0.0.1:0", f"127.0.0.1:{web.server_address[1]}", cert=str(d / "edge" / "chain.pem"), key=str(d / "edge" / "key.pem"))).start()
         try:
-            step(3, f"The Acxelin TLS edge starts in front of it on 127.0.0.1:{edge.port}, accepting post-quantum clients only.")
+            step(3, f"The Acxelin QGuard edge starts in front of it on 127.0.0.1:{edge.port}, accepting post-quantum clients only.")
             step(4, "A post-quantum client asks for the page through the edge:")
             with tls.connect("127.0.0.1", edge.port, tls.client_context(policies.policy("strict"), d / "pki" / "ca.crt"), "localhost", 10) as c:
                 c.sendall(b"GET / HTTP/1.0\r\n\r\n")
@@ -126,22 +126,22 @@ def _tour():
             edge.stop(0)
             web.shutdown()
             web.server_close()
-    print("\nThat is Acxelin TLS: post-quantum protection in front of a service that did not change.\nNext: acxelin-tls edge --help")
+    print("\nThat is Acxelin QGuard: post-quantum protection in front of a service that did not change.\nNext: acxelin-qguard edge --help")
     return 0
 
 
-START = """Acxelin TLS: post-quantum TLS and mutual TLS in front of the services you run, with your own certificate authority.
+START = """Acxelin QGuard: post-quantum TLS and mutual TLS in front of the services you run, with your own certificate authority.
 
 Start here:
-  acxelin-tls console      your certificate authority, certificates and edges, in your browser
-  acxelin-tls try          a one-minute tour: a post-quantum client gets through, a classical one is refused
-  acxelin-tls doctor       check that this machine can do post-quantum TLS
-  acxelin-tls --help       every command (edge, bundle, connect, ca ...)
-New here? `acxelin-tls try` first; `acxelin-tls doctor` if anything fails."""
+  acxelin-qguard console      your certificate authority, certificates and edges, in your browser
+  acxelin-qguard try          a one-minute tour: a post-quantum client gets through, a classical one is refused
+  acxelin-qguard doctor       check that this machine can do post-quantum TLS
+  acxelin-qguard --help       every command (edge, bundle, connect, ca ...)
+New here? `acxelin-qguard try` first; `acxelin-qguard doctor` if anything fails."""
 
 
 def parser():
-    ap = argparse.ArgumentParser(prog=NAME, description="Acxelin TLS: post-quantum TLS 1.3 and mTLS in front of the services you already run, with its own certificate authority.")
+    ap = argparse.ArgumentParser(prog=NAME, description="Acxelin QGuard: post-quantum TLS 1.3 and mTLS in front of the services you already run, with its own certificate authority.")
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -150,7 +150,7 @@ def parser():
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
     p = sub.add_parser("try", help="a one-minute tour: the post-quantum edge in front of a web server")
     p.set_defaults(func=cmd_try)
-    p = sub.add_parser("doctor", help="check that this machine can run Acxelin TLS, and check a CA folder or an edge configuration")
+    p = sub.add_parser("doctor", help="check that this machine can run Acxelin QGuard, and check a CA folder or an edge configuration")
     p.set_defaults(func=cmd_doctor)
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="a CA folder to check (repeatable)")
     p.add_argument("--config", action="append", default=[], metavar="FILE", help="an edge configuration to check (repeatable)")
@@ -170,6 +170,8 @@ def parser():
 
 
 def main(argv=None):
+    if Path(sys.argv[0]).stem == "acxelin-tls":
+        print("acxelin-tls is now acxelin-qguard; the old name works through 1.x.", file=sys.stderr)
     ap = parser()
     a = ap.parse_args(argv)
     if not a.cmd:

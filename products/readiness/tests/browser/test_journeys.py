@@ -85,7 +85,7 @@ def test_first_run_signs_in_without_leaving_a_ticket_or_cookie(page, console, re
     again = page.context.new_page()
     again.goto(f"{base}/#{ticket}")
     again.get_by_role("heading", name="This link has expired").wait_for()
-    assert "acxelin-readiness console" in again.content()
+    assert "acxelin-qreadiness console" in again.content()
 
 
 def test_add_scan_see_priorities_and_assign_an_owner(page, console, repos):

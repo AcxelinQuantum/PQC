@@ -19,7 +19,7 @@ PASS = "vpn-ca-pass-31c9"
 
 
 class Status:
-    """A running site or gateway's /status, as `acxelin-vpn up` and `acxelin-vpn gateway` serve it with metrics on."""
+    """A running site or gateway's /status, as `acxelin-qvpn up` and `acxelin-qvpn gateway` serve it with metrics on."""
     def __init__(self, data):
         self.data = data
         outer = self
@@ -225,7 +225,7 @@ def test_the_console_listens_on_loopback_and_the_page_carries_no_cookie(home):
         c.request("GET", "/", headers={"Host": f"127.0.0.1:{srv.server_address[1]}"})
         r = c.getresponse()
         page = r.read().decode()
-        assert r.status == 200 and "Set-Cookie" not in dict(r.getheaders()) and "Acxelin VPN" in page
+        assert r.status == 200 and "Set-Cookie" not in dict(r.getheaders()) and "Acxelin QVPN" in page
         assert all(t in page for t in ("Sites", "People", "Health"))
     finally:
         srv.shutdown()

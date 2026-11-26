@@ -1,5 +1,5 @@
 [Unit]
-Description=strongSwan charon 6.1 built against OpenSSL 3.5 (ML-KEM), for Acxelin VPN
+Description=strongSwan charon 6.1 built against OpenSSL 3.5 (ML-KEM), for Acxelin QVPN
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/acxelin-vpn/site.toml

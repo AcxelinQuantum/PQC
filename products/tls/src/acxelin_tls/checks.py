@@ -1,4 +1,4 @@
-"""Deployment checks for `acxelin-tls doctor --ca DIR --config FILE`: each check is (level, message) with level ok, warn or fail."""
+"""Deployment checks for `acxelin-qguard doctor --ca DIR --config FILE`: each check is (level, message) with level ok, warn or fail."""
 import datetime as dt
 import os
 from pathlib import Path
@@ -49,17 +49,17 @@ def ca(root):
     except ValueError:
         listed = False
     if listed is None:
-        out.append(("fail", f"no {crl}: mutual-TLS services cannot start (acxelin-tls ca crl)"))
+        out.append(("fail", f"no {crl}: mutual-TLS services cannot start (acxelin-qguard ca crl)"))
     elif listed is False or not signed_by(c.cert, listed.tbs_certlist_bytes, listed.signature):
-        out.append(("fail", f"{crl} is damaged or not signed by this CA; every client would be refused (acxelin-tls ca crl)"))
+        out.append(("fail", f"{crl} is damaged or not signed by this CA; every client would be refused (acxelin-qguard ca crl)"))
     else:
         missing = [r.common_name for r in records if r.status == "revoked" and listed.get_revoked_certificate_by_serial_number(int(r.serial, 16)) is None]
         if missing:
-            out.append(("fail", f"{len(missing)} revoked certificate(s) not in crl.pem ({', '.join(missing[:5])}): run acxelin-tls ca crl"))
+            out.append(("fail", f"{len(missing)} revoked certificate(s) not in crl.pem ({', '.join(missing[:5])}): run acxelin-qguard ca crl"))
         nxt = listed.next_update_utc
         days = (nxt - now()) / dt.timedelta(days=1)
         out.append(("fail" if days < 0 else "warn" if days < 2 else "ok",
-                    f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run acxelin-tls ca maintain'}"))
+                    f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run acxelin-qguard ca maintain'}"))
     newest = {}
     for r in records:
         if r.status == "valid" and r.kind != "ca" and r.path and dt.datetime.fromisoformat(r.not_after) > now():
@@ -75,11 +75,11 @@ def ca(root):
             latest[key] = max(latest.get(key, r), r, key=lambda x: x.not_after)
     soon = [r for r in latest.values() if c.due(r)]
     out.append(("warn", f"{len(soon)} certificate(s) are due for renewal: {', '.join(r.common_name for r in soon[:5])} "
-                        "(acxelin-tls ca maintain renews them)") if soon else ("ok", "no certificate is due for renewal"))
+                        "(acxelin-qguard ca maintain renews them)") if soon else ("ok", "no certificate is due for renewal"))
     shortest = min((c.lifetime(r) for r in latest.values()), default=None)
     if shortest is not None and shortest < dt.timedelta(days=30):
         hours = shortest.total_seconds() / 3600 / 3
-        out.append(("ok", f"the shortest-lived certificate lasts {shortest.total_seconds() / 3600:g} hours: run `acxelin-tls ca maintain` at least every {hours:g} hours or it expires"))
+        out.append(("ok", f"the shortest-lived certificate lasts {shortest.total_seconds() / 3600:g} hours: run `acxelin-qguard ca maintain` at least every {hours:g} hours or it expires"))
     return out
 
 
@@ -149,22 +149,22 @@ def _staple(where, r):
         return []
     follow = StapleFile(r.ocsp_staple, chain[1], chain[0])
     if follow() is None:
-        return [("warn", f"{where}: no OCSP answer is stapled: {follow.problem}. Run `acxelin-tls ca ocsp` (daily)")]
+        return [("warn", f"{where}: no OCSP answer is stapled: {follow.problem}. Run `acxelin-qguard ca ocsp` (daily)")]
     left = follow.kept[1].next_update_utc - dt.datetime.now(dt.timezone.utc)
     if left < dt.timedelta(days=1):
-        return [("warn", f"{where}: the stapled OCSP answer ends in {max(0, int(left.total_seconds() // 3600))} hours; run `acxelin-tls ca ocsp` again")]
+        return [("warn", f"{where}: the stapled OCSP answer ends in {max(0, int(left.total_seconds() // 3600))} hours; run `acxelin-qguard ca ocsp` again")]
     return [("ok", f"{where}: the stapled OCSP answer is valid for {left.days} more days" if left.days else f"{where}: the stapled OCSP answer is valid for {int(left.total_seconds() // 3600)} more hours")]
 
 
 def prerequisites():
-    """What this machine needs to run Acxelin TLS, as rows with product, level (ok, warn or fail), message and action."""
+    """What this machine needs to run Acxelin QGuard, as rows with product, level (ok, warn or fail), message and action."""
     import cryptography
     from acxelin_core import openssl
     rows = [{"product": "ca", "level": "ok", "message": f"cryptography {cryptography.__version__} issues ML-DSA certificates", "action": ""}]
     reason = openssl.available()
     if reason:
         rows.append({"product": "tls", "level": "fail", "message": reason,
-                     "action": "Once that is done, run `acxelin-tls doctor` again"})
+                     "action": "Once that is done, run `acxelin-qguard doctor` again"})
     else:
         rows.append({"product": "tls", "level": "ok", "message": f"{openssl.lib().version} can do post-quantum TLS 1.3", "action": ""})
     return rows

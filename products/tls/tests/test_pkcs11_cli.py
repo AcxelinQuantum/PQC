@@ -1,4 +1,4 @@
-"""`acxelin-tls ca init` with the CA key in a PKCS#11 token (SoftHSM2 with ML-DSA; see core/tests/test_pkcs11_signer.py for how to get one)."""
+"""`acxelin-qguard ca init` with the CA key in a PKCS#11 token (SoftHSM2 with ML-DSA; see core/tests/test_pkcs11_signer.py for how to get one)."""
 import os
 import pytest
 from cryptography import x509

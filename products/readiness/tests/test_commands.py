@@ -9,7 +9,7 @@ def test_grade_writes_json_and_html_and_an_unreachable_endpoint_is_f(tmp_path):
     assert cli.main(["grade", "127.0.0.1:1", "--json", str(out), "--html", str(tmp_path / "g.html"), "--timeout", "1"]) == 0
     [row] = json.loads(out.read_text())["endpoints"]
     assert row["grade"] == "F" and row.get("error")
-    assert "Acxelin Readiness" in (tmp_path / "g.html").read_text()
+    assert "Acxelin QReadiness" in (tmp_path / "g.html").read_text()
 
 
 def test_doctor_says_whether_full_handshakes_are_available(capsys):
@@ -54,4 +54,4 @@ def test_console_container_flag_listens_on_every_interface_and_opens_no_browser(
 def test_no_arguments_shows_where_to_start(capsys):
     assert cli.main([]) == 0
     out = capsys.readouterr().out
-    assert "Start here" in out and "acxelin-readiness scan" in out and "acxelin-readiness console" in out
+    assert "Start here" in out and "acxelin-qreadiness scan" in out and "acxelin-qreadiness console" in out

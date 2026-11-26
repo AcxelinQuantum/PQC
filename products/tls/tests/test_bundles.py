@@ -24,7 +24,7 @@ class BundleTest(unittest.TestCase):
                 self.assertFalse((out / "pki" / "ca.key").exists(), "the CA key must not ship inside the bundle")
                 self.assertTrue((out / "ca.key.KEEP-OFFLINE").exists())
                 readme = (out / "README.txt").read_text()
-                self.assertIn("acxelin-tls connect", readme)
+                self.assertIn("acxelin-qguard connect", readme)
                 self.assertFalse([w for w in ("readiness", "vpn") if w in readme.lower()])
                 self.assertNotIn("Chrome", readme)
             with self.assertRaises(CAError):

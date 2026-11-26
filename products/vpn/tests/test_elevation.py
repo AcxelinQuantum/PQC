@@ -128,7 +128,7 @@ def test_the_boot_units_that_run_as_root_start_programs_under_opt():
 @posix
 def test_on_a_mac_the_refusal_says_applications_is_not_safe_and_what_to_do(user_writable):
     with mock.patch.object(sys, "platform", "darwin"):
-        with pytest.raises(ValueError, match=r"Applications.*any administrator.*sudo acxelin-vpn app"):
+        with pytest.raises(ValueError, match=r"Applications.*any administrator.*sudo acxelin-qvpn app"):
             platforms.require_protected_code("Starting the VPN service from the tray")
 
 
@@ -149,7 +149,7 @@ def test_on_windows_openssl_must_come_from_a_named_folder_not_from_path(monkeypa
     monkeypatch.delenv("ACXELIN_OPENSSL", raising=False)
     with mock.patch.object(platforms.os, "name", "nt"), mock.patch.object(platforms, "protected_location", fake_protection):
         assert "PATH" in platforms.elevation_problem("C:/Program Files/Acxelin VPN/acxelin-vpn.exe")
-        monkeypatch.setenv("ACXELIN_OPENSSL", "C:/Program Files/Acxelin VPN/openssl")
+        monkeypatch.setenv("ACXELIN_OPENSSL", "C:/Program Files/Acxelin QVPN/openssl")
         assert platforms.elevation_problem("C:/Program Files/Acxelin VPN/acxelin-vpn.exe") is None
 
 

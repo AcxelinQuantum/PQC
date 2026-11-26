@@ -1,5 +1,5 @@
 [Unit]
-Description=Acxelin VPN site-to-site IPsec: strongSwan with ML-KEM, its PSK and PPK agreed over ML-DSA mutual TLS
+Description=Acxelin QVPN site-to-site IPsec: strongSwan with ML-KEM, its PSK and PPK agreed over ML-DSA mutual TLS
 After=network-online.target strongswan-pqc.service
 Wants=network-online.target
 Requires=strongswan-pqc.service

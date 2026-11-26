@@ -1,4 +1,4 @@
-"""The Acxelin look for Acxelin Readiness's HTML: Acxelin's colours, typeface and logo, in one self-contained page."""
+"""The Acxelin look for Acxelin QReadiness's HTML: Acxelin's colours, typeface and logo, in one self-contained page."""
 import base64
 import functools
 from html import escape as e
@@ -70,8 +70,8 @@ def page(title, kicker, heading, sub, body, footer):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="data:image/svg+xml;base64,{icon}">
 <title>{e(title)}</title><style>@font-face{{font-family:"Host Grotesk";font-weight:400 600;src:url(data:font/woff2;base64,{font}) format("woff2")}}{CSS}</style></head>
-<body><main><div class="brandbar">{logo}<small>Acxelin Readiness {__version__}</small></div>
+<body><main><div class="brandbar">{logo}<small>Acxelin QReadiness {__version__}</small></div>
 <p class="kicker">{e(kicker)}</p><h1>{e(heading)}</h1><p class="sub">{sub}</p>
 <div class="tools"><button type="button" onclick="print()">Print or save as PDF</button></div>
 {body}
-<footer>{footer} · Acxelin Readiness by Acxelin Quantum</footer></main></body></html>"""
+<footer>{footer} · Acxelin QReadiness by Acxelin Quantum</footer></main></body></html>"""

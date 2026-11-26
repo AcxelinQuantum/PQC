@@ -1,5 +1,5 @@
 """The VPN window: a page on this machine's loopback address that joins from an invitation, connects, disconnects and says
-whether this machine is protected. `acxelin-vpn app` holds the tunnel; closing the page leaves it as it is.
+whether this machine is protected. `acxelin-qvpn app` holds the tunnel; closing the page leaves it as it is.
 
 The page is reachable only on 127.0.0.1, only with the random token in the address the command opens, and only under its
 own host name and origin (a page from elsewhere can neither borrow it through DNS rebinding nor lock it with wrong tokens). Passphrases go from the page to this process
@@ -86,7 +86,7 @@ class App:
                 raise ValueError("open the invitation file your administrator sent first")
             inv, device = join.read(self.invitation), join.device_for(self.invitation)
             if self.apply:
-                join.preflight("acxelin-vpn app")
+                join.preflight("acxelin-qvpn app")
             secret = passphrase.encode() if passphrase else None
             if join.must_enroll(inv, device):
                 if not secret or repeat is None or passphrase != repeat:
@@ -205,11 +205,11 @@ def serve(app, listen=("127.0.0.1", 0)):
             if method == "POST" and path == "/api/session":
                 if not isinstance(body, dict) or not app.redeem(body.get("ticket")):
                     backoff.failed(self.client_address[0])
-                    return self.reply(401, {"error": "this address was already used or has expired; run `acxelin-vpn app` (or open the tray icon) again"})
+                    return self.reply(401, {"error": "this address was already used or has expired; run `acxelin-qvpn app` (or open the tray icon) again"})
                 return self.reply(200, {"token": app.token})
             if not self.authorised(app.token):
                 backoff.failed(self.client_address[0])
-                return self.reply(401, {"error": "open the address printed by `acxelin-vpn app` again"})
+                return self.reply(401, {"error": "open the address printed by `acxelin-qvpn app` again"})
             if not isinstance(body, dict):
                 return self.reply(*body)
             self.reply(*app.handle(method, path, body))

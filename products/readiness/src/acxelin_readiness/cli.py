@@ -16,14 +16,14 @@ from .detectors import Scope, extra_test_paths
 
 
 
-START = """Acxelin Readiness: find the cryptography a quantum computer breaks, and what to migrate first.
+START = """Acxelin QReadiness: find the cryptography a quantum computer breaks, and what to migrate first.
 
 Start here:
-  acxelin-readiness scan PATH     find the cryptography in a repository, then open readiness-out/report.html
-  acxelin-readiness console       scan repositories and endpoints from your browser
-  acxelin-readiness grade HOST    grade a TLS or SSH endpoint from A to F
-  acxelin-readiness doctor        check what this machine can scan
-  acxelin-readiness --help        every command"""
+  acxelin-qreadiness scan PATH     find the cryptography in a repository, then open readiness-out/report.html
+  acxelin-qreadiness console       scan repositories and endpoints from your browser
+  acxelin-qreadiness grade HOST    grade a TLS or SSH endpoint from A to F
+  acxelin-qreadiness doctor        check what this machine can scan
+  acxelin-qreadiness --help        every command"""
 
 
 def _rate(text):
@@ -53,7 +53,7 @@ def pacer_for(a, cfg, workers):
     try:
         prof = pacing.profile(first(a.rate, cfg.get("rate")), first(getattr(a, "workers", None), cfg.get("workers")), a.aggressive or cfg.get("aggressive", False))
     except ValueError as e:
-        sys.exit(f"acxelin-readiness: {e}")
+        sys.exit(f"acxelin-qreadiness: {e}")
     if workers is not None and first(getattr(a, "workers", None), cfg.get("workers")) is None:
         prof = prof._replace(workers=workers)
     return prof, pacing.Pacer(prof.rate)
@@ -69,10 +69,12 @@ def stop_cleanly():
 
 
 def main(argv=None):
+    if Path(sys.argv[0]).stem == "acxelin-readiness":
+        print("acxelin-readiness is now acxelin-qreadiness; the old name works through 1.x.", file=sys.stderr)
     stop_cleanly()
     warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-    ap = argparse.ArgumentParser(prog="acxelin-readiness", description="Cryptographic inventory (CycloneDX 1.6 CBOM) and quantum migration planner")
-    ap.add_argument("--version", action="version", version=f"acxelin-readiness {__version__}")
+    ap = argparse.ArgumentParser(prog="acxelin-qreadiness", description="Cryptographic inventory (CycloneDX 1.6 CBOM) and quantum migration planner")
+    ap.add_argument("--version", action="version", version=f"acxelin-qreadiness {__version__}")
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("scan", help="send the pipeline over a repository and/or live TLS and SSH endpoints")
     s.add_argument("path", nargs="?", default=None, help="folder to scan, a GitHub link (https://github.com/owner/repo; GITHUB_TOKEN for private ones), or a container image saved with `docker save` or as an OCI archive (default: current folder, or none if only --tls/--ssh are given)")
@@ -178,13 +180,13 @@ def main(argv=None):
     policy = dict(cfg.get("policy", {}))
     problems = compliance.check(policy)
     if problems:
-        sys.exit("acxelin-readiness: " + "; ".join(problems))
+        sys.exit("acxelin-qreadiness: " + "; ".join(problems))
     policy["profiles"] = list(dict.fromkeys(policy.get("profiles", []) + a.policy))
     if a.as_of:
         policy["as_of"] = a.as_of
     a.fail_on_policy = a.fail_on_policy or policy.get("fail", False)
     if a.fail_on is not None and a.fail_on not in TIERS[:-1]:
-        sys.exit(f"acxelin-readiness: fail_on must be one of {', '.join(TIERS[:-1])}")
+        sys.exit(f"acxelin-qreadiness: fail_on must be one of {', '.join(TIERS[:-1])}")
     targets_only = a.path is None and (a.tls or a.ssh or a.pcap or a.aws)
     aws_session = None
     if a.aws:
@@ -192,7 +194,7 @@ def main(argv=None):
         try:
             aws_session = aws.session()
         except ValueError as e:
-            sys.exit(f"acxelin-readiness: {e}")
+            sys.exit(f"acxelin-qreadiness: {e}")
     if link:
         try:
             owner, repo, _ = remote.parse(a.path)
@@ -200,7 +202,7 @@ def main(argv=None):
             atexit.register(shutil.rmtree, downloaded, True)  # also when a later check exits early: it may hold private code
             root = remote.fetch(a.path, downloaded / repo, token=os.environ.get("GITHUB_TOKEN"))
         except ValueError as e:
-            sys.exit(f"acxelin-readiness: {e}")
+            sys.exit(f"acxelin-qreadiness: {e}")
         a.name = a.name or f"{owner}/{repo}"
     else:
         downloaded = None
@@ -208,18 +210,18 @@ def main(argv=None):
         if targets_only:
             atexit.register(shutil.rmtree, root, True)
     if not root.exists():
-        sys.exit(f"acxelin-readiness: {a.path} does not exist")
+        sys.exit(f"acxelin-qreadiness: {a.path} does not exist")
     name = a.name or ((a.tls + a.ssh + [Path(p).name for p in a.pcap] + [f"aws-{r}" for r in a.aws])[0] if targets_only else root.name)
     if a.baseline:
         try:
             pipeline.load_baseline(a.baseline)
         except (OSError, ValueError, AttributeError) as e:
-            sys.exit(f"acxelin-readiness: cannot read the baseline {a.baseline}: {e}")
+            sys.exit(f"acxelin-qreadiness: cannot read the baseline {a.baseline}: {e}")
     out = Path(a.out)
     try:
         out.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        sys.exit(f"acxelin-readiness: cannot write to {out}: {e}")
+        sys.exit(f"acxelin-qreadiness: cannot write to {out}: {e}")
     only = changed_files(root, a.changed_since) if a.changed_since else None
     unpacked, notes = None, []
     if image.is_image(root):
@@ -228,12 +230,12 @@ def main(argv=None):
         try:
             notes = image.unpack(root, unpacked)
         except (OSError, ValueError, KeyError, IndexError, TypeError, EOFError) as e:
-            sys.exit(f"acxelin-readiness: {root.name} could not be read as a container image ({e.__class__.__name__}); save it again with docker save")
+            sys.exit(f"acxelin-qreadiness: {root.name} could not be read as a container image ({e.__class__.__name__}); save it again with docker save")
         name = a.name or root.name.split(".")[0]
     try:
         cmdb = owners.from_csv(owners.decode(Path(a.owners).read_bytes())) if a.owners else []
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin-readiness: cannot read --owners {a.owners}: {e}")
+        sys.exit(f"acxelin-qreadiness: cannot read --owners {a.owners}: {e}")
     h = Horizon(a.shelf_life, a.migration, a.crqc_year, owners.secrets(cmdb))
     prof, pacer = pacer_for(a, cfg, 1)  # endpoints are probed one after another unless asked
     if (a.tls or a.ssh) and not a.quiet:
@@ -256,7 +258,7 @@ def main(argv=None):
         with extra_test_paths(a.test_path):  # the report's examples skip test code by the same rule as the scan
             write_results(out, name, r)
     except OSError as e:
-        sys.exit(f"acxelin-readiness: cannot write to {out}: {e}")
+        sys.exit(f"acxelin-qreadiness: cannot write to {out}: {e}")
     if not a.quiet:
         print(report.terminal(r))
         print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'readiness.sarif'}, {out / 'findings.json'}, {out / 'relationships.json'}")
@@ -279,7 +281,7 @@ def watch(a):
     import subprocess
     import time
     if not a.once and not 0 < a.every <= 24 * 366:
-        sys.exit("acxelin-readiness: --every takes hours between scans, more than 0")
+        sys.exit("acxelin-qreadiness: --every takes hours between scans, more than 0")
     out = Path(a.out)
     bom, changes = out / "cbom.json", out / "changes.json"
     try:
@@ -317,7 +319,7 @@ def record(home, run):
         runs = json.loads((home / "watch.json").read_text(encoding="utf-8")) if (home / "watch.json").exists() else []
         write(home / "watch.json", json.dumps((runs if isinstance(runs, list) else [])[-99:] + [run]).encode(), secret=True)
     except (OSError, ValueError) as e:
-        print(f"acxelin-readiness: this run is not in the console's list ({home}: {e})", file=sys.stderr)
+        print(f"acxelin-qreadiness: this run is not in the console's list ({home}: {e})", file=sys.stderr)
 
 
 def changed_files(root, ref):
@@ -327,7 +329,7 @@ def changed_files(root, ref):
     import hashlib
     import subprocess
     if not ref or ref.startswith("-"):
-        sys.exit(f"acxelin-readiness: --changed-since needs a git ref such as main or HEAD~1, not {ref!r}")
+        sys.exit(f"acxelin-qreadiness: --changed-since needs a git ref such as main or HEAD~1, not {ref!r}")
     env = os.environ | {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_OPTIONAL_LOCKS": "0"}
     safe = ["-c", "core.fsmonitor=false", "-c", "core.quotePath=false", "-c", "core.untrackedCache=false"]
     git = lambda *args: subprocess.run(["git", "-C", str(root), *safe, *args], capture_output=True, check=True, env=env).stdout.decode("utf-8", "surrogateescape")
@@ -352,7 +354,7 @@ def changed_files(root, ref):
             if not (same(data) or (mode != "120000" and b"\r\n" in data and same(data.replace(b"\r\n", b"\n")))):  # core.autocrlf keeps LF in the index
                 names.append(name)
     except (OSError, subprocess.CalledProcessError, IndexError, ValueError) as err:
-        sys.exit(f"acxelin-readiness: --changed-since needs a git repository and a valid ref ({err})")
+        sys.exit(f"acxelin-qreadiness: --changed-since needs a git repository and a valid ref ({err})")
     out = set()
     for n in names:
         try:
@@ -366,11 +368,11 @@ def merge(a):
     out = Path(a.out).resolve()
     files = [f for f in inventory.cbom_files(a.cboms) if not f.resolve().is_relative_to(out)]  # never this command's own earlier output
     if not files:
-        sys.exit("acxelin-readiness: no cbom.json found in " + ", ".join(a.cboms))
+        sys.exit("acxelin-qreadiness: no cbom.json found in " + ", ".join(a.cboms))
     try:
         systems = inventory.run(files, a.name, a.out, a.history)
     except (OSError, ValueError) as err:
-        sys.exit(f"acxelin-readiness: cannot merge: {err}")
+        sys.exit(f"acxelin-qreadiness: cannot merge: {err}")
     if not a.quiet:
         print(inventory.terminal(a.name, systems))
         print(f"\nwrote {Path(a.out) / 'inventory.html'}, {Path(a.out) / 'inventory.json'}, {Path(a.out) / 'cbom.json'}")
@@ -387,19 +389,19 @@ def settings(path, root):
     if not path and f is not None:
         old = root / ".wolfpack.toml"
         if old.exists() and f.exists():
-            print(f"acxelin-readiness: {old} ignored: {f} is used (.wolfpack.toml is the old name)", file=sys.stderr)
+            print(f"acxelin-qreadiness: {old} ignored: {f} is used (.wolfpack.toml is the old name)", file=sys.stderr)
         elif old.exists():
-            print(f"acxelin-readiness: {old}: .wolfpack.toml is the old name; rename it to .acxelin-readiness.toml", file=sys.stderr)
+            print(f"acxelin-qreadiness: {old}: .wolfpack.toml is the old name; rename it to .acxelin-readiness.toml", file=sys.stderr)
             f = old
     if f is None or (not path and not f.exists()):
         return {}
     try:
         cfg = workspace.read_settings(f)
     except ValueError as e:
-        sys.exit(f"acxelin-readiness: {e}")
+        sys.exit(f"acxelin-qreadiness: {e}")
     reach = [k for k in ("tls", "ssh", "aws") if cfg.get(k)] if not path else []
     if reach:  # a repository someone else wrote must not choose the hosts and AWS regions this machine connects to
-        print(f"acxelin-readiness: {f}: {', '.join(reach)} not used from a scanned folder's settings; run with --config {f} to use them",
+        print(f"acxelin-qreadiness: {f}: {', '.join(reach)} not used from a scanned folder's settings; run with --config {f} to use them",
               file=sys.stderr)
     return {k: v for k, v in cfg.items() if k not in reach}
 
@@ -409,9 +411,9 @@ def grade(a):
     try:
         targets = endpoints.load_targets(a.targets)
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin-readiness: {e}")
+        sys.exit(f"acxelin-qreadiness: {e}")
     if not targets:
-        sys.exit("acxelin-readiness: no targets: give host, host:port, ssh://host, or a .txt file with one per line")
+        sys.exit("acxelin-qreadiness: no targets: give host, host:port, ssh://host, or a .txt file with one per line")
     prof, pacer = pacer_for(a, settings(a.config, None), None)
     print(pacing.announce(pacer), file=sys.stderr)
     results = endpoints.scan(targets, prof, a.timeout, pacer)
@@ -426,7 +428,7 @@ def grade(a):
             try:
                 Path(path).write_text(text(results), encoding="utf-8")
             except OSError as e:
-                sys.exit(f"acxelin-readiness: cannot write {path}: {e.strerror or e}")
+                sys.exit(f"acxelin-qreadiness: cannot write {path}: {e.strerror or e}")
     return 0
 
 
@@ -439,7 +441,7 @@ def doctor():
         import tree_sitter  # noqa: F401
         print("JavaScript, TypeScript, Java and Go relationships: available")
     except ImportError:
-        print('JavaScript, TypeScript, Java and Go relationships: not available: pip install "acxelin-readiness[crawler]"')
+        print('JavaScript, TypeScript, Java and Go relationships: not available: pip install "acxelin-qreadiness[crawler]"')
     return 0
 
 
@@ -450,9 +452,9 @@ def console(a):
         from acxelin_core import console as core
         try:
             if core.link_running(a.port, home) is None:
-                print("acxelin-readiness: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
+                print("acxelin-qreadiness: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
         except (OSError, ValueError) as e:
-            sys.exit(f"acxelin-readiness: no console is running on port {a.port} ({e}); start one with `acxelin-readiness console`")
+            sys.exit(f"acxelin-qreadiness: no console is running on port {a.port} ({e}); start one with `acxelin-qreadiness console`")
         return 0
     return page.run(home, a.port, open_browser=not a.no_browser and not a.container, host="0.0.0.0" if a.container else "127.0.0.1")
 
@@ -460,7 +462,7 @@ def console(a):
 def report_command(a):
     from . import endpoints, evidence
     if not (a.certs or a.targets or a.cbom):
-        sys.exit("acxelin-readiness: nothing to report on: pass --certs, --targets or --cbom")
+        sys.exit("acxelin-qreadiness: nothing to report on: pass --certs, --targets or --cbom")
     rows = []
     try:
         if a.certs:
@@ -468,7 +470,7 @@ def report_command(a):
         if a.targets:
             targets = endpoints.load_targets(a.targets)
             if not targets:
-                sys.exit("acxelin-readiness: no targets in --targets: give host, host:port, ssh://host, or a .txt file with one per line")
+                sys.exit("acxelin-qreadiness: no targets in --targets: give host, host:port, ssh://host, or a .txt file with one per line")
             prof, pacer = pacer_for(a, settings(a.config, None), None)
             print(pacing.announce(pacer), file=sys.stderr)
             rows += evidence.endpoints(endpoints.scan(targets, prof, a.timeout, pacer))
@@ -477,7 +479,7 @@ def report_command(a):
         for source in a.cbom:
             rows += evidence.code(source)
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin-readiness: {e}")
+        sys.exit(f"acxelin-qreadiness: {e}")
     rep = evidence.report(rows)
     out = Path(a.out)
     try:
@@ -486,7 +488,7 @@ def report_command(a):
         (out / "assessment.json").write_text(evidence.to_json(rep), encoding="utf-8")
         (out / "assessment.csv").write_text(evidence.to_csv(rep), encoding="utf-8")
     except OSError as e:
-        sys.exit(f"acxelin-readiness: cannot write to {out}: {e.strerror or e}")
+        sys.exit(f"acxelin-qreadiness: cannot write to {out}: {e.strerror or e}")
     first = [r for r in rows if r["status"] == "action"]
     print(f"{rep['assets']} assets: " + ", ".join(f"{n} {evidence.STATUS[s]}" for s, n in rep["status"].items() if n))
     for r in first[:5]:

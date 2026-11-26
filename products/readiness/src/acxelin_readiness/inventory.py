@@ -36,7 +36,7 @@ def algo_of(name):
 
 
 def estimate(algo, name):
-    """A tier from the algorithm alone, for CBOMs without Acxelin Readiness's: legacy, a signature over MD5 or SHA-1, or under
+    """A tier from the algorithm alone, for CBOMs without Acxelin QReadiness's: legacy, a signature over MD5 or SHA-1, or under
     112-bit strength is critical; AES with a 192- or 256-bit key is ok."""
     if not algo:
         return None
@@ -86,7 +86,7 @@ def cbom_files(paths):
 
 
 def load(path, taken):
-    """One system from one CBOM. Tiers come from Acxelin Readiness's own properties; other tools' CBOMs get a tier estimated from the catalogue."""
+    """One system from one CBOM. Tiers come from Acxelin QReadiness's own properties; other tools' CBOMs get a tier estimated from the catalogue."""
     try:
         bom = json.loads(Path(path).read_text(encoding="utf-8"))
     except ValueError:
@@ -105,7 +105,7 @@ def load(path, taken):
     tool = next((f"{t.get('name')} {t.get('version', '')}".strip() for t in tools if isinstance(t, dict) and t.get("name")), "another tool")
     components = [clean(c) for c in bom.get("components", []) if isinstance(c, dict)]
     if any(str(p.get("name", "")).startswith("wolfpack:") for c in components for p in c.get("properties") or [] if isinstance(p, dict)):
-        print(f"acxelin-readiness: {path}: read through the old wolfpack:* property names; scan again to write acxelin:* names", file=sys.stderr)
+        print(f"acxelin-qreadiness: {path}: read through the old wolfpack:* property names; scan again to write acxelin:* names", file=sys.stderr)
     assets = []
     for c in components:
         cp = dicts(c.get("cryptoProperties"))
@@ -283,7 +283,7 @@ def html(org, systems, history=()):
 <h2>Where each algorithm is used</h2><div class=scroll tabindex=0><table><tr><th>worst tier</th><th>algorithm</th><th>systems</th><th>which</th><th>variants</th></tr>{''.join(use)}</table></div>"""
     return page(f"{org}: cryptographic inventory", "Organisation inventory", org,
                 f"Organisation cryptographic inventory from {sm['systems']} CBOM(s).", body,
-                f"{'Tiers for ' + e(', '.join(est)) + ' are estimated from the algorithm alone: those CBOMs came from another tool or carry no Acxelin Readiness tiers. ' if est else ''}Each system's own report has the evidence behind every finding.")
+                f"{'Tiers for ' + e(', '.join(est)) + ' are estimated from the algorithm alone: those CBOMs came from another tool or carry no Acxelin QReadiness tiers. ' if est else ''}Each system's own report has the evidence behind every finding.")
 
 
 def terminal(org, systems):

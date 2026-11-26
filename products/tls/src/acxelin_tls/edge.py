@@ -169,7 +169,7 @@ class Edge:
             raise ValueError(f"{r.name}: ocsp_staple needs cert to be a chain.pem that includes its CA, so the answer can be checked against it")
         follow = StapleFile(r.ocsp_staple, chain[1], chain[0])
         if follow() is None:
-            log.warning("%s: ocsp_staple: %s: no staple is sent until the file is fixed (`acxelin-tls ca ocsp` writes it)", r.name, follow.problem)
+            log.warning("%s: ocsp_staple: %s: no staple is sent until the file is fixed (`acxelin-qguard ca ocsp` writes it)", r.name, follow.problem)
         return follow
 
     def bind(self, reuse_port=False):

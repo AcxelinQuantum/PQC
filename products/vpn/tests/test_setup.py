@@ -1,4 +1,4 @@
-"""`acxelin-vpn setup`: one command leaves a gateway that starts and agrees keys with a laptop; running it again does not overwrite
+"""`acxelin-qvpn setup`: one command leaves a gateway that starts and agrees keys with a laptop; running it again does not overwrite
 anything unless asked, and never replaces the certificate authority."""
 import subprocess
 import sys
@@ -27,7 +27,7 @@ class SetupTest(unittest.TestCase):
     def test_one_command_gives_a_gateway_that_works(self):
         r = self.run_cli("--route", "192.168.10.0/24", "--dns", "192.168.10.53")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("acxelin-vpn invite alice", r.stdout)
+        self.assertIn("acxelin-qvpn invite alice", r.stdout)
         cfg = load_gateway(self.d / "gateway.toml")
         self.assertEqual((cfg.routes, cfg.dns, cfg.name), (["192.168.10.0/24"], ["192.168.10.53"], "localhost"))
         cfg.keyring_listen, cfg.manage_interface = "127.0.0.1:0", False

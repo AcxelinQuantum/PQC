@@ -1,7 +1,7 @@
-# The Acxelin VPN gateway: strongSwan 6.1.0 (the release that fixes CVE-2026-78133 and CVE-2026-78135) built against Debian 13's
+# The Acxelin QVPN gateway: strongSwan 6.1.0 (the release that fixes CVE-2026-78133 and CVE-2026-78135) built against Debian 13's
 # OpenSSL 3.5, WireGuard's tools, and acxelin-vpn. IPsec and WireGuard live in the host kernel, so run it with
 # --network host --cap-add NET_ADMIN and mount /etc/acxelin-vpn. Build from the repository root:
-#   docker build -f products/vpn/deploy/Dockerfile -t acxelin-vpn .
+#   docker build -f products/vpn/deploy/Dockerfile -t acxelin-qvpn .
 ARG BASE=python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
 FROM ${BASE} AS strongswan
 ARG STRONGSWAN=6.1.0
@@ -29,8 +29,8 @@ ENV PATH=/opt/strongswan/sbin:$PATH
 COPY core /src/core
 COPY products/vpn /src/vpn
 # pip is not needed at run time and carries its own vendored packages, so it leaves the image.
-RUN pip install --no-cache-dir /src/core "/src/vpn[vpn]" && cp /src/vpn/deploy/entrypoint.sh /usr/local/bin/acxelin-vpn-entrypoint \
- && rm -rf /src && pip uninstall -y pip && acxelin-vpn doctor
+RUN pip install --no-cache-dir /src/core "/src/vpn[vpn]" && cp /src/vpn/deploy/entrypoint.sh /usr/local/bin/acxelin-qvpn-entrypoint \
+ && rm -rf /src && pip uninstall -y pip && acxelin-qvpn doctor
 VOLUME /etc/acxelin-vpn
 ENTRYPOINT ["acxelin-vpn-entrypoint"]
 # Site-to-site by default; the WireGuard gateway is: gateway --config /etc/acxelin-vpn/gateway.toml

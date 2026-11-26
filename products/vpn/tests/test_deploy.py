@@ -1,4 +1,4 @@
-"""What ships to run Acxelin VPN as a service: every systemd unit, the gateway image's entrypoint and the desktop package start
+"""What ships to run Acxelin QVPN as a service: every systemd unit, the gateway image's entrypoint and the desktop package start
 commands that exist, with the files they name, so a typo in a unit fails here and not on a customer's gateway."""
 import configparser
 import shlex
@@ -53,7 +53,7 @@ def test_the_gateway_image_runs_a_real_command_and_starts_charon_only_for_up():
     cmd = next(line for line in docker.splitlines() if line.startswith("CMD "))
     assert parses(__import__("json").loads(cmd[4:])).cmd == "up"
     entry = (ROOT / "deploy/entrypoint.sh").read_text()
-    assert 'if [ "${1:-}" = up ]' in entry and 'exec acxelin-vpn "$@"' in entry
+    assert 'if [ "${1:-}" = up ]' in entry and 'exec acxelin-qvpn "$@"' in entry
     assert "STRONGSWAN=6.1.0" in docker and "STRONGSWAN_SHA256=" in docker
     assert "COPY --from=strongswan /etc/strongswan.d /etc/strongswan.d" in docker, "without its plugin settings charon loads nothing and exits"
 

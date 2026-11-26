@@ -1,7 +1,7 @@
 name: dependabot
 on:
   workflow_run:
-    workflows: [ci, codeql, acxelin-core, acxelin-tls, acxelin-readiness]
+    workflows: [ci, codeql, acxelin-core, acxelin-qguard, acxelin-qreadiness]
     types: [completed]
 permissions: {}
 jobs:

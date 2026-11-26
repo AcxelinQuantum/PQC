@@ -1,4 +1,4 @@
-"""`acxelin-tls evidence`: a signed bundle of what an edge is and does (build, configuration, doctor, certificates, live
+"""`acxelin-qguard evidence`: a signed bundle of what an edge is and does (build, configuration, doctor, certificates, live
 handshakes, counters), and the check of one. Private keys and passphrases are never read into it."""
 import socket
 from pathlib import Path

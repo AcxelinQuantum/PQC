@@ -1,4 +1,4 @@
-"""Acxelin VPN as a packaged app. With no arguments it is the desktop app; with arguments it is the acxelin-vpn command, which
+"""Acxelin QVPN as a packaged app. With no arguments it is the desktop app; with arguments it is the acxelin-qvpn command, which
 is also how the desktop app starts its background service. OpenSSL 3.5 ships inside the package."""
 import os
 import sys

@@ -334,7 +334,7 @@ def service(argv, kind=None, name=SERVICE):
                  f"<key>StandardErrorPath</key><string>/var/log/{name}.log</string>\n</dict></plist>\n")
         return path, plist, [["launchctl", "bootstrap", "system", str(path)]], [["launchctl", "bootout", f"system/{label}"]]
     path = Path(f"/etc/systemd/system/{name}.service")
-    unit = (f"[Unit]\nDescription=Acxelin VPN client (WireGuard with a PSK from ML-DSA mutual TLS)\nAfter=network-online.target\n"
+    unit = (f"[Unit]\nDescription=Acxelin QVPN client (WireGuard with a PSK from ML-DSA mutual TLS)\nAfter=network-online.target\n"
             f"Wants=network-online.target\n\n[Service]\nExecStart={subprocess.list2cmdline(argv)}\nRestart=always\nRestartSec=5\n\n"
             f"[Install]\nWantedBy=multi-user.target\n")
     return (path, unit, [["systemctl", "daemon-reload"], ["systemctl", "enable", "--now", name]],
@@ -364,11 +364,11 @@ def require_protected_code(what, interpreter=None):
     why = elevation_problem(interpreter)
     if why:
         raise ValueError(f"{what} would run code with administrator rights that an ordinary user can change ({why}). Anyone who can run "
-                         "programs as this user could use that to become the administrator. Use a copy of Acxelin VPN installed where only "
+                         "programs as this user could use that to become the administrator. Use a copy of Acxelin QVPN installed where only "
                          "administrators can write: the Windows Setup or the Linux package from the release page, or a copy an administrator "
                          "installed under /opt (the manual shows how), and run this again from there."
                          + (" On a Mac, Applications can be changed by any administrator account, so the tray cannot start the service "
-                            "from there: run sudo acxelin-vpn app in Terminal instead." if sys.platform == "darwin" else ""))
+                            "from there: run sudo acxelin-qvpn app in Terminal instead." if sys.platform == "darwin" else ""))
 
 
 def install(argv, runner=run):

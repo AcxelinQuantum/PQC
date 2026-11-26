@@ -1,4 +1,4 @@
-"""`acxelin-vpn evidence create` packs a site's build, configuration, doctor findings, certificates (public parts), its CBOM and
+"""`acxelin-qvpn evidence create` packs a site's build, configuration, doctor findings, certificates (public parts), its CBOM and
 what the running site reports, signed with an ML-DSA key from the customer's CA. Site keys, passphrases and a partner's
 pre-shared keys never go in."""
 import json
@@ -53,7 +53,7 @@ def test_a_site_bundle_holds_its_build_config_certificates_cbom_and_live_state(s
     d, conf, status = site
     out, e = create(d, conf, status)
     assert e["config.toml"] == conf.read_bytes()
-    assert json.loads(e["build.json"])["product"] == "acxelin-vpn"
+    assert json.loads(e["build.json"])["product"] == "acxelin-qvpn"
     certs = json.loads(e["certificates.json"])
     assert {(c["role"], c["algorithm"]) for c in certs} >= {("cert", "ML-DSA-87"), ("ca", "ML-DSA-87")}
     cbom = json.loads(e["cbom.json"])

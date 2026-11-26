@@ -126,13 +126,13 @@ def html(r):
 <details><summary>Show {len(q)} detections that did not enter the CBOM</summary><div class="occ">{quar}</div></details>
 {''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}""" + INTERACTIVE
     sub = f"Cryptographic inventory and quantum migration plan, scanned in {st['seconds']}s."
-    return page(f"{r.project}: Acxelin Readiness", "Cryptographic inventory", r.project, e(sub), body,
+    return page(f"{r.project}: Acxelin QReadiness", "Cryptographic inventory", r.project, e(sub), body,
                 "CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in readiness.sarif, full audit trail in findings.json, static code relationships in relationships.json")
 
 
 def terminal(r):
     st, rd = r.stats, r.readiness
-    out = [f"\nacxelin-readiness {__version__}  {r.project}",
+    out = [f"\nacxelin-qreadiness {__version__}  {r.project}",
            f"detectors {st['raw_detections']} raw  ->  verify {st['accepted']} verified, {st['quarantined']} held, {st['rejected']} rejected, "
            f"{st['suppressed']} suppressed  ->  rank {st['promoted_on_second_look']} promoted, {st['references_followed']} trails  ->  {len(r.assets)} assets",
            f"quantum-safe asymmetric: {rd['pq_safe']}/{rd['asymmetric']} ({rd['percent']}%)   hybrid KEX: {'yes' if rd['hybrid'] else 'no'}"]

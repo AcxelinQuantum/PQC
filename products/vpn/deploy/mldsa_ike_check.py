@@ -3,7 +3,7 @@ certificates from acxelin-core's CA; prints what loaded, the IKE SA and charon's
 ACXELIN_STRONGSWAN=/opt/strongswan python mldsa_ike_check.py WORK-DIR [ML-DSA-65]
 
 strongSwan 6.1.0 has no ML-DSA key type, so it refuses the certificates and keys before any IKE message is sent. Until a
-release passes this check, IKE in Acxelin VPN authenticates with the PSK, and mixes in the PPK, both from ML-DSA mutual TLS."""
+release passes this check, IKE in Acxelin QVPN authenticates with the PSK, and mixes in the PPK, both from ML-DSA mutual TLS."""
 import os
 import subprocess
 import sys

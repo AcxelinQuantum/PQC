@@ -1,4 +1,4 @@
-"""What a connection through Acxelin TLS may negotiate: the product's named policies, handed to the core's TLS mechanism."""
+"""What a connection through Acxelin QGuard may negotiate: the product's named policies, handed to the core's TLS mechanism."""
 from acxelin_core.tls import Policy, TLSError
 
 PQC_GROUPS = "X25519MLKEM768:SecP384r1MLKEM1024:SecP256r1MLKEM768"

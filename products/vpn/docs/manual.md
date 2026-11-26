@@ -1,8 +1,8 @@
-# Acxelin VPN manual
+# Acxelin QVPN manual
 
-Acxelin VPN connects your sites over IPsec and your people over WireGuard. Each tunnel's keys are agreed over post-quantum mutual TLS (hybrid ML-KEM key exchange, ML-DSA certificates from your own certificate authority) and rotated. Traffic recorded today cannot be decrypted later by a quantum computer that breaks the classical half alone.
+Acxelin QVPN connects your sites over IPsec and your people over WireGuard. Each tunnel's keys are agreed over post-quantum mutual TLS (hybrid ML-KEM key exchange, ML-DSA certificates from your own certificate authority) and rotated. Traffic recorded today cannot be decrypted later by a quantum computer that breaks the classical half alone.
 
-This manual covers installing it, two sites and a laptop in fifteen minutes, the everyday work, the console and the desktop app, running it in production, and what to do when something goes wrong. Acxelin VPN installs and runs on its own; it needs no other Acxelin product.
+This manual covers installing it, two sites and a laptop in fifteen minutes, the everyday work, the console and the desktop app, running it in production, and what to do when something goes wrong. Acxelin QVPN installs and runs on its own; it needs no other Acxelin product.
 
 ## 1. What you get
 
@@ -29,9 +29,9 @@ A key agreement that cannot meet the VPN's policy (TLS 1.3, hybrid ML-KEM, ML-DS
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/vpn-v1.2.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qvpn-v1.3.0) and save them in one folder:
 
-- `acxelin-vpn-1.2.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
+- `acxelin-qvpn-1.3.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 The desktop installers for people's computers are on the same page; section "The desktop app, for people" below covers them.
@@ -51,24 +51,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-vpn-1.2.0-wheelhouse.tar.gz
+shasum -a 256 acxelin-qvpn-1.3.0-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-vpn-1.2.0-wheelhouse.tar.gz
+Get-FileHash .\acxelin-qvpn-1.3.0-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-vpn-1.2.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-qvpn-1.3.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-vpn-1.2.0-wheelhouse.tar.gz
-cd acxelin-vpn-1.2.0-wheelhouse
+tar xzf acxelin-qvpn-1.3.0-wheelhouse.tar.gz
+cd acxelin-qvpn-1.3.0-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -80,10 +80,10 @@ cd acxelin-vpn-1.2.0-wheelhouse
 
 On Windows, the first command tells Windows you trust this downloaded script, and the second runs it.
 
-The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-vpn` on your PATH and runs a health check. A laptop prints:
+The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-qvpn` on your PATH and runs a health check. A laptop prints:
 
 ```
-acxelin-vpn 1.2.0, Python 3.11.15
+acxelin-qvpn 1.3.0, Python 3.11.15
 ok    OpenSSL 3.5.9 29 Sep 2026 can agree keys over post-quantum mutual TLS
 WARN  This machine is not set up as an IPsec gateway (fine for a laptop)
 ```
@@ -95,16 +95,16 @@ If OpenSSL 3.5 is in a folder of its own, run `ACXELIN_OPENSSL=/path/to/openssl-
 **With Docker (recommended):** each release publishes a gateway image with strongSwan 6.1, OpenSSL 3.5 and WireGuard's tools. IPsec and WireGuard live in the host's kernel, so the container shares the host's network:
 
 ```
-docker pull ghcr.io/acxelinquantum/acxelin-vpn:1.2.0
-docker tag ghcr.io/acxelinquantum/acxelin-vpn:1.2.0 acxelin-vpn
-docker run --rm acxelin-vpn doctor
+docker pull ghcr.io/acxelinquantum/acxelin-qvpn:1.3.0
+docker tag ghcr.io/acxelinquantum/acxelin-qvpn:1.3.0 acxelin-qvpn
+docker run --rm acxelin-qvpn doctor
 ```
 
-**On the host, with systemd:** install strongSwan 6.0.2+ built against OpenSSL 3.5 into `/opt/strongswan` (the gateway image's Dockerfile, `deploy/Dockerfile`, shows the build), then install Acxelin VPN with its gateway option from the release folder:
+**On the host, with systemd:** install strongSwan 6.0.2+ built against OpenSSL 3.5 into `/opt/strongswan` (the gateway image's Dockerfile, `deploy/Dockerfile`, shows the build), then install Acxelin QVPN with its gateway option from the release folder:
 
 ```
 sudo python3 -m venv /opt/acxelin-vpn
-sudo /opt/acxelin-vpn/bin/pip install --no-index --find-links . "acxelin-vpn[vpn]"
+sudo /opt/acxelin-vpn/bin/pip install --no-index --find-links . "acxelin-qvpn[vpn]"
 sudo cp deploy/systemd/* /etc/systemd/system/
 ```
 
@@ -114,9 +114,9 @@ Section 8 says which unit runs what.
 
 | System | File | How to install |
 |---|---|---|
-| Windows 10/11 (x64) | `Acxelin-VPN-1.2.0-Setup.exe` | Run it and follow the steps. Leave **Show Acxelin VPN in the tray when I log in** ticked to start it at login. Install [WireGuard for Windows](https://www.wireguard.com/install/) too; the installer reminds you if it is missing. |
-| macOS (Apple silicon) | `Acxelin-VPN-1.2.0.dmg` | Open it and drag Acxelin VPN to Applications. Install WireGuard's tools with `brew install wireguard-tools`. |
-| Ubuntu, Debian (x64) | `acxelin-vpn_1.2.0_amd64.deb` | `sudo apt install ./acxelin-vpn_1.2.0_amd64.deb`, which also installs WireGuard's tools. |
+| Windows 10/11 (x64) | `Acxelin-QVPN-1.3.0-Setup.exe` | Run it and follow the steps. Leave **Show Acxelin QVPN in the tray when I log in** ticked to start it at login. Install [WireGuard for Windows](https://www.wireguard.com/install/) too; the installer reminds you if it is missing. |
+| macOS (Apple silicon) | `Acxelin-QVPN-1.3.0.dmg` | Open it and drag the app to Applications. Install WireGuard's tools with `brew install wireguard-tools`. |
+| Ubuntu, Debian (x64) | `acxelin-vpn_1.3.0_amd64.deb` | `sudo apt install ./acxelin-vpn_1.3.0_amd64.deb`, which also installs WireGuard's tools. |
 
 The installers are not code-signed yet, so the first launch shows a warning. Check the installer first, the same way as in Step 1 above, with its own file name. On Windows, SmartScreen says "Windows protected your PC": choose **More info**, then **Run anyway**. On macOS, open **System Settings > Privacy & Security** and choose **Open Anyway**.
 
@@ -125,7 +125,7 @@ The installers are not code-signed yet, so the first launch shows a warning. Che
 For remote access only, one command sets up the gateway on the machine laptops will connect to:
 
 ```
-acxelin-vpn setup vpn.acme.example --route 192.168.10.0/24 --dns 192.168.10.53
+acxelin-qvpn setup vpn.acme.example --route 192.168.10.0/24 --dns 192.168.10.53
 ```
 
 It creates the certificate authority in `acxelin-vpn/pki` (asking for its passphrase, or reusing the one already there),
@@ -145,7 +145,7 @@ These steps connect headquarters (`hq.acme.example`, 203.0.113.10, subnet 10.1.0
 Choose a passphrase for its key; you need it whenever you issue, invite or revoke. Keep it in `ACXELIN_VPN_CA_PASSPHRASE` for the session, or let each command ask.
 
 ```
-acxelin-vpn ca init --name "Acme VPN Root" --dir pki
+acxelin-qvpn ca init --name "Acme VPN Root" --dir pki
 ```
 
 It prints `created ML-DSA-87 root 'Acme VPN Root' in pki; gateways and people trust pki/ca.crt, gateways check pki/crl.pem`. Keep the `pki` folder safe: `pki/ca.key` is the key every certificate depends on.
@@ -155,10 +155,10 @@ It prints `created ML-DSA-87 root 'Acme VPN Root' in pki; gateways and people tr
 A `site` certificate for each IPsec gateway, named as in its configuration, with its public address:
 
 ```
-acxelin-vpn ca issue site hq.acme.example --san 203.0.113.10 --dir pki --out pki/issued/hq
-acxelin-vpn ca issue site branch1.acme.example --san 198.51.100.7 --dir pki --out pki/issued/branch1
-acxelin-vpn ca issue server vpn.acme.example --san vpn.acme.example --dir pki --out pki/issued/vpn
-acxelin-vpn ca issue server ca.acme.example --san ca.acme.example --dir pki --out pki/issued/enroll
+acxelin-qvpn ca issue site hq.acme.example --san 203.0.113.10 --dir pki --out pki/issued/hq
+acxelin-qvpn ca issue site branch1.acme.example --san 198.51.100.7 --dir pki --out pki/issued/branch1
+acxelin-qvpn ca issue server vpn.acme.example --san vpn.acme.example --dir pki --out pki/issued/vpn
+acxelin-qvpn ca issue server ca.acme.example --san ca.acme.example --dir pki --out pki/issued/enroll
 ```
 
 The last two are for the WireGuard gateway and the enrollment service. Each folder gets `chain.pem` (the certificate with the CA, what a gateway presents) and `key.pem`. Copy each gateway's folder, `pki/ca.crt` and `pki/crl.pem` to that gateway; the CA key stays where it is.
@@ -168,13 +168,13 @@ The last two are for the WireGuard gateway and the enrollment service. Each fold
 On each gateway, put its configuration (`config/site-hq.toml`, `config/site-branch.toml`) in `/etc/acxelin-vpn/site.toml` with your paths, and start it:
 
 ```
-docker run -d --name vpn --network host --cap-add NET_ADMIN -v /etc/acxelin-vpn:/etc/acxelin-vpn:ro acxelin-vpn
+docker run -d --name vpn --network host --cap-add NET_ADMIN -v /etc/acxelin-vpn:/etc/acxelin-vpn:ro acxelin-qvpn
 ```
 
-The container starts strongSwan, then `acxelin-vpn up`. The branch connects to headquarters' key agreement service on port 7443, both sides load the agreed keys into strongSwan, and the tunnel comes up. On either gateway:
+The container starts strongSwan, then `acxelin-qvpn up`. The branch connects to headquarters' key agreement service on port 7443, both sides load the agreed keys into strongSwan, and the tunnel comes up. On either gateway:
 
 ```
-docker exec vpn acxelin-vpn status --config /etc/acxelin-vpn/site.toml
+docker exec vpn acxelin-qvpn status --config /etc/acxelin-vpn/site.toml
 ```
 
 On headquarters it lists one line per peer, then each child tunnel, in this form:
@@ -191,20 +191,20 @@ An established IKE session is not proof on its own. Send real traffic between th
 The enrollment service is where invitations enroll, next to the CA:
 
 ```
-acxelin-vpn ca serve --dir pki --cert pki/issued/enroll/chain.pem --key pki/issued/enroll/key.pem
+acxelin-qvpn ca serve --dir pki --cert pki/issued/enroll/chain.pem --key pki/issued/enroll/key.pem
 ```
 
 On the headquarters gateway, put `config/gateway.toml` in `/etc/acxelin-vpn/gateway.toml` with your pool, routes and DNS, and start the WireGuard gateway. It listens on 7444, with its status on 9102, so it can run beside the site's key agreement on 7443 and 9101:
 
 ```
 docker run -d --name wg --network host --cap-add NET_ADMIN -v /etc/acxelin-vpn:/etc/acxelin-vpn \
-  acxelin-vpn gateway --config /etc/acxelin-vpn/gateway.toml
+  acxelin-qvpn gateway --config /etc/acxelin-vpn/gateway.toml
 ```
 
 ### Step 5: invite Alice
 
 ```
-acxelin-vpn invite alice --dir pki --enroll https://ca.acme.example:9443 --gateway vpn.acme.example:7444
+acxelin-qvpn invite alice --dir pki --enroll https://ca.acme.example:9443 --gateway vpn.acme.example:7444
 ```
 
 ```
@@ -218,30 +218,30 @@ The file holds the enrollment address, the CA fingerprint the laptop will trust,
 
 Alice installs the desktop app (section 3), opens it, chooses **Choose the invitation file**, picks `alice.acxinvite`, chooses a passphrase for this computer's key, and presses **Connect**. Alice's computer asks once for administrator approval, because the VPN changes the computer's network. The window then says **Protected**, and the tray shield turns green.
 
-Without the app, in an administrator terminal: `acxelin-vpn join alice.acxinvite`. It enrolls (the key is made on the laptop, never leaves it, and is stored encrypted) and connects.
+Without the app, in an administrator terminal: `acxelin-qvpn join alice.acxinvite`. It enrolls (the key is made on the laptop, never leaves it, and is stored encrypted) and connects.
 
 ## 5. Everyday tasks
 
 | Task | Command |
 |---|---|
-| Open the console | `acxelin-vpn console` |
-| Invite a person | `acxelin-vpn invite NAME --dir pki --enroll URL --gateway HOST:PORT` |
-| Revoke a person or a site | `acxelin-vpn ca revoke SERIAL --dir pki` (serials from `ca list`) |
-| List what the CA issued | `acxelin-vpn ca list --dir pki` |
-| Renew what expires soon and refresh the CRL | `acxelin-vpn ca maintain --dir pki` (daily) |
-| See a site's tunnels | `acxelin-vpn status --config site.toml` (add `--json`) |
-| Check strongSwan supports ML-KEM | `acxelin-vpn check` |
-| See whether this computer is protected | `acxelin-vpn status` (add `--details` for algorithms and key timing) |
-| Disconnect this computer | `acxelin-vpn disconnect` |
-| Check a CA folder or a configuration | `acxelin-vpn doctor --ca pki --config site.toml` |
-| Export the VPN's cryptography for an audit | `acxelin-vpn inventory --config site.toml --config gateway.toml --cbom vpn-cbom.json` |
+| Open the console | `acxelin-qvpn console` |
+| Invite a person | `acxelin-qvpn invite NAME --dir pki --enroll URL --gateway HOST:PORT` |
+| Revoke a person or a site | `acxelin-qvpn ca revoke SERIAL --dir pki` (serials from `ca list`) |
+| List what the CA issued | `acxelin-qvpn ca list --dir pki` |
+| Renew what expires soon and refresh the CRL | `acxelin-qvpn ca maintain --dir pki` (daily) |
+| See a site's tunnels | `acxelin-qvpn status --config site.toml` (add `--json`) |
+| Check strongSwan supports ML-KEM | `acxelin-qvpn check` |
+| See whether this computer is protected | `acxelin-qvpn status` (add `--details` for algorithms and key timing) |
+| Disconnect this computer | `acxelin-qvpn disconnect` |
+| Check a CA folder or a configuration | `acxelin-qvpn doctor --ca pki --config site.toml` |
+| Export the VPN's cryptography for an audit | `acxelin-qvpn inventory --config site.toml --config gateway.toml --cbom vpn-cbom.json` |
 
 Passphrases come from `ACXELIN_VPN_CA_PASSPHRASE` or a prompt, never from the command line.
 
 ### Revoke someone
 
 ```
-acxelin-vpn ca revoke 763320879c3df003 --dir pki
+acxelin-qvpn ca revoke 763320879c3df003 --dir pki
 ```
 
 The CA re-signs `pki/crl.pem`. A gateway that reads that file cuts the revoked site's tunnel, or removes the revoked person from WireGuard, within 15 seconds. A gateway on another machine needs the new CRL: set `crl_url` in its configuration, and it fetches the list every `crl_every` seconds (60 by default).
@@ -256,11 +256,11 @@ By default everyone in `users` is told every route in `routes`. To give a person
 "bob@acme.example" = ["192.168.30.0/24", "192.168.40.0/24"]
 ```
 
-Each network must lie inside `routes`, the person must be in `users` (if you use it), and IPv4 only. People with no entry get all routes, as before. Check the result with `acxelin-vpn access show --config gateway.toml`.
+Each network must lie inside `routes`, the person must be in `users` (if you use it), and IPv4 only. People with no entry get all routes, as before. Check the result with `acxelin-qvpn access show --config gateway.toml`.
 
 Two things make it true. The person is told only their networks at their next key agreement. And on a Linux gateway that manages its interface, the gateway loads packet-filter rules (nftables) that drop everything from their tunnel address that is not going to one of their networks, including other people's addresses and the gateway itself. The rules are loaded before the person is told their address; if they cannot be loaded the person is refused, and the gateway will not start without `nft` when anyone is restricted. A change to the table takes effect at once, and a change whose rules cannot be loaded is not applied.
 
-Limits: the enforcement is Linux only. Where `manage_interface = false` (a gateway you run yourself, or on another platform) the gateway cannot load rules: run `acxelin-vpn access rules --config gateway.toml` and load the output into your own firewall, and re-run it when someone gets their first address. Without the rules the routes are advice, which anyone can bypass. The rules apply to traffic that crosses the gateway; they do not look inside it. Full-tunnel gateways cannot use `access`.
+Limits: the enforcement is Linux only. Where `manage_interface = false` (a gateway you run yourself, or on another platform) the gateway cannot load rules: run `acxelin-qvpn access rules --config gateway.toml` and load the output into your own firewall, and re-run it when someone gets their first address. Without the rules the routes are advice, which anyone can bypass. The rules apply to traffic that crosses the gateway; they do not look inside it. Full-tunnel gateways cannot use `access`.
 
 ### Split tunnel or full tunnel
 
@@ -268,7 +268,7 @@ By default only the gateway's `routes` go through the tunnel, and other internet
 
 ### A partner gateway that cannot do hybrid ML-KEM
 
-Every peer does hybrid ML-KEM by default and a peer that cannot is refused. For a partner's gateway that is not Acxelin VPN and cannot do it yet, you can allow a classical fallback **for that one peer**. There is no site-wide switch.
+Every peer does hybrid ML-KEM by default and a peer that cannot is refused. For a partner's gateway that is not Acxelin QVPN and cannot do it yet, you can allow a classical fallback **for that one peer**. There is no site-wide switch.
 
 ```
 [[peer]]
@@ -301,20 +301,20 @@ Set `profile` per `[[peer]]`. Both sides of a tunnel must use the same one.
 large key does not fit IKEv2's first, unencrypted message well. The key agreement between gateways allows only ML-KEM-1024, ML-DSA-87
 certificates and AES-256. The older `cnsa2` uses ML-KEM-1024 alone, which is not NSA's IKEv2 form; it still works, the gateway
 warns at start, and both gateways of a tunnel move to `cnsa2-rfc9370` together. Every peer of the site must use a CNSA 2.0 profile (they share
-one key agreement service), and both gateways need ML-DSA-87 certificates: `acxelin-vpn ca issue site NAME --algorithm ML-DSA-87`.
+one key agreement service), and both gateways need ML-DSA-87 certificates: `acxelin-qvpn ca issue site NAME --algorithm ML-DSA-87`.
 A gateway with another certificate refuses to start and says why. WireGuard remote access cannot meet CNSA 2.0 (Curve25519
 and ChaCha20 are outside the suite), so a CNSA 2.0 network leaves it off.
 
 ### For an audit
 
-`acxelin-vpn inventory` writes what the VPN uses as a CycloneDX 1.6 CBOM: tunnels, key exchanges, ciphers, certificates, and whether a PSK and a PPK are present (type and size only, never a value). Any CBOM tool reads it.
+`acxelin-qvpn inventory` writes what the VPN uses as a CycloneDX 1.6 CBOM: tunnels, key exchanges, ciphers, certificates, and whether a PSK and a PPK are present (type and size only, never a value). Any CBOM tool reads it.
 
 `evidence create` puts a site or gateway's build, configuration, doctor findings, certificates (public parts), this CBOM and what
 it reports while running into one zip, signed with an ML-DSA key from your CA; `evidence verify` checks every file and the signature:
 
 ```
-acxelin-vpn evidence create --config hq.toml --status http://127.0.0.1:9101 --sign-cert auditor/chain.pem --sign-key auditor/key.pem --out hq-evidence.zip
-acxelin-vpn evidence verify hq-evidence.zip --ca pki/ca.crt
+acxelin-qvpn evidence create --config hq.toml --status http://127.0.0.1:9101 --sign-cert auditor/chain.pem --sign-key auditor/key.pem --out hq-evidence.zip
+acxelin-qvpn evidence verify hq-evidence.zip --ca pki/ca.crt
 ```
 
 Keys, passphrases and a partner's pre-shared keys never go in. `verify` fails on any changed, added or removed file, a signature
@@ -323,7 +323,7 @@ that does not match, or a signer whose certificate does not chain to your CA; it
 ## 6. The console
 
 ```
-acxelin-vpn console
+acxelin-qvpn console
 ```
 
 Your browser opens, already signed in. If there is no certificate authority yet, the console creates one for you. It asks for the CA key's passphrase and keeps it in memory only, so it asks again after a restart.
@@ -332,15 +332,15 @@ Your browser opens, already signed in. If there is no certificate authority yet,
 |---|---|
 | **Sites** | Add each site gateway by its status address (`metrics` in its `[site]`) to see its tunnels: state, key exchange, encryption, whether the PPK is in use, the last key rotation, traffic and the peer's certificate. |
 | **People** | The first time, say where invitations point: the enrollment service and the gateway. Then invite a person and download their invitation file. Add the WireGuard gateway by its status address to see who is connected now and since when, their traffic, when their key was last renewed, and the gateway's uptime. Revoke a person in two clicks; their session ends at the gateway's next check. |
-| **Health** | Whether this computer can run Acxelin VPN, whether the CA, its CRL and its certificates are in good shape, and whether every site and gateway answers, each with what to do. |
+| **Health** | Whether this computer can run Acxelin QVPN, whether the CA, its CRL and its certificates are in good shape, and whether every site and gateway answers, each with what to do. |
 
-Invitations and revocations, from the console or the command line, are written to `audit.jsonl` in the CA folder, which only you can read. The People tab shows the latest of them together with enrollments, refused enrollments and renewals from the enrollment service's log beside it. Each gateway keeps its own access history in `audit.jsonl` next to its address leases (connected, new device, refused and why, cut off after a revocation, stopped renewing; not the renewals every few minutes), and the People tab merges it in. No token, key or passphrase is written. Each laptop keeps its own `audit.jsonl` of kill-switch changes in its tunnel folder; the app's connection details and `acxelin-vpn status --details` show the last one.
+Invitations and revocations, from the console or the command line, are written to `audit.jsonl` in the CA folder, which only you can read. The People tab shows the latest of them together with enrollments, refused enrollments and renewals from the enrollment service's log beside it. Each gateway keeps its own access history in `audit.jsonl` next to its address leases (connected, new device, refused and why, cut off after a revocation, stopped renewing; not the renewals every few minutes), and the People tab merges it in. No token, key or passphrase is written. Each laptop keeps its own `audit.jsonl` of kill-switch changes in its tunnel folder; the app's connection details and `acxelin-qvpn status --details` show the last one.
 
 The console listens only on the machine it runs on. For a remote server, forward a port and ask the running console for a fresh link:
 
 ```
 ssh -L 8901:127.0.0.1:8901 server
-acxelin-vpn console link --port 8901
+acxelin-qvpn console link --port 8901
 ```
 
 Run the second command in that SSH session, then open the address it prints on your laptop.
@@ -348,8 +348,8 @@ Run the second command in that SSH session, then open the address it prints on y
 ## 7. The desktop app
 
 1. A shield appears in the system tray (the Windows taskbar corner, the macOS menu bar, the Linux panel). Green with a tick is **Protected**, amber is **Connecting**, dark amber with an exclamation mark is **Degraded**, red is **Not protected**, grey is disconnected or not set up. Hover over it for the words.
-2. The Acxelin VPN window opens. The first time, open the invitation file, choose a passphrase for this computer, and press **Connect**. Next time, enter only the passphrase.
-3. The tray menu has **Open Acxelin VPN**, **Disconnect**, **Start at login** and **Quit and disconnect**. Closing the window leaves the VPN connected.
+2. The Acxelin QVPN window opens. The first time, open the invitation file, choose a passphrase for this computer, and press **Connect**. Next time, enter only the passphrase.
+3. The tray menu has **Open Acxelin QVPN**, **Disconnect**, **Start at login** and **Quit and disconnect**. Closing the window leaves the VPN connected.
 
 | The window says | Meaning |
 |---|---|
@@ -358,11 +358,11 @@ Run the second command in that SSH session, then open the address it prints on y
 | **Degraded** | Key renewal is failing, but the tunnel still works, so it stays on its last key for at most the minutes shown (15 by default), then stops. A revoked computer is never degraded: it is cut off at once. |
 | **Not protected** | The gateway could not be reached or refused this computer; the reason follows. It retries on its own; with a full tunnel, internet traffic stays blocked meanwhile. |
 
-Connection details say when the key was last renewed. If renewals stop, the window says so in words: when the key is more than twice its renewal period old ("has not been renewed for 62 min"), and, when the gateway cannot be reached, how many tries in a row have failed and when the last good key was agreed. `acxelin-vpn status --details` prints the same.
+Connection details say when the key was last renewed. If renewals stop, the window says so in words: when the key is more than twice its renewal period old ("has not been renewed for 62 min"), and, when the gateway cannot be reached, how many tries in a row have failed and when the last good key was agreed. `acxelin-qvpn status --details` prints the same.
 
-Only the background VPN service runs with administrator rights; the tray and the window run as you. The tray starts that service only from a copy of Acxelin VPN that ordinary users cannot change (the Windows Setup and the Linux package are). From a copy installed for one user it refuses and says so, because otherwise anything running as that user could become the administrator. On a Mac the tray cannot start the service from Applications, which any administrator account can change: run `sudo acxelin-vpn app` in Terminal. The window is served only on 127.0.0.1 and opens only from a one-time address. It never offers to save your passphrase. On Linux, the tray menu needs a desktop with AppIndicator support (GNOME with its AppIndicator extension, KDE and most others); without it, clicking the shield opens the window, and Disconnect is in the window.
+Only the background VPN service runs with administrator rights; the tray and the window run as you. The tray starts that service only from a copy of Acxelin QVPN that ordinary users cannot change (the Windows Setup and the Linux package are). From a copy installed for one user it refuses and says so, because otherwise anything running as that user could become the administrator. On a Mac the tray cannot start the service from Applications, which any administrator account can change: run `sudo acxelin-qvpn app` in Terminal. The window is served only on 127.0.0.1 and opens only from a one-time address. It never offers to save your passphrase. On Linux, the tray menu needs a desktop with AppIndicator support (GNOME with its AppIndicator extension, KDE and most others); without it, clicking the shield opens the window, and Disconnect is in the window.
 
-**Without the installer:** `acxelin-vpn app`, in an administrator terminal, serves the same window in your browser.
+**Without the installer:** `acxelin-qvpn app`, in an administrator terminal, serves the same window in your browser.
 
 ## 8. Running it in production
 
@@ -373,14 +373,14 @@ Only the background VPN service runs with administrator rights; the tray and the
 | Unit | Runs | Reads |
 |---|---|---|
 | `strongswan-pqc.service` | strongSwan's charon from `/opt/strongswan` | |
-| `acxelin-vpn-ipsec.service` | `acxelin-vpn up`, after strongSwan | `/etc/acxelin-vpn/site.toml` |
-| `acxelin-vpn-wireguard.service` | `acxelin-vpn gateway` | `/etc/acxelin-vpn/gateway.toml` |
-| `acxelin-vpn-enroll.service` | `acxelin-vpn ca serve`, as user `acxelin` | `/var/lib/acxelin-vpn/ca`, `/etc/acxelin-vpn/enroll` |
-| `acxelin-vpn-ca-maintain.timer` | `acxelin-vpn ca maintain` daily, as user `acxelin` | `/var/lib/acxelin-vpn/ca` |
+| `acxelin-vpn-ipsec.service` | `acxelin-qvpn up`, after strongSwan | `/etc/acxelin-vpn/site.toml` |
+| `acxelin-vpn-wireguard.service` | `acxelin-qvpn gateway` | `/etc/acxelin-vpn/gateway.toml` |
+| `acxelin-vpn-enroll.service` | `acxelin-qvpn ca serve`, as user `acxelin` | `/var/lib/acxelin-vpn/ca`, `/etc/acxelin-vpn/enroll` |
+| `acxelin-vpn-ca-maintain.timer` | `acxelin-qvpn ca maintain` daily, as user `acxelin` | `/var/lib/acxelin-vpn/ca` |
 
 The CA's passphrase for the last two goes in `/etc/acxelin-vpn/ca.env` as `ACXELIN_VPN_CA_PASSPHRASE=...`, readable by root only. Each unit starts only when the file it reads exists, so enable all of them and only the right ones run.
 
-**Before going live**, run `acxelin-vpn doctor --strict --ca pki --config /etc/acxelin-vpn/site.toml`. It exits 0 only when nothing needs attention. Then test on the real network: sleep and wake, a Wi-Fi change, a gateway restart, DNS and IPv6, a revocation and the kill switch, on the laptops and systems you actually use.
+**Before going live**, run `acxelin-qvpn doctor --strict --ca pki --config /etc/acxelin-vpn/site.toml`. It exits 0 only when nothing needs attention. Then test on the real network: sleep and wake, a Wi-Fi change, a gateway restart, DNS and IPv6, a revocation and the kill switch, on the laptops and systems you actually use.
 
 ### Keeping the CA safe
 
@@ -427,7 +427,7 @@ outage_grace_minutes = 30     # needs crl = "..."
 
 **Limits to know before relying on it.**
 
-- For remote access, the computer keeps its own side of the grace: when its key agreement fails while the tunnel still handshakes, it stays on the last key, shown as **Degraded**, for at most `keep_minutes` (15 by default; 0 restores the old behaviour of dropping at once). The administrator sets it for a person with `acxelin-vpn invite --keep-minutes N`; a computer can override it with `connect --keep-minutes N`. It never outlasts the gateway: once the gateway removes the computer, handshakes stop and the computer drops within about three minutes. A revoked computer (or a gateway that cannot read its revocation list) is cut off at once, never degraded. With a full tunnel, a key agreement that times out means the tunnel itself is dead, so the computer drops at once and reconnects directly. Nothing on the wire changed: older gateways work, and an older app ignores the setting in a newer invitation.
+- For remote access, the computer keeps its own side of the grace: when its key agreement fails while the tunnel still handshakes, it stays on the last key, shown as **Degraded**, for at most `keep_minutes` (15 by default; 0 restores the old behaviour of dropping at once). The administrator sets it for a person with `acxelin-qvpn invite --keep-minutes N`; a computer can override it with `connect --keep-minutes N`. It never outlasts the gateway: once the gateway removes the computer, handshakes stop and the computer drops within about three minutes. A revoked computer (or a gateway that cannot read its revocation list) is cut off at once, never degraded. With a full tunnel, a key agreement that times out means the tunnel itself is dead, so the computer drops at once and reconnects directly. Nothing on the wire changed: older gateways work, and an older app ignores the setting in a newer invitation.
 - For sites, the grace only stops this software from cutting the tunnel. strongSwan's own lifetimes still apply: it keeps rekeying with the last two PPKs it holds, which has not been tested over a long outage here.
 - Tests exercise the logic with a stand-in for `wg` and charon. The drill in `docs/outage-drill.md` is how you check it on two real machines.
 
@@ -466,12 +466,12 @@ server, not against real QKD hardware; key servers that offer only TLS 1.2 are n
 ### Keys for the gateways you already have (ETSI GS QKD 014)
 
 Many firewalls already ask a key server for keys over ETSI GS QKD 014: Juniper SRX and MX, Fortinet FortiGate and Palo Alto,
-among others (check your model and release in the vendor's documentation). `acxelin-vpn kme` is such a key server. Run one at
+among others (check your model and release in the vendor's documentation). `acxelin-qvpn kme` is such a key server. Run one at
 each site, beside its gateways, and point each gateway at its own site's server; the tunnels stay the gateways' own.
 
 ```
-acxelin-vpn ca issue site kme-hq.acme.example --dir pki --out kme
-acxelin-vpn kme --config /etc/acxelin-vpn/kme.toml
+acxelin-qvpn ca issue site kme-hq.acme.example --dir pki --out kme
+acxelin-qvpn kme --config /etc/acxelin-vpn/kme.toml
 ```
 
 `config/kme.toml` explains every setting. `saes` lists this site's gateways by SAE ID, which is the common name of the client
@@ -499,24 +499,24 @@ Juniper, Fortinet or Palo Alto gateway.
 | `charon did not start; run the container with --network host --cap-add NET_ADMIN` | The container cannot reach the host's IPsec. | Add both options. |
 | A tunnel stays `CONNECTING` | The key agreement port or IPsec's UDP 500 and 4500 are blocked, or the names in the configuration differ from the certificates. | Open the ports; `name` must equal the certificate's name. `doctor --config` checks the files. |
 | **Not protected** with `revoked` in the app | This computer's certificate was revoked. | Ask the administrator for a new invitation. |
-| Every peer is refused after a week | The CRL has expired, and the VPN fails closed. | Run `acxelin-vpn ca maintain --dir pki` now, and schedule it daily. |
+| Every peer is refused after a week | The CRL has expired, and the VPN fails closed. | Run `acxelin-qvpn ca maintain --dir pki` now, and schedule it daily. |
 | A person or peer shows `in_grace` in `/status`, or the log says `running on its last keys under the outage grace` | Key agreement with it has stopped, and `outage_grace_minutes` is keeping it up on its last keys. It will be removed or cut when the grace ends. | Find out why key agreement stopped: the key agreement service on port 7443, the network between the two sides, or the CA's CRL. Everything returns to normal at the next key agreement. |
-| `stopped renewing its key; the outage grace does not apply because the CRL cannot be used` | The CRL is missing, damaged or expired, so nothing shows the silent peer is not revoked. | Run `acxelin-vpn ca maintain --dir pki` and make sure the gateway has the new CRL. |
+| `stopped renewing its key; the outage grace does not apply because the CRL cannot be used` | The CRL is missing, damaged or expired, so nothing shows the silent peer is not revoked. | Run `acxelin-qvpn ca maintain --dir pki` and make sure the gateway has the new CRL. |
 | `The CA key is locked` in the console | The console restarted and forgot the passphrase. | Enter the passphrase again. |
 | `doctor` exits 2 | A check failed. | The line marked `FAIL` names the problem and the fix. |
-| `would run code with administrator rights that an ordinary user can change` | The tray or `acxelin-vpn install` was started from a copy installed for one user. | Use the Windows Setup, the Linux package, or a copy an administrator installed under `/opt` (section 3). |
+| `would run code with administrator rights that an ordinary user can change` | The tray or `acxelin-qvpn install` was started from a copy installed for one user. | Use the Windows Setup, the Linux package, or a copy an administrator installed under `/opt` (section 3). |
 
 ### Exit codes
 
-`doctor` exits 0 when everything passes, 1 on warnings with `--strict`, 2 when a check fails, and 3 when this machine cannot run Acxelin VPN. `status` exits 0 only when protected. Other commands exit 1 with one line on stderr when they fail.
+`doctor` exits 0 when everything passes, 1 on warnings with `--strict`, 2 when a check fails, and 3 when this machine cannot run Acxelin QVPN. `status` exits 0 only when protected. Other commands exit 1 with one line on stderr when they fail.
 
 ## 11. Questions
 
-**Is WireGuard itself post-quantum?** WireGuard's own handshake stays classical. What Acxelin VPN adds is the pre-shared key: it comes from a post-quantum key agreement and is mixed into every WireGuard handshake, so recorded traffic stays protected even if the classical handshake is broken later.
+**Is WireGuard itself post-quantum?** WireGuard's own handshake stays classical. What Acxelin QVPN adds is the pre-shared key: it comes from a post-quantum key agreement and is mixed into every WireGuard handshake, so recorded traffic stays protected even if the classical handshake is broken later.
 
 **Do phones work?** Not yet. Phones and the IKEv2 clients built into operating systems cannot do the post-quantum key agreement.
 
-**Can I keep my existing strongSwan?** Yes, if it is 6.0.2 or newer and built against OpenSSL 3.5. `acxelin-vpn check` says whether it offers ML-KEM.
+**Can I keep my existing strongSwan?** Yes, if it is 6.0.2 or newer and built against OpenSSL 3.5. `acxelin-qvpn check` says whether it offers ML-KEM.
 
 **How fast does a revocation take effect?** Within 15 seconds on a gateway that reads the CRL file, for sites and people alike, plus up to `crl_every` seconds (60 by default) where the gateway fetches the CRL with `crl_url`.
 
@@ -535,7 +535,7 @@ Juniper, Fortinet or Palo Alto gateway.
 - **macOS: the tray cannot start the VPN service from the Applications folder.** An app you drag there belongs to you, and any
   administrator account can rename or replace an app in that folder, so starting it with administrator rights would let other
   software running as you become the administrator. The tray refuses and says so. On a Mac, start the service yourself in
-  Terminal with `sudo acxelin-vpn app`, which serves the same window in your browser (section 7). A proper fix needs a separately
+  Terminal with `sudo acxelin-qvpn app`, which serves the same window in your browser (section 7). A proper fix needs a separately
   installed, root-owned helper, which is not built yet.
 - The outage grace (section 8) keeps people and sites connected on their last keys for up to the time you set, at most 24 hours. It never outlasts the CRL, and a certificate revoked while the new CRL cannot reach the gateway stays connected until the CRL arrives or the cap ends. For remote access, the computer's own software still takes its tunnel down when its own key agreement fails.
 - A revoked site or person keeps access until their gateway has the new CRL: up to 15 seconds, plus `crl_every` when it is fetched.

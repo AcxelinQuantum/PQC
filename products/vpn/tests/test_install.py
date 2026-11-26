@@ -1,4 +1,4 @@
-"""The built-wheel install test: Acxelin VPN's wheels installed into a fresh environment outside the repository, with no index
+"""The built-wheel install test: Acxelin QVPN's wheels installed into a fresh environment outside the repository, with no index
 and no editable installs, then a CA, an invitation and the console from the installed copy. Slow; runs when
 ACXELIN_INSTALL_TEST=1 (always in CI)."""
 import json
@@ -28,13 +28,13 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     bin_ = env_dir / ("Scripts" if os.name == "nt" else "bin")
     clean = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV")}
     run = lambda *cmd: subprocess.run(cmd, cwd=tmp_path, env=clean, capture_output=True, text=True, check=True)
-    run(str(bin_ / "python"), "-m", "pip", "install", "--quiet", "--no-index", "--find-links", str(house), "acxelin-vpn[vpn]")
+    run(str(bin_ / "python"), "-m", "pip", "install", "--quiet", "--no-index", "--find-links", str(house), "acxelin-qvpn[vpn]")
     installed = {d["name"].lower(): d for d in json.loads(run(str(bin_ / "python"), "-m", "pip", "list", "--format", "json", "-v").stdout)}
-    assert {"acxelin-vpn", "acxelin-core", "vici"} <= set(installed)
+    assert {"acxelin-qvpn", "acxelin-core", "vici"} <= set(installed)
     assert not any("editable_project_location" in d for d in installed.values())
-    assert not set(installed) & {"acxelin-readiness", "acxelin-tls"}
-    cli = str(bin_ / "acxelin-vpn")
-    assert run(cli, "--version").stdout.strip() == f"acxelin-vpn {__version__}"
+    assert not set(installed) & {"acxelin-qreadiness", "acxelin-qguard"}
+    cli = str(bin_ / "acxelin-qvpn")
+    assert run(cli, "--version").stdout.strip() == f"acxelin-qvpn {__version__}"
     doctor = subprocess.run([cli, "doctor", "--json"], cwd=tmp_path, env=clean, capture_output=True, text=True)
     assert doctor.returncode in (0, 3), doctor.stderr  # 3: this machine's OpenSSL is older than 3.5, and doctor says so
     assert json.loads(doctor.stdout)["checks"][0]["product"] == "key agreement"
@@ -58,7 +58,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
                 time.sleep(0.1)
         else:
             raise AssertionError("the console did not start")
-        assert "Acxelin VPN" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
+        assert "Acxelin QVPN" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
         with pytest.raises(urllib.error.HTTPError) as refused:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=2)
         assert refused.value.code == 401

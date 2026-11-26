@@ -1,4 +1,4 @@
-"""Problems found by using Acxelin Readiness as a first-time customer would; each test shows the problem fixed."""
+"""Problems found by using Acxelin QReadiness as a first-time customer would; each test shows the problem fixed."""
 import pytest
 
 from acxelin_core import openssl

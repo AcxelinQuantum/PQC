@@ -35,7 +35,7 @@ def gateway(folder, name, address=None, pool="10.99.0.0/24", routes=(), dns=(), 
     ca.issue(name, "server", [name] + ([address] if address else []), out=folder / "gateway", replace=force)
     ca.crl()
     q = lambda p: '"' + str(p).replace("\\", "\\\\") + '"'
-    lines = ["# written by `acxelin-vpn setup`; every setting is explained in config/gateway.toml", "[wireguard]",
+    lines = ["# written by `acxelin-qvpn setup`; every setting is explained in config/gateway.toml", "[wireguard]",
              f"name = {q(name)}", f"endpoint = {q(f'{address or name}:51820')}", 'keyring_listen = "0.0.0.0:7443"', f"pool = {q(pool)}",
              f"routes = [{', '.join(q(r) for r in routes)}]", f"dns = [{', '.join(q(d) for d in dns)}]", f"full_tunnel = {'true' if full_tunnel else 'false'}",
              f"cert = {q(folder / 'gateway' / 'chain.pem')}", f"key = {q(folder / 'gateway' / 'key.pem')}", f"ca = {q(pki / 'ca.crt')}",
@@ -63,10 +63,10 @@ def next_steps(conf, name):
             f"  gateway.toml  its settings, checked\n\n"
             f"Next, on this machine:\n"
             f"  1. Enrollment, where invitations are redeemed (port 9443):\n"
-            f"     acxelin-vpn ca serve --dir {_arg(d / 'pki')} --cert {_arg(d / 'gateway' / 'chain.pem')} --key {_arg(d / 'gateway' / 'key.pem')}\n"
+            f"     acxelin-qvpn ca serve --dir {_arg(d / 'pki')} --cert {_arg(d / 'gateway' / 'chain.pem')} --key {_arg(d / 'gateway' / 'key.pem')}\n"
             f"  2. The gateway (as root, with WireGuard installed):\n"
-            f"     acxelin-vpn gateway --config {_arg(conf)}\n"
+            f"     acxelin-qvpn gateway --config {_arg(conf)}\n"
             f"  3. Invite someone, and send them the file:\n"
-            f"     acxelin-vpn invite alice --dir {_arg(d / 'pki')} --enroll https://{name}:9443 --gateway {name}:7443\n"
-            f"Laptops need to reach UDP 51820 and TCP 7443 and 9443. `acxelin-vpn console --ca {_arg(d / 'pki')}` shows who is connected once\n"
+            f"     acxelin-qvpn invite alice --dir {_arg(d / 'pki')} --enroll https://{name}:9443 --gateway {name}:7443\n"
+            f"Laptops need to reach UDP 51820 and TCP 7443 and 9443. `acxelin-qvpn console --ca {_arg(d / 'pki')}` shows who is connected once\n"
             f"you add the gateway's status address, http://127.0.0.1:9101.")

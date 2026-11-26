@@ -1,4 +1,4 @@
-"""The Acxelin TLS console: the certificate authority (create, issue, revoke, refresh the CRL), edges (status, connection test) and health.
+"""The Acxelin QGuard console: the certificate authority (create, issue, revoke, refresh the CRL), edges (status, connection test) and health.
 
 Runs on acxelin-core's console mechanism; this module is only the product's pages, routes and state. A CA passphrase is held in
 memory for the life of the console and is never written anywhere, so a restart locks an encrypted CA again.
@@ -231,7 +231,7 @@ class TLSConsole:
             raise ValueError(f"{r.common_name}'s folder already holds a newer certificate ({current}); renew that one")
         if encrypted(Path(r.path) / "key.pem"):
             raise ValueError(f"{r.common_name}'s key is encrypted with a passphrase the console does not hold: renew it with "
-                             "`acxelin-tls ca renew --key-passphrase-env`, so the new key is encrypted too")
+                             "`acxelin-qguard ca renew --key-passphrase-env`, so the new key is encrypted too")
         _, new = ca.renew(r.serial, out=r.path)
         self.audit("renew", {"serial": r.serial, "new_serial": new.serial, "common_name": r.common_name})
         return 200, {"renewed": r.serial, "serial": new.serial, "not_after": new.not_after}
@@ -438,7 +438,7 @@ def run(home, port=8900, open_browser=True, ca_dir=None, host="127.0.0.1"):
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/#{app.sessions.ticket()}"
     if open_browser and core.open_in_browser(url, home):
-        print(f"Acxelin TLS console is open in your browser (http://127.0.0.1:{port}). Press Ctrl+C to stop.")
+        print(f"Acxelin QGuard console is open in your browser (http://127.0.0.1:{port}). Press Ctrl+C to stop.")
     else:
         core.link_running(port, home)
     try:
@@ -456,9 +456,9 @@ def cmd_console(a):
     if a.action == "link":
         try:
             if core.link_running(a.port, home) is None:
-                print("acxelin-tls: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
+                print("acxelin-qguard: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
         except (OSError, ValueError) as e:
-            sys.exit(f"acxelin-tls: no console is running on port {a.port} ({e}); start one with `acxelin-tls console`")
+            sys.exit(f"acxelin-qguard: no console is running on port {a.port} ({e}); start one with `acxelin-qguard console`")
         return 0
     return run(home, a.port, open_browser=not a.no_browser and not a.container, ca_dir=a.ca, host="0.0.0.0" if a.container else "127.0.0.1")
 

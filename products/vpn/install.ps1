@@ -3,14 +3,15 @@
 param([switch]$Uninstall)
 $ErrorActionPreference = "Stop"
 $Product = "vpn"
-$cmd = "acxelin-$Product"
+$cmd = "acxelin-qvpn"
+$old = "acxelin-$Product"  # the 1.x name, still installed
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = if ($env:ACXELIN_PREFIX) { $env:ACXELIN_PREFIX } else { Join-Path $env:LOCALAPPDATA "Acxelin" }
 $home_ = Join-Path $root $Product
 $bin = if ($env:ACXELIN_BIN) { $env:ACXELIN_BIN } else { Join-Path $root "bin" }
 
 if ($Uninstall) {
-  Remove-Item -Recurse -Force $home_, (Join-Path $bin "$cmd.cmd") -ErrorAction SilentlyContinue
+  Remove-Item -Recurse -Force $home_, (Join-Path $bin "$cmd.cmd"), (Join-Path $bin "$old.cmd") -ErrorAction SilentlyContinue
   Write-Output "Removed $cmd. Your certificates, consoles and settings stay where you put them."
   exit 0
 }
@@ -51,8 +52,9 @@ if (-not $ssl -and (Test-Path "C:\Program Files\OpenSSL-Win64\bin")) { $ssl = "C
 if (-not $ssl) { $note = "If doctor reports no OpenSSL 3.5+ below: choco install openssl (or install OpenSSL 3.5+ elsewhere and set ACXELIN_OPENSSL to its bin folder), then run this installer again." }
 $wrapper = @("@echo off")
 if ($ssl) { $wrapper += "if not defined ACXELIN_OPENSSL set `"ACXELIN_OPENSSL=$ssl`"" }
-$wrapper += "`"$(Join-Path $home_ "Scripts\$cmd.exe")`" %*"
-Set-Content -Path (Join-Path $bin "$cmd.cmd") -Value $wrapper -Encoding Oem  # cmd.exe reads the console code page; ASCII would turn a name such as José into Jos?
+foreach ($c in @($cmd, $old)) {
+  Set-Content -Path (Join-Path $bin "$c.cmd") -Value ($wrapper + "`"$(Join-Path $home_ "Scripts\$c.exe")`" %*") -Encoding Oem  # cmd.exe reads the console code page; ASCII would turn a name such as José into Jos?
+}
 
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if (-not (($userPath -split ";") -contains $bin)) {

@@ -1,4 +1,4 @@
-"""Deployment checks for `acxelin-vpn doctor --ca DIR --config FILE`: each check is (level, message) with level ok, warn or fail."""
+"""Deployment checks for `acxelin-qvpn doctor --ca DIR --config FILE`: each check is (level, message) with level ok, warn or fail."""
 import datetime as dt
 import importlib.util
 import os
@@ -49,17 +49,17 @@ def ca(root):
     except ValueError:
         listed = False
     if listed is None:
-        out.append(("fail", f"no {crl}: mutual-TLS services cannot start (acxelin-vpn ca crl)"))
+        out.append(("fail", f"no {crl}: mutual-TLS services cannot start (acxelin-qvpn ca crl)"))
     elif listed is False or not signed_by(c.cert, listed.tbs_certlist_bytes, listed.signature):
-        out.append(("fail", f"{crl} is damaged or not signed by this CA; every client would be refused (acxelin-vpn ca crl)"))
+        out.append(("fail", f"{crl} is damaged or not signed by this CA; every client would be refused (acxelin-qvpn ca crl)"))
     else:
         missing = [r.common_name for r in records if r.status == "revoked" and listed.get_revoked_certificate_by_serial_number(int(r.serial, 16)) is None]
         if missing:
-            out.append(("fail", f"{len(missing)} revoked certificate(s) not in crl.pem ({', '.join(missing[:5])}): run acxelin-vpn ca crl"))
+            out.append(("fail", f"{len(missing)} revoked certificate(s) not in crl.pem ({', '.join(missing[:5])}): run acxelin-qvpn ca crl"))
         nxt = listed.next_update_utc
         days = (nxt - now()) / dt.timedelta(days=1)
         out.append(("fail" if days < 0 else "warn" if days < 2 else "ok",
-                    f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run acxelin-vpn ca maintain'}"))
+                    f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run acxelin-qvpn ca maintain'}"))
     newest = {}
     for r in records:
         if r.status == "valid" and r.kind != "ca" and r.path and dt.datetime.fromisoformat(r.not_after) > now():
@@ -117,24 +117,24 @@ def config(path):
 
 
 def prerequisites():
-    """What this machine needs to run Acxelin VPN, as rows with product, level (ok, warn or fail), message and action."""
+    """What this machine needs to run Acxelin QVPN, as rows with product, level (ok, warn or fail), message and action."""
     from acxelin_core import openssl
     rows = []
     def add(part, level, message, action=""):
         rows.append({"product": part, "level": level, "message": message, "action": action})
     reason = openssl.available()
     if reason:
-        add("key agreement", "fail", reason, "Once that is done, run `acxelin-vpn doctor` again")
+        add("key agreement", "fail", reason, "Once that is done, run `acxelin-qvpn doctor` again")
     else:
         add("key agreement", "ok", f"{openssl.lib().version} can agree keys over post-quantum mutual TLS")
     if sys.platform.startswith("linux") and importlib.util.find_spec("vici") and shutil.which("swanctl") and shutil.which("ip"):
         add("ipsec", "ok", "IPsec control tools found; kernel support and tunnel traffic still need a deployment test")
     else:
         add("ipsec", "warn", "This machine is not set up as an IPsec gateway (fine for a laptop)",
-            'Gateways need Linux with strongSwan 6.0.2+, iproute2 and pip install "acxelin-vpn[vpn]"; laptops use `acxelin-vpn join` or the app')
+            'Gateways need Linux with strongSwan 6.0.2+, iproute2 and pip install "acxelin-qvpn[vpn]"; laptops use `acxelin-qvpn join` or the app')
     if not shutil.which("wg"):
         add("wireguard", "warn", "The WireGuard command was not found on PATH", "Install the official WireGuard tools for this platform before joining")
     if not all(importlib.util.find_spec(m) for m in ("pystray", "PIL")):
-        add("desktop", "warn", "The desktop app (tray icon) is not installed; `acxelin-vpn app` opens the VPN window in a browser instead",
-            'pip install "acxelin-vpn[desktop]"')
+        add("desktop", "warn", "The desktop app (tray icon) is not installed; `acxelin-qvpn app` opens the VPN window in a browser instead",
+            'pip install "acxelin-qvpn[desktop]"')
     return rows

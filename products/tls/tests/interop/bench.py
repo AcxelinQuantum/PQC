@@ -1,5 +1,5 @@
-"""How fast is the edge on this machine? Starts a small web server, an edge in front of it, and clients built on Acxelin TLS's own
-TLS (so it runs anywhere Acxelin TLS does, Windows included). Prints new handshakes per second and requests per second on kept-alive
+"""How fast is the edge on this machine? Starts a small web server, an edge in front of it, and clients built on Acxelin QGuard's own
+TLS (so it runs anywhere Acxelin QGuard does, Windows included). Prints new handshakes per second and requests per second on kept-alive
 connections. The clients share the machine with the edge, so the numbers are a floor, not a ceiling.
 
     python tests/interop/bench.py [seconds]

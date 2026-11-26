@@ -1,6 +1,6 @@
 """Gate a release: python tools/release_check.py TAG
 
-The tag (core-v1.0.0, tls-v1.0.0, vpn-v1.0.0, readiness-v1.0.0) must match the version in that package's pyproject.toml and a heading in
+The tag (core-v1.0.0, qguard-v1.0.0, qvpn-v1.0.0, qreadiness-v1.0.0) must match the version in that package's pyproject.toml and a heading in
 its CHANGELOG.md, and a product's acxelin-core range must include a core version that was already released (a core-v* tag).
 """
 import re
@@ -13,13 +13,14 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[1]
-FOLDERS = {"core": ROOT / "core", "tls": ROOT / "products/tls", "readiness": ROOT / "products/readiness", "vpn": ROOT / "products/vpn"}
+FOLDERS = {"core": ROOT / "core", "qguard": ROOT / "products/tls", "qreadiness": ROOT / "products/readiness", "qvpn": ROOT / "products/vpn"}
+TITLES = {"core": "Acxelin Core", "qguard": "Acxelin QGuard", "qreadiness": "Acxelin QReadiness", "qvpn": "Acxelin QVPN"}
 
 
 def parse_tag(tag):
-    m = re.fullmatch(r"(?:refs/tags/)?(core|tls|vpn|readiness)-v(\d+\.\d+\.\d+)", tag)
+    m = re.fullmatch(r"(?:refs/tags/)?(core|qguard|qvpn|qreadiness)-v(\d+\.\d+\.\d+)", tag)
     if not m:
-        raise ValueError(f"{tag!r} is not a release tag: use core-vX.Y.Z, tls-vX.Y.Z, vpn-vX.Y.Z or readiness-vX.Y.Z")
+        raise ValueError(f"{tag!r} is not a release tag: use core-vX.Y.Z, qguard-vX.Y.Z, qvpn-vX.Y.Z or qreadiness-vX.Y.Z")
     return m.group(1), m.group(2)
 
 
@@ -27,7 +28,7 @@ def check(product, version, tags):
     folder = FOLDERS[product]
     project = tomllib.loads((folder / "pyproject.toml").read_text())["project"]
     if project["version"] != version:
-        raise ValueError(f"the tag says {version} but {folder.name}/pyproject.toml says {project['version']}")
+        raise ValueError(f"the tag says {version} but {folder.relative_to(ROOT)}/pyproject.toml says {project['version']}")
     changelog = folder / "CHANGELOG.md"
     if product != "core" and not re.search(rf"^## {re.escape(version)}\b", changelog.read_text(), re.M):
         raise ValueError(f"{changelog.relative_to(ROOT)} has no '## {version}' section")

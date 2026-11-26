@@ -1,5 +1,5 @@
 [Unit]
-Description=acxelin-tls edge: post-quantum TLS in front of local services
+Description=acxelin-qguard edge: post-quantum TLS in front of local services
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/acxelin-tls/edge.toml

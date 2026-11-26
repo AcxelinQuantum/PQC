@@ -1,4 +1,4 @@
-"""End-to-end scenarios with real applications behind the products, driven through the `acxelin-tls` command line and checked
+"""End-to-end scenarios with real applications behind the products, driven through the `acxelin-qguard` command line and checked
 with independent clients (the OpenSSL 3.5 command line, curl, psql, redis-cli, mosquitto). Each scenario is skipped when its
 application is not installed."""
 import functools

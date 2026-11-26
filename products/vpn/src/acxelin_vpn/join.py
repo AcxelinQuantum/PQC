@@ -22,7 +22,7 @@ def parse(text, where="this file"):
         inv = None
     if not isinstance(inv, dict) or inv.get("acxelin_invite") != 1 or not all(isinstance(inv.get(k), str) for k in ("name", "enroll", "ca_fingerprint", "gateway")) \
             or not inv["enroll"].startswith("https://") or not re.fullmatch(r"[0-9a-f]{64}", inv["ca_fingerprint"]):
-        raise ValueError(f"{where} is not an Acxelin VPN invitation; ask your administrator for the .acxinvite file from `acxelin-vpn invite`")
+        raise ValueError(f"{where} is not an Acxelin QVPN invitation; ask your administrator for the .acxinvite file from `acxelin-qvpn invite`")
     hostport(inv["gateway"])
     keep = inv.get("keep_minutes")
     if keep is not None and (type(keep) is not int or not 0 <= keep <= MAX_KEEP):
@@ -87,7 +87,7 @@ def make(ca, name, enroll, gateway, server_name=None, hours=24, keep=None):
     from acxelin_core.pki.est import create_token, fingerprint
     hostport(gateway)
     if not isinstance(enroll, str) or not enroll.startswith("https://"):
-        raise ValueError("the enrollment service must be the https:// address of `acxelin-vpn ca serve`")
+        raise ValueError("the enrollment service must be the https:// address of `acxelin-qvpn ca serve`")
     token = create_token(ca, name, "client", hours=hours)
     expires = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=hours)).replace(microsecond=0).isoformat()
     inv = {"acxelin_invite": 1, "name": name, "enroll": enroll, "ca_fingerprint": fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes())),

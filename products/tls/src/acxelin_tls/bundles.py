@@ -10,12 +10,12 @@ from . import __version__
 EDGE_UID = 10001
 SERVICES = {
     "nginx": {"image": "nginx:stable", "port": 80, "public": 443, "volume": None,
-              "use": "https://{host}/ with a client that verifies ML-DSA (OpenSSL 3.5+, `acxelin-tls connect`). For browser/public-CA "
+              "use": "https://{host}/ with a client that verifies ML-DSA (OpenSSL 3.5+, `acxelin-qguard connect`). For browser/public-CA "
                      "clients use policy = \"transition\" with fallback_cert and fallback_key (a trusted classical certificate)"},
     "postgres": {"image": "postgres:17", "port": 5432, "public": 5433, "volume": "/var/lib/postgresql/data",
                  "env": {"POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"},
                  "use": "psql \"host={host} port=5433 sslmode=verify-full sslrootcert=pki/ca.crt sslnegotiation=direct\" "
-                        "(libpq 17+; the client's OpenSSL must be 3.5+ to negotiate ML-KEM, or connect through `acxelin-tls edge --mode originate`)"},
+                        "(libpq 17+; the client's OpenSSL must be 3.5+ to negotiate ML-KEM, or connect through `acxelin-qguard edge --mode originate`)"},
     "pgvector": {"image": "pgvector/pgvector:pg17", "port": 5432, "public": 5433, "volume": "/var/lib/postgresql/data",
                  "env": {"POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"},
                  "use": "as postgres; then CREATE EXTENSION vector;"},
@@ -72,7 +72,7 @@ def _create(service, s, out, host, ca, ca_dir, require_client_cert, policy):
         volumes += ["      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro", "      - ./passwd:/mosquitto/config/passwd:ro"]
     if volumes:
         lines += ["    volumes:"] + volumes
-    lines += ["  edge:", f"    image: ghcr.io/acxelinquantum/acxelin-tls:{__version__}", '    command: ["edge", "--config", "/etc/acxelin-tls/edge.toml"]',
+    lines += ["  edge:", f"    image: ghcr.io/acxelinquantum/acxelin-qguard:{__version__}", '    command: ["edge", "--config", "/etc/acxelin-tls/edge.toml"]',
               "    restart: unless-stopped", f"    depends_on: [{service}]", f'    ports: ["{s["public"]}:{s["public"]}"]', "    volumes:",
               "      - ./edge.toml:/etc/acxelin-tls/edge.toml:ro", "      - ./edge:/edge:ro",
               f"      - {Path(ca_dir).resolve().as_posix() if ca_dir else './pki'}:/pki:ro"]
@@ -83,13 +83,13 @@ def _create(service, s, out, host, ca, ca_dir, require_client_cert, policy):
         "", f"The edge runs as uid {EDGE_UID}: on Linux run `sudo chown {EDGE_UID} edge/key.pem` before starting."]
     if require_client_cert:
         notes += ["", "Mutual TLS checks pki/crl.pem, and an expired CRL locks everyone out (fail closed).",
-                  "Keep it fresh: run `acxelin-tls ca maintain --dir <ca dir>` daily (cron or a scheduled task)."]
+                  "Keep it fresh: run `acxelin-qguard ca maintain --dir <ca dir>` daily (cron or a scheduled task)."]
     notes += ["", "Create MQTT users first: docker run --rm -v $PWD:/w eclipse-mosquitto:2 mosquitto_passwd -b /w/passwd USER PASS"] if service == "mqtt" else []
     notes += ["", "The CA private key is in ca.key.KEEP-OFFLINE. Move it off this machine; you need it to renew or revoke."] if not ca_dir else []
     anchor = (Path(ca_dir).resolve() / "ca.crt").as_posix() if ca_dir else "pki/ca.crt"
     write(out / "README.txt", "\n".join([
         f"{service} behind post-quantum TLS ({policy} policy{', mutual TLS' if require_client_cert else ''})", "",
-        "1. docker compose up -d", f"2. Connect: {s['use'].format(host=host)}", f"3. Check:   acxelin-tls connect {host}:{s['public']} --ca {anchor}", "",
+        "1. docker compose up -d", f"2. Connect: {s['use'].format(host=host)}", f"3. Check:   acxelin-qguard connect {host}:{s['public']} --ca {anchor}", "",
         f"Certificates: edge/ (the edge's), {anchor} (give this to clients).",
-        "Renew: acxelin-tls ca renew <serial> --dir <ca dir> --out edge   (the edge picks it up without a restart)", *notes, ""]).encode())
+        "Renew: acxelin-qguard ca renew <serial> --dir <ca dir> --out edge   (the edge picks it up without a restart)", *notes, ""]).encode())
     return out

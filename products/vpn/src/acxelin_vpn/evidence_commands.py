@@ -1,4 +1,4 @@
-"""`acxelin-vpn evidence`: a signed bundle of what a site or gateway is and does (build, configuration, doctor, certificates,
+"""`acxelin-qvpn evidence`: a signed bundle of what a site or gateway is and does (build, configuration, doctor, certificates,
 its CBOM, what it reports while running), and the check of one. Keys, passphrases and pre-shared keys are never read into it."""
 from pathlib import Path
 

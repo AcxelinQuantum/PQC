@@ -1,4 +1,4 @@
-"""Acxelin TLS console journeys at the API (spec: "Where each console feature goes"), on the shared console mechanism."""
+"""Acxelin QGuard console journeys at the API (spec: "Where each console feature goes"), on the shared console mechanism."""
 import json
 import os
 import logging
@@ -168,7 +168,7 @@ def test_the_console_signs_in_over_http_and_loads_no_other_product(app, home):
     port = server.server_address[1]
     try:
         page = urllib.request.urlopen(f"http://127.0.0.1:{port}/").read()
-        assert b"Acxelin TLS" in page and page.count(b"<script>") == 1
+        assert b"Acxelin QGuard" in page and page.count(b"<script>") == 1
         with pytest.raises(urllib.error.HTTPError) as e:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status")
         assert e.value.code == 401

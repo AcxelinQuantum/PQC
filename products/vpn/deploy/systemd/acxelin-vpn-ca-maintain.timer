@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Acxelin VPN CA maintenance
+Description=Daily Acxelin QVPN CA maintenance
 
 [Timer]
 OnCalendar=daily

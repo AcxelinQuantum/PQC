@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acxelin-readiness"
-version = "1.3.0"
-description = "Acxelin Readiness: find the cryptography in code, configs, keys, binaries and live endpoints, write a CycloneDX 1.6 CBOM, and rank what to migrate first for post-quantum"
+name = "acxelin-qreadiness"
+version = "1.4.0"
+description = "Acxelin QReadiness: find the cryptography in code, configs, keys, binaries and live endpoints, write a CycloneDX 1.6 CBOM, and rank what to migrate first for post-quantum"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["cryptography>=43", "acxelin-core>=1.2,<2"]
@@ -20,7 +20,8 @@ aws = ["boto3>=1.35"]
 test = ["pytest>=9", "jsonschema>=4.18", "referencing>=0.30"]
 
 [project.scripts]
-acxelin-readiness = "acxelin_readiness.cli:main"
+acxelin-qreadiness = "acxelin_readiness.cli:main"
+acxelin-readiness = "acxelin_readiness.cli:main"  # the 1.x name, with a reminder
 
 [tool.setuptools.packages.find]
 where = ["src"]

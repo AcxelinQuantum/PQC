@@ -11,7 +11,7 @@ SCHEMAS = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "cyclo
 
 def main(path):
     if not Path(path).is_file():
-        print(f"{path} not found: run `acxelin-readiness scan PATH` first, or give the CBOM to check")
+        print(f"{path} not found: run `acxelin-qreadiness scan PATH` first, or give the CBOM to check")
         return 1
     s = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in SCHEMAS.glob("*.json")}
     reg = Registry()

@@ -1,5 +1,5 @@
 """VPN tests. The unit tests always run. The integration test builds two sites in Linux network namespaces with real strongSwan
-charon daemons and real `acxelin-vpn up` controllers; it needs root, iproute2, ACXELIN_STRONGSWAN (a strongSwan 6.0.2+ prefix)
+charon daemons and real `acxelin-qvpn up` controllers; it needs root, iproute2, ACXELIN_STRONGSWAN (a strongSwan 6.0.2+ prefix)
 and OpenSSL 3.5+. Set ACXELIN_VPN_DATAPLANE=1 where the kernel has ESP to also check traffic through the tunnel."""
 import os
 import shutil
@@ -398,7 +398,7 @@ class CharonFailureTest(unittest.TestCase):
         import types
         from unittest import mock
         from acxelin_vpn.charon import CharonError, connect
-        with mock.patch.dict(sys.modules, {"vici": None}), self.assertRaisesRegex(CharonError, r'pip install "acxelin-vpn\[vpn\]"'):
+        with mock.patch.dict(sys.modules, {"vici": None}), self.assertRaisesRegex(CharonError, r'pip install "acxelin-qvpn\[vpn\]"'):
             connect("unix:///var/run/charon.vici")
         fake = types.SimpleNamespace(Session=lambda sock: sock)
         with mock.patch.dict(sys.modules, {"vici": fake}):

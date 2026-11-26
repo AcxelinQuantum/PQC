@@ -1,4 +1,4 @@
-"""Every `acxelin-vpn` command explains itself and fails in words, and the whole invite-then-join journey runs with no other
+"""Every `acxelin-qvpn` command explains itself and fails in words, and the whole invite-then-join journey runs with no other
 Acxelin product, nor the old suite, importable."""
 import contextlib
 import io
@@ -35,19 +35,19 @@ def test_every_command_has_help():
     assert {" ".join(c) for c in found} == expected
     for c in found:
         code, text = run(*c, "--help")
-        assert code == 0 and "usage: acxelin-vpn" in text and len(text) > 120, c
+        assert code == 0 and "usage: acxelin-qvpn" in text and len(text) > 120, c
 
 
 def test_no_command_prints_where_to_start():
     code, text = run()
-    assert code == 0 and "Start here" in text and "acxelin-vpn join" in text
+    assert code == 0 and "Start here" in text and "acxelin-qvpn join" in text
 
 
 @pytest.mark.parametrize("argv,words", [
     (("invite", "bob", "--enroll", "http://ca.example:9443", "--gateway", "vpn.example:7443"), "--enroll must be the https:// address"),
     (("join", "no-such.acxinvite", "--no-apply"), "could not be read"),
     (("ca", "list", "--dir", "no-such-ca"), "no-such-ca"),
-    (("status", "--vici", "unix:///no/such/charon.vici"), r"cannot reach charon|acxelin-vpn\[vpn\]"),
+    (("status", "--vici", "unix:///no/such/charon.vici"), r"cannot reach charon|acxelin-qvpn\[vpn\]"),
     (("up", "--config", "no-such.toml"), "no-such.toml"),
 ], ids=["invite-http", "join-missing", "ca-missing", "status-no-charon", "up-missing"])
 def test_errors_are_one_line_in_words(argv, words, tmp_path, monkeypatch):
@@ -58,7 +58,7 @@ def test_errors_are_one_line_in_words(argv, words, tmp_path, monkeypatch):
 
 @pytest.mark.skipif(bool(REASON), reason=REASON or "")
 def test_invite_then_join_needs_no_other_product():
-    """The gateway, enrollment service, invitation and join of the end-to-end test, in a Python where Acxelin TLS, Acxelin
+    """The gateway, enrollment service, invitation and join of the end-to-end test, in a Python where Acxelin QGuard, Acxelin
     Readiness cannot be imported."""
     test = Path(__file__).with_name("test_wireguard.py")
     code = ("import sys\nfor m in ('acxelin_tls', 'acxelin_readiness'): sys.modules[m] = None\nimport pytest\n"
@@ -67,7 +67,7 @@ def test_invite_then_join_needs_no_other_product():
     assert r.returncode == 0 and "1 passed" in r.stdout, r.stdout + r.stderr
 
 
-# Moved from the suite's tests/test_cli.py with their assertions; the commands are now acxelin-vpn's.
+# Moved from the suite's tests/test_cli.py with their assertions; the commands are now acxelin-qvpn's.
 
 def test_a_diagnostic_agreement_does_not_claim_a_connection():
     from unittest.mock import patch
@@ -93,7 +93,7 @@ def test_check_without_the_gateway_extra_says_how_to_add_it():
     from unittest import mock
     with mock.patch.dict(sys.modules, {"vici": None}):
         code, out = run("check")
-    assert code == 1 and 'acxelin-vpn[vpn]' in out
+    assert code == 1 and 'acxelin-qvpn[vpn]' in out
 
 
 def test_a_guided_device_key_connect_prompts_without_disclosing_the_secret(tmp_path):

@@ -1,4 +1,4 @@
-"""What Acxelin Readiness tracks: the kinds of asset its CBOM holds, every algorithm it knows with its quantum verdict, and every
+"""What Acxelin QReadiness tracks: the kinds of asset its CBOM holds, every algorithm it knows with its quantum verdict, and every
 place it looks. One list for the console, the website and the manual (a test keeps SOURCES equal to the manual's table)."""
 from .catalog import CATALOG
 

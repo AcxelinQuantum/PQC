@@ -33,7 +33,7 @@ def cmd_ca(a):
     if a.ca_cmd == "init":
         ca = CA.init(a.dir, a.name, a.algorithm, a.days, None if a.no_encrypt else ca_passphrase(a.dir, new=True))
         print(f"created {ca.algorithm} root '{a.name}' in {a.dir}; gateways and people trust {ca.anchor}, gateways check {Path(a.dir) / 'crl.pem'}\n"
-              f"next: acxelin-vpn ca issue site GATEWAY-NAME --san ADDRESS --dir {a.dir}")
+              f"next: acxelin-qvpn ca issue site GATEWAY-NAME --san ADDRESS --dir {a.dir}")
         return 0
     ca = CA(a.dir, None if a.ca_cmd == "list" else ca_passphrase(a.dir))
     if a.ca_cmd == "issue":
@@ -53,7 +53,7 @@ def cmd_ca(a):
         from cryptography.x509 import load_pem_x509_certificate
         from acxelin_core.pki.est import fingerprint, serve
         srv = serve(a.dir, a.listen, a.cert, a.key, ca_passphrase(a.dir), env_passphrase(a.key_passphrase_env))
-        print(f"EST enrollment on https://{a.listen}/.well-known/est for `acxelin-vpn invite --enroll`; CA fingerprint:\n"
+        print(f"EST enrollment on https://{a.listen}/.well-known/est for `acxelin-qvpn invite --enroll`; CA fingerprint:\n"
               f"{fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes()))}")
         run_until_signal(srv.serve_forever, srv.stop)
     elif a.ca_cmd == "maintain":
@@ -76,14 +76,14 @@ def cmd_ca(a):
 def add(sub, common):
     ca = sub.add_parser("ca", help="the certificate authority for gateways, sites and people (ML-DSA), and its enrollment service").add_subparsers(dest="ca_cmd", required=True)
     p = ca.add_parser("init", parents=[common], help="create the VPN's certificate authority",
-                      epilog='example: acxelin-vpn ca init --name "Example VPN Root" --dir pki')
+                      epilog='example: acxelin-qvpn ca init --name "Example VPN Root" --dir pki')
     p.add_argument("--name", required=True, help="the CA's name, shown in every certificate it issues")
     p.add_argument("--algorithm", choices=CA_ALGORITHMS, default="ML-DSA-87", help="SLH-DSA keys need OpenSSL 3.5+")
     p.add_argument("--days", type=int, default=3650, help="the CA certificate's lifetime (default: 3650, ten years)")
     p.add_argument("--no-encrypt", action="store_true",
                    help=f"leave the CA key unencrypted (by default it is encrypted, passphrase from {CA_PASS_ENV} or a prompt)")
     p = ca.add_parser("issue", parents=[common], help="issue a key and certificate for a gateway, a site or a person",
-                      epilog="example: acxelin-vpn ca issue site hq.example --san 198.51.100.1 --dir pki --out hq")
+                      epilog="example: acxelin-qvpn ca issue site hq.example --san 198.51.100.1 --dir pki --out hq")
     p.add_argument("kind", choices=["site", "server", "client"], help="site: an IPsec gateway (both ends); server: the WireGuard gateway; client: a person")
     p.add_argument("common_name", help="the gateway, site or person it certifies")
     p.add_argument("--san", action="append", default=[], help="DNS name or IP (repeatable)")

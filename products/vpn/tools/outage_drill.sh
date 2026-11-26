@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Outage drill for Acxelin VPN's outage grace: partitions or slows the key agreement port (default 7443) between two real Linux
+# Outage drill for Acxelin QVPN's outage grace: partitions or slows the key agreement port (default 7443) between two real Linux
 # machines and prints a timestamped timeline of the tunnel. Run as root on the gateway VM and on the client VM; see
 # docs/outage-drill.md. NOT RUN by its authors: it needs two machines. Checked only with `bash -n`.
 set -euo pipefail
@@ -33,7 +33,7 @@ options
   --baseline-min N           minutes of timeline before the outage (default 1)
   --after-min N              minutes of timeline after it ends (default 5)
   --revoke-serial HEX --ca-dir DIR --revoke-at-min N
-                             block, gateway only: revoke that certificate N minutes into the outage with `acxelin-vpn ca revoke`
+                             block, gateway only: revoke that certificate N minutes into the outage with `acxelin-qvpn ca revoke`
                              (needs ACXELIN_VPN_CA_PASSPHRASE if the CA key is encrypted)
   --restart-cmd 'CMD'        restart: the command that restarts the gateway, e.g. 'systemctl restart acxelin-vpn-wireguard'
   --step N                   seconds between timeline lines (default 5)

@@ -1,4 +1,4 @@
-"""The Acxelin VPN administrator console in a real browser: what an administrator does, with axe on every tab in light, dark
+"""The Acxelin QVPN administrator console in a real browser: what an administrator does, with axe on every tab in light, dark
 and phone width."""
 import json
 import threading
@@ -126,7 +126,7 @@ def test_a_used_link_says_how_to_open_a_new_one(browser, console):
     assert "#" not in first.url and c.cookies() == []
     second.goto(f"{base}/#{ticket}")
     second.get_by_role("heading", name="This link has expired").wait_for()
-    assert "acxelin-vpn console" in second.content()
+    assert "acxelin-qvpn console" in second.content()
     c.close()
 
 

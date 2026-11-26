@@ -1,18 +1,20 @@
 # CLAUDE.md
 
-Acxelin Quantum's post-quantum products, each standalone. The owner develops on Windows with PowerShell, prefers minimal code
-with few comments, wants limits stated honestly and pushes back on overclaiming.
+Acxelin Quantum's post-quantum products, each standalone: QReadiness, QGuard (with QCertificate, its CA) and QVPN. Folders
+and Python modules keep their first names (`products/tls`, `acxelin_tls`); the old commands work through 1.x. The owner
+develops on Windows with PowerShell, prefers minimal code with few comments, wants limits stated honestly and pushes back on
+overclaiming.
 
 ## Layout
 
 - `core/` (acxelin-core): mechanisms only: config, safe file writes (owner-only secrets, Windows ACLs), loopback HTTP, the
   console access contract and shell, the OpenSSL 3.5 binding, TLS contexts, CA, CRLs, signers (KMS, signing command), EST.
   No product names, policies or commands.
-- `products/readiness/` (acxelin-readiness): Readiness + CBOM: scan, grade, report, merge, doctor, console.
-- `products/tls/` (acxelin-tls): TLS/mTLS edge, the CA commands, ACME, console, Docker, systemd.
+- `products/readiness/` (acxelin-qreadiness): QReadiness + CBOM: scan, grade, report, merge, doctor, console.
+- `products/tls/` (acxelin-qguard): QGuard, the TLS/mTLS edge; QCertificate, its CA commands, ACME, console, Docker, systemd.
 - `website/`: the shared home page and one section per product (`tools/build_site.py`), served from GitHub Pages at `/PQC/`
-  (TLS's section is `edge/`); demo content is real product output.
-- `products/vpn/` (acxelin-vpn): site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
+  (sections `qreadiness/`, `qguard/`, `qvpn/`); demo content is real product output.
+- `products/vpn/` (acxelin-qvpn): QVPN: site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
   CA subset, console and CBOM export, the gateway image and systemd units.
 - `documents/`: plain-language "How It Works" guides per product, Markdown plus PDF, exported from the owner's docs.
 - `tools/`: the site build, release gate, wheelhouse, browser test kit, and the repository checks in `tools/tests`.
@@ -32,7 +34,8 @@ with few comments, wants limits stated honestly and pushes back on overclaiming.
 7. Consoles: loopback only (`--container` in Docker), single-use launch tickets in the URL fragment, session tokens in
    sessionStorage, no cookies, Host and Origin checks, lockout after 10 wrong attempts a minute, no secrets in URLs or logs.
 8. Customer-facing pages use Acxelin's style. Proprietary licence: "© 2026 Acxelin Quantum, all rights reserved".
-9. Releases are per product by tag, core first (`core-vX.Y.Z`, then `tls-vX.Y.Z`, `vpn-vX.Y.Z`, `readiness-vX.Y.Z`); the owner decides
+9. Releases are per product by tag, core first (`core-vX.Y.Z`, then `qguard-vX.Y.Z`, `qvpn-vX.Y.Z`, `qreadiness-vX.Y.Z`;
+   1.2/1.3 and earlier were `tls-`, `vpn-`, `readiness-`); the owner decides
    when. PyPI uploads are blocked on purpose.
 10. The mentor's AcxelinPQC repository is a feature reference only; never copy its code.
 11. A stage is done only on executed evidence; report failures and skips with their causes.

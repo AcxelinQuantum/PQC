@@ -1,16 +1,16 @@
-# Acxelin Readiness: How It Works
+# Acxelin QReadiness: How It Works
 
 Acxelin Quantum · October 2026
 
 ## In one page
 
-**Acxelin Readiness finds every piece of cryptography a company depends on, shows what a quantum computer will break, and says what to migrate first.**
+**Acxelin QReadiness finds every piece of cryptography a company depends on, shows what a quantum computer will break, and says what to migrate first.**
 
 Every bank runs on hidden cryptography: keys in code, certificates on servers, settings in config files, choices made years ago by people who have left. Before anyone can move to quantum-safe algorithms, someone has to know where all of it is. Most companies cannot answer that today.
 
 The pressure has a date. NIST IR 8547 (draft) deprecates RSA and elliptic-curve cryptography at 112-bit strength after **2030** and disallows it after **2035**. And because attackers can record traffic now and read it once a quantum computer exists (**harvest now, decrypt later**), data that must stay secret for ten years is already exposed.
 
-Acxelin Readiness answers the question in three parts:
+Acxelin QReadiness answers the question in three parts:
 
 | Part | What it is, in everyday words | What it does |
 | --- | --- | --- |
@@ -40,13 +40,13 @@ Seven ideas explain the whole product. Each has an everyday picture first, then 
 
 ## At a glance
 
-*Diagram: Acxelin Readiness · what goes in and what comes out (see the PDF version).*
+*Diagram: Acxelin QReadiness · what goes in and what comes out (see the PDF version).*
 
 The scanner reads everything on the left without changing it, decides how weak each lock is, and hands back a plan people can follow and files auditors can check.
 
 ## Tech stack
 
-**Acxelin Readiness is written in Python and needs only one outside library (`cryptography`).** It reads code like a person reading a book: it never runs the code, so scanning a client's code is safe.
+**Acxelin QReadiness is written in Python and needs only one outside library (`cryptography`).** It reads code like a person reading a book: it never runs the code, so scanning a client's code is safe.
 
 | Part | What we use | Why, in plain words |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ The scanner reads everything on the left without changing it, decides how weak e
 | Package | Lines of Python | Holds |
 | --- | --- | --- |
 | `acxelin-core` | about 2,800 | Shared mechanisms: the OpenSSL bridge, the console mechanism, safe file writes. Used by all Acxelin products. |
-| `acxelin-readiness` | about 9,900, plus the console page | The product: detectors, ranking, endpoint grading, the CBOM, reports, the console's routes and page. |
+| `acxelin-qreadiness` | about 9,900, plus the console page | The product: detectors, ranking, endpoint grading, the CBOM, reports, the console's routes and page. |
 
 The rule between them: **core holds mechanisms, the product holds policy.** Core knows *how* to serve a safe console; Readiness decides *what* counts as weak.
 
@@ -148,10 +148,10 @@ A check that gets no answer says *could not be checked*, never *none found*. Rea
 ### Opening it
 
 1. Open PowerShell (Windows) or a terminal (Linux, macOS).
-2. Type `acxelin-readiness console` and press Enter.
+2. Type `acxelin-qreadiness console` and press Enter.
 3. Your browser opens at `http://127.0.0.1:8900`, already signed in. Keep the window open; press **Ctrl+C** to stop.
 
-If the browser does not open, add `--no-browser` and copy the address it prints. Each address works once; `acxelin-readiness console link` gives a fresh one.
+If the browser does not open, add `--no-browser` and copy the address it prints. Each address works once; `acxelin-qreadiness console link` gives a fresh one.
 
 ### The three pages
 
@@ -206,15 +206,15 @@ Above the sections, four cards show the numbers that matter: how many findings n
 | **CBOM** (`cbom.json`) | The full list of cryptography, with where each item was found, in the CycloneDX 1.6 standard | Auditors, risk tools, the next scan (to show what is new) |
 | **Report** (HTML, printable to PDF) | A readable summary: priorities, risks, what to fix first | Managers and security leaders |
 | **Spreadsheet** (CSV) | One row per finding with owner, status and due date | The team doing the fixes |
-| **Compliance report** (`acxelin-readiness report`) | Which certificates, servers and findings break the US deadlines in NIST IR 8547 (2030 and 2035), the NSA's CNSA 2.0 list, or India's roadmap (critical infrastructure by the end of 2029) | Compliance and audit teams |
+| **Compliance report** (`acxelin-qreadiness report`) | Which certificates, servers and findings break the US deadlines in NIST IR 8547 (2030 and 2035), the NSA's CNSA 2.0 list, or India's roadmap (critical infrastructure by the end of 2029) | Compliance and audit teams |
 | **Code scanning results** (SARIF) | Findings in the format GitHub and other code tools show next to the code | Developers |
-| **Company-wide view** (`acxelin-readiness merge`) | Many scans (repositories, servers, other tools' CBOMs) combined into one inventory and dashboard | Whoever owns the migration programme |
+| **Company-wide view** (`acxelin-qreadiness merge`) | Many scans (repositories, servers, other tools' CBOMs) combined into one inventory and dashboard | Whoever owns the migration programme |
 
 A scan can also act as a gate in a build pipeline: compared with the last CBOM, it fails the build only when something new and weak appears.
 
 ### Keeping watch
 
-`acxelin-readiness watch` scans again on a schedule, every day for example, and writes down only what changed: findings that appeared and findings no longer found. It can run a command when something changed, such as posting to the team's chat, and it can also be started by the computer's own scheduler (cron, a systemd timer or Windows Task Scheduler). It uses the scanned folder's settings, so live servers and AWS regions listed there are checked each time.
+`acxelin-qreadiness watch` scans again on a schedule, every day for example, and writes down only what changed: findings that appeared and findings no longer found. It can run a command when something changed, such as posting to the team's chat, and it can also be started by the computer's own scheduler (cron, a systemd timer or Windows Task Scheduler). It uses the scanned folder's settings, so live servers and AWS regions listed there are checked each time.
 
 ## Code tour
 
@@ -252,7 +252,7 @@ A scan can also act as a gate in a build pipeline: compared with the last CBOM, 
 
 The current release is **1.1.0**, tag `readiness-v1.1.0` on GitHub, published 29 October 2026. It has two files:
 
-- `acxelin-readiness-1.1.0-wheelhouse.tar.gz`: the program and everything it needs, for Linux, Windows and Apple-silicon Macs, with the installers, the manual and the licence inside.
+- `acxelin-qreadiness-1.1.0-wheelhouse.tar.gz`: the program and everything it needs, for Linux, Windows and Apple-silicon Macs, with the installers, the manual and the licence inside.
 - `SHA256SUMS`: the fingerprint of the download, to prove it arrived unchanged.
 
 There is also a ready-made container image, `ghcr.io/qubitman-hub/acxelin-readiness:1.1.0`.
@@ -260,9 +260,9 @@ There is also a ready-made container image, `ghcr.io/qubitman-hub/acxelin-readin
 ### Installing
 
 1. Check the fingerprint: `sha256sum -c SHA256SUMS --ignore-missing` (on Windows, `Get-FileHash`).
-2. Unpack: `tar xzf acxelin-readiness-1.1.0-wheelhouse.tar.gz`, then go into the folder.
-3. Run `sh install.sh` (Linux, macOS) or `install.ps1` (Windows). It checks Python, adds the `acxelin-readiness` command and runs a self-check (`doctor`).
-4. First scan: `acxelin-readiness scan path/to/project`, or open the console.
+2. Unpack: `tar xzf acxelin-qreadiness-1.1.0-wheelhouse.tar.gz`, then go into the folder.
+3. Run `sh install.sh` (Linux, macOS) or `install.ps1` (Windows). It checks Python, adds the `acxelin-qreadiness` command and runs a self-check (`doctor`).
+4. First scan: `acxelin-qreadiness scan path/to/project`, or open the console.
 
 ### How a release is made
 

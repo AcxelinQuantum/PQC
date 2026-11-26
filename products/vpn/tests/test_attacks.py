@@ -126,7 +126,7 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(len(calls), 2, "the loop tried again after the QKD error")
 
 
-@unittest.skipIf(os.name == "nt" or os.geteuid() != 0, "needs root, as `sudo acxelin-vpn join` runs")
+@unittest.skipIf(os.name == "nt" or os.geteuid() != 0, "needs root, as `sudo acxelin-qvpn join` runs")
 class GiveBackTest(unittest.TestCase):
     def test_sudo_join_never_hands_a_planted_links_target_to_the_person(self):
         with tempfile.TemporaryDirectory() as d:

@@ -1,4 +1,4 @@
-"""Shared by Acxelin TLS's tests: the skip reason without OpenSSL 3.5, a poll helper, and the old-style context helpers."""
+"""Shared by Acxelin QGuard's tests: the skip reason without OpenSSL 3.5, a poll helper, and the old-style context helpers."""
 import time
 
 from acxelin_core import openssl, tls

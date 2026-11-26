@@ -15,14 +15,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "website", ROOT / "build" / "site"
 SECTIONS = {
-    "edge": ("Acxelin TLS", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
+    "qguard": ("Acxelin QGuard", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                             ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
-    "vpn": ("Acxelin VPN", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
+    "qvpn": ("Acxelin QVPN", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                             ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
-    "readiness": ("Acxelin Readiness", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("assets.html", "What it tracks"), ("set-up.html", "Set up"),
+    "qreadiness": ("Acxelin QReadiness", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("assets.html", "What it tracks"), ("set-up.html", "Set up"),
                                          ("manual.html", "Manual"), ("sample.html", "Sample"), ("security.html", "Security")]),
 }
-PRODUCT = {"edge": "tls"}  # URL folder to product folder where they differ
+PRODUCT = {"qguard": "tls", "qvpn": "vpn", "qreadiness": "readiness"}  # URL folder to product folder
+MOVED = {"edge": "qguard", "vpn": "qvpn", "readiness": "qreadiness"}  # earlier addresses, kept as redirects
 LAYOUT = r"""<!doctype html>
 <html lang="en">
 <head>
@@ -101,18 +102,18 @@ def sample(out):
     project = ROOT / "products/readiness/examples/payments-api"
     with tempfile.TemporaryDirectory() as tmp:
         cli.main(["scan", str(project), "-o", tmp, "-q"])
-        shutil.copy(Path(tmp) / "report.html", out / "readiness/sample-report.html")
-        shutil.copy(Path(tmp) / "cbom.json", out / "readiness/sample-cbom.json")
+        shutil.copy(Path(tmp) / "report.html", out / "qreadiness/sample-report.html")
+        shutil.copy(Path(tmp) / "cbom.json", out / "qreadiness/sample-cbom.json")
         bom = json.loads((Path(tmp) / "cbom.json").read_text())
     parts = [c for c in bom["components"] if c.get("type") == "cryptographic-asset" and (c.get("cryptoProperties") or {}).get("assetType") == "algorithm"][:2]
     return bom, html.escape(json.dumps(parts, indent=2))
 
 
 def tls_tour():
-    """The real output of `acxelin-tls try` and the edge's log. The build fails when it cannot run (it needs OpenSSL 3.5+): the page never shows invented output."""
+    """The real output of `acxelin-qguard try` and the edge's log. The build fails when it cannot run (it needs OpenSSL 3.5+): the page never shows invented output."""
     run = subprocess.run([sys.executable, "-m", "acxelin_tls", "try"], capture_output=True, text=True, timeout=120)
     if run.returncode:
-        sys.exit(f"acxelin-tls try failed (set ACXELIN_OPENSSL to an OpenSSL 3.5+ folder): {run.stderr or run.stdout}")
+        sys.exit(f"acxelin-qguard try failed (set ACXELIN_OPENSSL to an OpenSSL 3.5+ folder): {run.stderr or run.stdout}")
     return run.stdout.strip("\n"), run.stderr
 
 
@@ -144,7 +145,7 @@ class Recorder:
 
 
 def vpn_tour():
-    """Two real Acxelin VPN controllers on this machine: a branch agrees keys with headquarters over ML-DSA mutual TLS, then
+    """Two real Acxelin QVPN controllers on this machine: a branch agrees keys with headquarters over ML-DSA mutual TLS, then
     the branch is revoked and refused. strongSwan does not run at build time; a recorder takes what would be loaded into it."""
     import io
     import logging
@@ -214,11 +215,11 @@ def frames(rows, label, caption, number, legend, start=1):
             f'<figcaption id="{label}-cap"><b>Fig. {number}</b>{caption[1]}</figcaption></figure>')
 
 
-TRY_BAR = "<strong>acxelin-tls try</strong> · captured when this site was built"
-VPN_BAR = "<strong>Acxelin VPN key agreement, headquarters and a branch</strong> · captured when this site was built"
+TRY_BAR = "<strong>acxelin-qguard try</strong> · captured when this site was built"
+VPN_BAR = "<strong>Acxelin QVPN key agreement, headquarters and a branch</strong> · captured when this site was built"
 VPN_KEYS = [("ok", "post-quantum"), ("bad", "refused or cut off")]
 TRY_KEYS = [("ok", "accepted, post-quantum"), ("bad", "refused")]
-SCAN_BAR = "<strong>acxelin-readiness scan payments-api</strong> · captured when this site was built"
+SCAN_BAR = "<strong>acxelin-qreadiness scan payments-api</strong> · captured when this site was built"
 SCAN_KEYS = [("bad", "broken today"), ("exposed", "quantum-exposed"), ("ok", "post-quantum")]
 
 
@@ -349,9 +350,9 @@ def home_proof(out, bom, vpn):
     """The home page shows each product working: the top of the sample scan's queue, the decisive frames of the try run, and the
     VPN's key agreement and refusal."""
     scan = readiness_rows(bom)[:3]
-    return (frames(scan, "home-scan", (SCAN_BAR, f"Acxelin Readiness: the three most urgent of the {len(readiness_rows(bom))} assets it ranked in a sample payments service."), 1, SCAN_KEYS)
-            + frames(tls_rows(out)[3:], "home-try", (TRY_BAR, "Acxelin TLS: a post-quantum client is let through to an unchanged web server; a classical one is refused."), 2, TRY_KEYS, start=4)
-            + frames(vpn_rows(*vpn)[2:6], "home-agree", (VPN_BAR, "Acxelin VPN: two sites agree their tunnel's keys over post-quantum mutual TLS; once revoked, the branch is refused."), 3, VPN_KEYS, start=3))
+    return (frames(scan, "home-scan", (SCAN_BAR, f"Acxelin QReadiness: the three most urgent of the {len(readiness_rows(bom))} assets it ranked in a sample payments service."), 1, SCAN_KEYS)
+            + frames(tls_rows(out)[3:], "home-try", (TRY_BAR, "Acxelin QGuard: a post-quantum client is let through to an unchanged web server; a classical one is refused."), 2, TRY_KEYS, start=4)
+            + frames(vpn_rows(*vpn)[2:6], "home-agree", (VPN_BAR, "Acxelin QVPN: two sites agree their tunnel's keys over post-quantum mutual TLS; once revoked, the branch is refused."), 3, VPN_KEYS, start=3))
 
 
 def readiness_kinds(bom):
@@ -546,7 +547,7 @@ def main():
             "{{READINESS_KINDS}}": readiness_kinds(bom), "{{READINESS_CATALOG}}": readiness_catalog(), "{{READINESS_SOURCES}}": sources[0],
             "{{READINESS_ALGORITHM_COUNT}}": str(len(catalog)), "{{READINESS_SOURCE_COUNT}}": str(sources[1]),
             "{{VPN_CAPTURE}}": vpn_capture(*vpn), "{{VPN_LOG}}": html.escape(vpn[0].strip()), "{{HOME_PROOF}}": home_proof(f"{tour}\n{log}", bom, vpn)}
-    versions = {"edge": tls_version, "readiness": readiness_version, "vpn": vpn_version}
+    versions = {"qguard": tls_version, "qreadiness": readiness_version, "qvpn": vpn_version}
     mark = logo()
     pages = [(src.relative_to(SRC), src.read_text(encoding="utf-8")) for src in sorted(SRC.rglob("*.html"))]
     pages += [(Path(section, "manual.html"), manual(section)) for section in SECTIONS]
@@ -574,6 +575,12 @@ def main():
         page = re.sub(r'href="([^":#]*/)?index\.html', lambda m: 'href="' + (m.group(1) or "./"), page)  # folder addresses, no index.html
         (OUT / rel).parent.mkdir(parents=True, exist_ok=True)
         (OUT / rel).write_text(page, encoding="utf-8")
+    for old, new in MOVED.items():
+        for page in [p for p, _ in SECTIONS[new][1]] + ["sample-report.html"] * (new == "qreadiness"):
+            to = f"../{new}/" + ("" if page == "index.html" else page)
+            (OUT / old).mkdir(exist_ok=True)
+            (OUT / old / page).write_text(f'<!doctype html><meta charset="utf-8"><title>Moved</title><meta http-equiv="refresh" content="0; url={to}">'
+                                          f'<link rel="canonical" href="{to}"><a href="{to}">This page moved.</a>\n', encoding="utf-8")
     print(f"built {OUT}")
 
 

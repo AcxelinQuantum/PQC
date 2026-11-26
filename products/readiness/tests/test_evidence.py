@@ -110,7 +110,7 @@ def test_the_report_page_counts_actions_and_has_one_script(certs):
     rep = evidence.report(evidence.certificates(certs))
     page = evidence.to_html(rep)
     assert "need action" in page and "Do these first" in page and page.count("<script") == 1
-    assert "Wolf" not in page and "Acxelin Readiness" in page
+    assert "Wolf" not in page and "Acxelin QReadiness" in page
 
 
 def test_report_command_writes_the_page_and_the_evidence(certs, tmp_path, capsys):

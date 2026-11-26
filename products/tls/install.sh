@@ -3,13 +3,14 @@
 # Works offline from a release wheelhouse (the .whl files next to this script) or from a checkout of the repository.
 set -eu
 PRODUCT=tls
-cmd="acxelin-$PRODUCT"
+cmd="acxelin-qguard"
+old="acxelin-$PRODUCT"  # the 1.x name, still installed
 here=$(cd "$(dirname "$0")" && pwd)
 home="${ACXELIN_PREFIX:-$HOME/.acxelin}/$PRODUCT"
 bin="${ACXELIN_BIN:-$HOME/.local/bin}"
 
 if [ "${1:-}" = "--uninstall" ]; then
-  rm -rf "$home" "$bin/$cmd"
+  rm -rf "$home" "$bin/$cmd" "$bin/$old"
   echo "Removed $cmd. Your certificates, consoles and settings stay where you put them."
   exit 0
 fi
@@ -42,15 +43,17 @@ if [ -z "$ssl" ] && ! openssl version 2>/dev/null | grep -qE "OpenSSL (3\.([5-9]
   if command -v brew >/dev/null 2>&1 && [ -d "$(brew --prefix openssl@3 2>/dev/null)/lib" ]; then ssl="$(brew --prefix openssl@3)/lib"; fi
   [ -n "$ssl" ] || old_ssl=1
 fi
-{
-  echo "#!/bin/sh"
-  if [ -n "$ssl" ]; then
-    echo "export ACXELIN_OPENSSL=\"\${ACXELIN_OPENSSL:-$ssl}\""
-    echo "export LD_LIBRARY_PATH=\"$ssl\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\""
-  fi
-  echo "exec \"$home/bin/$cmd\" \"\$@\""
-} > "$bin/$cmd"
-chmod +x "$bin/$cmd"
+for c in "$cmd" "$old"; do
+  {
+    echo "#!/bin/sh"
+    if [ -n "$ssl" ]; then
+      echo "export ACXELIN_OPENSSL=\"\${ACXELIN_OPENSSL:-$ssl}\""
+      echo "export LD_LIBRARY_PATH=\"$ssl\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\""
+    fi
+    echo "exec \"$home/bin/$c\" \"\$@\""
+  } > "$bin/$c"
+  chmod +x "$bin/$c"
+done
 
 echo
 "$bin/$cmd" doctor || true

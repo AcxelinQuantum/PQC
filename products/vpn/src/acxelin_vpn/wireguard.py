@@ -542,7 +542,7 @@ class Client:
 
     def step(self):
         """One pass of the loop; returns how long to wait before the next."""
-        if self.stop_file and self.stop_file.exists():  # `acxelin-vpn disconnect` asked this client to stop
+        if self.stop_file and self.stop_file.exists():  # `acxelin-qvpn disconnect` asked this client to stop
             log.info("disconnect requested; stopping")
             self.stop_file.unlink(missing_ok=True)
             self.stop.set()

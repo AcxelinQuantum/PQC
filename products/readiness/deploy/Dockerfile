@@ -1,5 +1,5 @@
 # Pinned by digest so a rebuild uses the same base; Dependabot proposes updates.
-# Build from the repository root: docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .
+# Build from the repository root: docker build -f products/readiness/deploy/Dockerfile -t acxelin-qreadiness .
 ARG BASE=python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
 FROM ${BASE}
 # Apply distribution security updates even when the pinned base predates their publication.
@@ -14,5 +14,5 @@ ENV ACXELIN_READINESS_HOME=/data/console
 VOLUME /data
 USER scanner
 WORKDIR /scan
-ENTRYPOINT ["acxelin-readiness"]
+ENTRYPOINT ["acxelin-qreadiness"]
 CMD ["scan", "."]

@@ -56,7 +56,7 @@ def require(cfg, which=shutil.which):
     """A gateway that manages its interface and restricts people must be able to enforce it; refuse to start otherwise."""
     if cfg.access and cfg.manage_interface and not which("nft"):
         raise RuntimeError("per-user access needs the nft command (install nftables) to enforce it. Without it people would only be advised of their routes, "
-                           "which anyone can bypass. To enforce the rules another way, set manage_interface = false and load `acxelin-vpn access rules` yourself")
+                           "which anyone can bypass. To enforce the rules another way, set manage_interface = false and load `acxelin-qvpn access rules` yourself")
 
 
 def validate(cfg):

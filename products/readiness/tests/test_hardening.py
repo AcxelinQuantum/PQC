@@ -162,8 +162,8 @@ def test_the_action_does_not_expand_globs_in_its_args(tmp_path):
     (tmp_path / "b.min.js").write_text("")
     fake = tmp_path / "bin"
     fake.mkdir()
-    (fake / "acxelin-readiness").write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE"\n')
-    (fake / "acxelin-readiness").chmod(0o755)
+    (fake / "acxelin-qreadiness").write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$CAPTURE"\n')
+    (fake / "acxelin-qreadiness").chmod(0o755)
     # a Windows drive letter has a colon, so the folders are joined with the system's separator and Git Bash keeps its own tools
     path = os.pathsep.join([str(fake), os.environ["PATH"]]) if os.name == "nt" else f"{fake}:/usr/bin:/bin"
     env = ({k: v for k, v in os.environ.items() if k != "PATH"} if os.name == "nt" else {}) | {

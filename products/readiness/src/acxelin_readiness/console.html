@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Acxelin Readiness</title>
+<title>Acxelin QReadiness</title>
 <style>
 /*SHELL*/
 .split{grid-template-columns:minmax(0,230px) minmax(0,1fr)}
@@ -94,7 +94,7 @@ kbd{font:12px var(--mono);padding:0 5px;border:1px solid var(--rule-strong);bord
 </head>
 <body>
 <main>
-<header class="brandbar"><div class="logo"><!--LOGO--></div><span class="product">Acxelin Readiness</span><small>Local console. Only this computer can open it.</small></header>
+<header class="brandbar"><div class="logo"><!--LOGO--></div><span class="product">Acxelin QReadiness</span><small>Local console. Only this computer can open it.</small></header>
 <p class="msg" id="msg" role="alert"></p><p class="note" id="note" role="status"></p>
 <div id="app"><p class="lede">Opening the console…</p></div>
 </main>
@@ -120,8 +120,8 @@ const call = async (path, body) => { try { say(""); if (body) $("#note").textCon
 
 function signedOut() {
   $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "This link has expired"),
-    h("p", {class: "lede"}, "Each launch link works once. In a terminal, run ", h("code", {class: "cmd"}, "acxelin-readiness console"), " to open a new one."),
-    h("p", {class: "lede"}, "On a remote server, forward the port with SSH, then run ", h("code", {class: "cmd"}, "acxelin-readiness console link"), " in that session.")));
+    h("p", {class: "lede"}, "Each launch link works once. In a terminal, run ", h("code", {class: "cmd"}, "acxelin-qreadiness console"), " to open a new one."),
+    h("p", {class: "lede"}, "On a remote server, forward the port with SSH, then run ", h("code", {class: "cmd"}, "acxelin-qreadiness console link"), " in that session.")));
 }
 
 function setup() {
@@ -171,7 +171,7 @@ function importForm() {
   const go = async () => {
     const f = file.files[0];
     if (!f) return say("Choose a CBOM file first.");
-    if (f.size > 16e6) return say("That CBOM is over 16 MB. Merge it on the command line with `acxelin-readiness merge` instead.");
+    if (f.size > 16e6) return say("That CBOM is over 16 MB. Merge it on the command line with `acxelin-qreadiness merge` instead.");
     let cbom;
     try { cbom = JSON.parse(await f.text()); } catch (e) { return say("That file is not JSON. Choose a CycloneDX CBOM (.json)."); }
     try { const r = await call("projects/import", {name: f.name, cbom}); await addAndScan(r.project); } catch (e) {}
@@ -529,7 +529,7 @@ async function showBoard() {
     b.actions.length ? [h("h3", {}, "First five actions"), h("ol", {}, b.actions.map((a) => h("li", {}, a.text, " ", h("small", {}, [a.names.join(", "), a.projects.join(", ")].filter(Boolean).join(" · ")))))] : "",
     b.services.length ? [h("h3", {}, "Services most at risk"), h("p", {style: "margin:0"}, b.services.join(" · "))] : "",
     b.libraries_without_pq ? h("p", {class: "legend"}, b.libraries_without_pq + (b.libraries_without_pq === 1 ? " third-party library has" : " third-party libraries have") + " no post-quantum support yet: ask those suppliers for their dates.") : "",
-    h("p", {class: "legend"}, "From Acxelin Readiness scans of the code, configuration and keys on this computer. It shows what the systems use, not the programme around them: owners, budget and vendor commitments are for the board to confirm."),
+    h("p", {class: "legend"}, "From Acxelin QReadiness scans of the code, configuration and keys on this computer. It shows what the systems use, not the programme around them: owners, budget and vendor commitments are for the board to confirm."),
     h("div", {class: "row", style: "margin-top:14px"}, h("button", {class: "btn", onclick: () => { document.body.classList.add("board-print"); print(); }}, "Print or save as PDF")));
   $("#panel").insertBefore(section, $("#ov-state"));
   section.focus();
@@ -603,7 +603,7 @@ async function refreshOverview() {
       (w.new || []).length ? h("p", {}, "New: " + w.new.map(([n, at]) => n + " at " + at).join("; ")) : "",
       (w.gone || []).length ? h("p", {}, "No longer found: " + w.gone.map(([n, at]) => n + " at " + at).join("; ")) : "",
       h("p", {class: "legend"}, "Results in " + w.out)))))
-      : h("p", {class: "state"}, ["None yet. To scan a repository every day, run ", h("code", {class: "cmd"}, "acxelin-readiness watch PATH --every 24"), " on this computer; each scan then appears here."]));
+      : h("p", {class: "state"}, ["None yet. To scan a repository every day, run ", h("code", {class: "cmd"}, "acxelin-qreadiness watch PATH --every 24"), " on this computer; each scan then appears here."]));
 }
 
 // ---- endpoints

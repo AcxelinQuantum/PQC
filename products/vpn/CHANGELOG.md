@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Renamed: Acxelin VPN is now Acxelin QVPN. The command and package are `acxelin-qvpn`; `acxelin-vpn` still works through 1.x and says so on
+  stderr. Release tags are `qvpn-vX.Y.Z`, downloads `acxelin-qvpn-1.3.0-wheelhouse.tar.gz`, the image `ghcr.io/acxelinquantum/acxelin-qvpn`.
+  The desktop app keeps its file names (`Acxelin VPN.exe`, `Acxelin VPN.app`, the `acxelin-vpn` .deb) so an upgrade replaces it; its window, tray and shortcuts say Acxelin QVPN. Data folders, settings files, service names and every output format are unchanged.
+
 ## 1.2.0
 
 - `acxelin-vpn kme`: a key server for gateways that ask for keys over ETSI GS QKD 014 (Juniper SRX and MX, Fortinet FortiGate,
