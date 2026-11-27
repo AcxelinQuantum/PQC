@@ -140,6 +140,20 @@ def _names(stem):
     return [os.path.join(f, name) for f in folders] + [name]
 
 
+def not_found(names, folder, system=None):
+    """Why OpenSSL 3.5+ could not be loaded, and the easiest fix on this platform."""
+    system = system or platform.system()
+    tried = f"tried {', '.join(names)}" if names else "no libcrypto was found" + (f" in {folder} (ACXELIN_OPENSSL) or" if folder else "") + " on PATH"
+    if system == "Windows":
+        fix = ("Install it with `choco install openssl -y` (or `winget install ShiningLight.OpenSSL.Light`) in an administrator terminal, "
+               "then set ACXELIN_OPENSSL to its bin folder, such as C:\\Program Files\\OpenSSL-Win64\\bin, and open a new terminal.")
+    elif system == "Darwin":
+        fix = "Install it with `brew install openssl@3` and set ACXELIN_OPENSSL to its lib folder ($(brew --prefix openssl@3)/lib)."
+    else:
+        fix = f"{EASIEST} Or install OpenSSL 3.5+ and set ACXELIN_OPENSSL to the folder that holds it."
+    return f"OpenSSL 3.5+ was not found ({tried}). {fix}"
+
+
 def _load(stem):
     names = _names(stem)
     for n in names:
@@ -147,8 +161,7 @@ def _load(stem):
             return ctypes.CDLL(n, mode=getattr(ctypes, "RTLD_GLOBAL", 0))
         except OSError:
             continue
-    raise OpenSSLUnavailable(f"OpenSSL 3.5+ was not found (tried {', '.join(names) or 'nothing on PATH'}). {EASIEST} "
-                             "Or install OpenSSL 3.5+ and set ACXELIN_OPENSSL to the folder that holds it.")
+    raise OpenSSLUnavailable(not_found(names, folder_setting()))
 
 
 class _Lib:
@@ -308,6 +321,8 @@ class Context:
         load = lambda p: self._check(lib().SSL_CTX_use_certificate_chain_file(self.ptr, os.fsencode(p)), f"load certificate {path}")
         try:
             blocks = re.findall(rb"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----\s*", Path(path).read_bytes(), re.S)
+        except FileNotFoundError:
+            raise TLSError(f"cannot load certificate {path}: file not found") from None
         except OSError:
             return load(path)  # OpenSSL's error names the problem
         keep = blocks[:1] + [b for b in blocks[1:] if not _self_signed(b)]
@@ -335,8 +350,13 @@ class Context:
 
     def _use_key(self, path, passphrase):
         L_ = lib()
-        with open(path, "rb") as f:
-            data = f.read()
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except FileNotFoundError:
+            raise TLSError(f"cannot read private key {path}: file not found") from None
+        if not passphrase and b"ENCRYPTED" in data:
+            raise TLSError(f"cannot read private key {path}: it is encrypted and no passphrase was given")
         bio = L_.BIO_new_mem_buf(data, len(data))
         if not bio:
             raise TLSError(f"cannot allocate a private-key BIO: {errors()}")

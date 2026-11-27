@@ -26,13 +26,18 @@ def ca_passphrase(root, new=False):
     return p1
 
 
+def schedule_hint():
+    """How this platform runs a command on a schedule, for advice such as "renew it daily"."""
+    return "a scheduled task (Task Scheduler)" if os.name == "nt" else "cron or a systemd timer"
+
+
 def policy(p):
     p.add_argument("--policy", choices=list(policies.POLICIES), default="strict",
                    help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024, ML-DSA-87 and AES-256 only")
 
 
 def tls_client_args(p):
-    p.add_argument("target", help="host:port")
+    p.add_argument("target", help="host:port, such as www.example.com:443")
     p.add_argument("--server-name", help="name the certificate must match (default: host)")
     policy(p)
     p.add_argument("--timeout", type=float, default=10.0)

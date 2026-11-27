@@ -4,7 +4,9 @@ import os
 import re
 import socket
 import sys
+import tempfile
 import threading
+from pathlib import Path
 
 from acxelin_core import tls
 from acxelin_core.cli import run_until_signal, show
@@ -37,15 +39,25 @@ def cmd_tls(a):
         srv = Server(hostport(a.listen), make, echo, watch=[a.cert, a.key, a.ca], crl=a.crl, ca=a.ca, name="serve")
         run_until_signal(srv.serve_forever, srv.stop)
         return 0
+    from .connection import key_name, verdict, why_failed
     host, port = hostport(a.target, "")
-    ctx = tls.client_context(policies.policy(a.policy), a.ca, a.cert, a.key, env_passphrase(a.key_passphrase_env))
+    with tempfile.TemporaryDirectory() as tmp:
+        ca = a.ca or tls.public_roots(Path(tmp) / "public-roots.pem")  # no --ca: trust what this computer trusts, as a browser does
+        ctx = tls.client_context(policies.policy(a.policy), ca, a.cert, a.key, env_passphrase(a.key_passphrase_env))
     ctx.request_staple = True
     try:
         conn = tls.connect(host, port, ctx, a.server_name, a.timeout)
     except socket.gaierror as e:
         raise tls.TLSError(f"{host}: {explain(e)}; connect by address and name the certificate with --server-name {host}") from None
+    except tls.TLSError as e:
+        raise tls.TLSError(why_failed(host, port, a.server_name, a.policy, e, public=not a.ca)) from None
     with conn:
         out = conn.info()
+        out["verdict"] = verdict(out)
+        if a.json:
+            out["peer_key_name"] = key_name(out.get("peer_key"))
+        else:
+            out["peer_key"] = key_name(out.get("peer_key"))
         out["ocsp"] = _staple(conn)
         if a.send is None and (refused := _refused(conn)):
             raise tls.TLSError(refused)
@@ -213,10 +225,10 @@ def add(sub):
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--crl", help="refuse revoked client certificates")
     policy(p)
-    p = t.add_parser("connect", help="handshake, optionally send a message, print what was negotiated")
+    p = t.add_parser("connect", help="check a connection: is the key exchange quantum-safe, and the certificate; optionally send a message")
     p.set_defaults(func=cmd_tls)
     tls_client_args(p)
-    p.add_argument("--ca", required=True)
+    p.add_argument("--ca", help="the CA file the server's certificate must chain to (default: the public authorities this computer trusts)")
     p.add_argument("--cert", help="client certificate, for mutual TLS")
     p.add_argument("--key")
     p.add_argument("--key-passphrase-env")

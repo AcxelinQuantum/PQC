@@ -76,7 +76,7 @@ def cmd_try(a):
     """A self-contained tour, nothing to set up: a CA, a plain web server, the post-quantum edge in front of it, a
     post-quantum client that gets through and a classical one that does not. Everything lives in a temporary folder."""
     tls.lib()  # say at once when this machine's OpenSSL cannot do post-quantum TLS, not halfway through the tour
-    quiet = {"acxelin_tls": logging.getLogger("acxelin_tls").level}  # the server's log lines are part of the tour, and the site shows them
+    quiet = {n: logging.getLogger(n).level for n in ("acxelin_tls", "acxelin_core")}  # the tour tells the story; log lines would bury it
     for name in quiet:
         logging.getLogger(name).setLevel(logging.ERROR)
     try:
@@ -126,7 +126,8 @@ def _tour():
             edge.stop(0)
             web.shutdown()
             web.server_close()
-    print("\nThat is Acxelin QGuard: post-quantum protection in front of a service that did not change.\nNext: acxelin-qguard edge --help")
+    print("\nThat is Acxelin QGuard: post-quantum protection in front of a service that did not change."
+          "\nNext: open the console to create your certificate authority and protect your first service: acxelin-qguard console")
     return 0
 
 
@@ -186,7 +187,10 @@ def main(argv=None):
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
         sys.exit(1)
     except (CAError, tls.TLSError, ValueError, OSError, ImportError) as e:
-        print(f"error: {explain(e)}", file=sys.stderr)
+        why = explain(e)
+        if "is encrypted and no passphrase was given" in why:
+            why += "; put the passphrase in an environment variable and name it with --key-passphrase-env (key_passphrase_env in a settings file)"
+        print(f"error: {why}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(130)

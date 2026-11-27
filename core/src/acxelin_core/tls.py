@@ -57,6 +57,25 @@ def client_context(policy, ca=None, cert=None, key=None, key_passphrase=None, ve
     return Context(False, policy.groups, policy.sigalgs, policy.ciphersuites, cert, key, key_passphrase, ca, verify)
 
 
+def public_roots(path):
+    """Write the public certificate authorities this computer trusts (the Windows store on Windows, the system bundle elsewhere)
+    to `path` as PEM, for a client that should trust what a browser on this machine trusts. Returns the path."""
+    import ssl
+    ctx = ssl.create_default_context()
+    ders = ctx.get_ca_certs(binary_form=True)
+    if not ders:
+        try:  # where the system store cannot be listed, the usual Python bundle, if it is installed
+            import certifi
+            ctx.load_verify_locations(certifi.where())
+            ders = ctx.get_ca_certs(binary_form=True)
+        except (ImportError, OSError):
+            pass
+    if not ders:
+        raise TLSError("could not read the certificate authorities this computer trusts; pass the CA file with --ca")
+    Path(path).write_text("".join(ssl.DER_cert_to_PEM_cert(d) for d in ders), encoding="ascii")
+    return path
+
+
 def connect(host, port, ctx, server_name=None, timeout=10.0):
     """Open a verified TLS 1.3 connection; the certificate must match `server_name` (defaults to `host`)."""
     sock = nodelay(_dial(host, port, timeout))
