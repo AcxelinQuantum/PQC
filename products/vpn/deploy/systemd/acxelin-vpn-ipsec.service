@@ -6,7 +6,7 @@ Requires=strongswan-pqc.service
 ConditionPathExists=/etc/acxelin-vpn/site.toml
 
 [Service]
-ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn up --config /etc/acxelin-vpn/site.toml
+ExecStart=/opt/acxelin-vpn/bin/acxelin-qvpn up --config /etc/acxelin-vpn/site.toml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 NoNewPrivileges=yes

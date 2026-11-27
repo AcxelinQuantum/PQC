@@ -5,7 +5,7 @@ Wants=network-online.target
 ConditionPathExists=/etc/acxelin-vpn/gateway.toml
 
 [Service]
-ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn gateway --config /etc/acxelin-vpn/gateway.toml
+ExecStart=/opt/acxelin-vpn/bin/acxelin-qvpn gateway --config /etc/acxelin-vpn/gateway.toml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 StateDirectory=acxelin-qvpn

@@ -33,7 +33,7 @@ def test_the_units_the_plan_names_are_all_there():
 def test_each_service_runs_a_real_command_on_the_file_it_waits_for(path):
     s = unit(path)
     exe, *argv = shlex.split(s["Service"]["ExecStart"])
-    assert exe == "/opt/acxelin-vpn/bin/acxelin-vpn"
+    assert exe == "/opt/acxelin-vpn/bin/acxelin-qvpn", "the command's own name; the folder and the unit names stay"
     a = parses(argv)
     wanted = s["Unit"]["ConditionPathExists"]
     named = getattr(a, "config", None) or f"{a.dir}/ca.crt"
