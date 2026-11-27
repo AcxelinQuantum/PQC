@@ -51,9 +51,26 @@ def evidence_view(a):
 
 
 def score(assets):
-    """0-100: the average priority of the listed (not test-only) findings; None when there is nothing to score."""
+    """0-100: the average priority of the listed (not test-only) findings; None when there is nothing to score. No longer shown
+    anywhere (more harmless findings raise it); kept in saved summaries for tools that read it."""
     listed = [POINTS[a["tier"]] for a in assets if not a["test_only"]]
     return round(sum(listed) / len(listed)) if listed else None
+
+
+def headline(assets):
+    """The numbers every view leads with: findings outside test code by priority, the critical and high ones to fix now, and the
+    findings only in tests, counted apart. Takes scan results (objects) or saved ones (dicts)."""
+    get = lambda x, k: x[k] if isinstance(x, dict) else getattr(x, k)
+    listed = [x for x in assets if not get(x, "test_only")]
+    n = Counter(get(x, "tier") for x in listed)
+    return {"fix_now": n["critical"] + n["high"], **{t: n[t] for t in TIERS}, "findings": len(listed), "test_only": len(assets) - len(listed)}
+
+
+def headline_text(h):
+    """The command line's lead sentence, from the same numbers the console shows."""
+    things = "thing" if h["fix_now"] == 1 else "things"
+    return (f"{h['fix_now']} {things} to fix now ({h['critical']} critical, {h['high']} high), of {h['findings']} finding{'s' * (h['findings'] != 1)}"
+            + (f"; {h['test_only']} more only in tests, listed apart." if h["test_only"] else "."))
 
 
 SETTINGS = {"exclude": list, "test_paths": list, "include_vendor": bool, "tls": list, "ssh": list, "aws": list, "shelf_life": (int, float), "migration": (int, float),
@@ -149,7 +166,7 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
     graph = result.relationships
     assessment = {"project": name or root.name, "finished": time.time(), "assets": assets, "patterns": patterns, "notes": result.notes,
                   "summary": {"crypto_assets": len(assets), "priorities": dict(Counter(a["tier"] for a in assets)), "score": score(assets),
-                              "coverage": result.stats["coverage"].get("percent"), "coverage_detail": {k: v for k, v in result.stats["coverage"].items() if k != "percent"},
+                              "headline": headline(assets), "coverage": result.stats["coverage"].get("percent"), "coverage_detail": {k: v for k, v in result.stats["coverage"].items() if k != "percent"},
                               "python_files": graph.get("languages", {}).get("Python", 0), "languages": graph.get("languages", {}), "coverage_gaps": graph.get("skipped", {}),
                               "migration_candidates": sum(a["tier"] in {"critical", "high"} and not a["test_only"] and not a["declared"] for a in assets),
                               "security_patterns": sum(p["severity"] in {"critical", "high"} for p in patterns), "functions": sum(s["kind"] == "function" for s in graph["symbols"]),
@@ -245,7 +262,7 @@ def imported(path, name):
             ([f"{unrated} algorithm name(s) not recognised and not rated"] if unrated else [])
     return {"project": name, "finished": time.time(), "assets": assets, "patterns": [], "notes": ["; ".join(notes) + "."],
             "summary": {"crypto_assets": len(assets), "priorities": dict(Counter(a["tier"] for a in assets)), "score": score(assets),
-                        "imported_from": system["tool"]},
+                        "headline": headline(assets), "imported_from": system["tool"]},
             "evidence_boundary": "Another tool's CBOM, read as given: its findings are not re-checked.", "relationships": {}}
 
 
@@ -335,6 +352,15 @@ class ProjectStore:
                 names.append(name)
         self.update(change)
 
+    def forget(self, root, parent=None):
+        """Drop a project's saved results, tracking and history, and its registration under `parent` when it has one."""
+        def change(data):
+            if parent is not None:
+                names = data['registrations'].get(self.key(parent), [])
+                data['registrations'][self.key(parent)] = [n for n in names if n != Path(root).name]
+            data['projects'].pop(self.key(root), None)
+        self.update(change)
+
     def save(self, root, assessment):
         import copy
         def change(data):
@@ -388,12 +414,14 @@ class ProjectStore:
             except (zlib.error, ValueError, TypeError, RecursionError) as error:
                 raise ValueError('Stored relationship graph is damaged or exceeds its size limit') from error
         result['history'] = copy.deepcopy(project.get('history', []))
+        result['summary']['headline'] = headline(result['assets'])  # also for results saved before it was kept
         result['not_observed'] = copy.deepcopy(project.get('missing', []))
         cmdb, repo = project.get('owners', []), result.get('codeowners', [])
         result['owner_rules'] = len(cmdb)
         for asset in result['assets'] + result['not_observed']:
             asset['owner_hint'] = owners.suggest(cmdb, repo, sorted({f for f, _ in asset['locations']}))
             asset['example'], asset['effort'] = example(asset), effort(asset)
+            asset['test_places'] = sum(is_test(f) for f, _ in asset['locations'])
         for asset in result['assets'] + result['not_observed']:
             asset['tracking'] = copy.deepcopy(project.get('tracking', {}).get(asset['id'], {'owner': '', 'due': '', 'status': 'open', 'reason': '', 'until': ''}))
             tracking = asset['tracking']
@@ -441,15 +469,28 @@ class ProjectStore:
         if not isinstance(body.get('finding'), str):
             raise ValueError('Choose a finding from a completed assessment')
         fields = {k: body.get(k, '') for k in ('owner', 'due', 'status', 'reason', 'until')}
-        if any(not isinstance(v, str) for v in fields.values()) or len(fields['owner']) > 120 or len(fields['reason']) > 1000:
-            raise ValueError('Owner must be at most 120 characters and rationale at most 1000')
+        # Each refusal starts with the label of the form field it is about, so the console can show it next to that field.
+        if any(not isinstance(v, str) for v in fields.values()):
+            raise ValueError('Owner, Due date, Status, Why it is accepted and Accepted until are text')
+        if len(fields['owner']) > 120:
+            raise ValueError('Owner: use at most 120 characters')
         if fields['status'] not in STATUSES:
-            raise ValueError('Choose open, planned, in_progress, fixed or exception')
-        for field in ('due', 'until'):
-            if fields[field] and (len(fields[field]) != 10 or dt.date.fromisoformat(fields[field]).isoformat() != fields[field]):
-                raise ValueError('Dates must use YYYY-MM-DD')
-        if fields['status'] == 'exception' and (not fields['reason'].strip() or not fields['until'] or fields['until'] < dt.datetime.now(dt.timezone.utc).date().isoformat()):
-            raise ValueError('An exception needs a rationale and a current or future expiry date')
+            raise ValueError('Status: choose To do, Planned, In progress, Fixed or Accepted risk (open, planned, in_progress, fixed or exception)')
+        for field, label in (('due', 'Due date'), ('until', 'Accepted until')):
+            try:
+                if fields[field] and (len(fields[field]) != 10 or dt.date.fromisoformat(fields[field]).isoformat() != fields[field]):
+                    raise ValueError
+            except ValueError:
+                raise ValueError(f'{label}: use a date such as 2027-06-30') from None
+        if fields['status'] == 'exception':
+            if not fields['reason'].strip():
+                raise ValueError('Why it is accepted: say why this risk is accepted, for the next person who reads it')
+            if len(fields['reason']) > 1000:
+                raise ValueError('Why it is accepted: use at most 1000 characters')
+            if not fields['until'] or fields['until'] < dt.datetime.now(dt.timezone.utc).date().isoformat():
+                raise ValueError('Accepted until: choose today or a later date; the risk is reviewed again then')
+        elif len(fields['reason']) > 1000:
+            raise ValueError('Why it is accepted: use at most 1000 characters')
         def change(data):
             project = data['projects'].get(self.key(root))
             if not project or body.get('finding') not in {a['id'] for a in project['assessment']['assets'] + project.get('missing', [])}:

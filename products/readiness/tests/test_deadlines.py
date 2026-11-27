@@ -57,4 +57,6 @@ def test_the_board_gives_crypto_agility_and_the_weakest_project(tmp_path):
     root, r = build(tmp_path, {"shop": {"keys.py": KX}, "web": {"nginx/site.conf": "ssl_protocols TLSv1 TLSv1.2;\n"}, "ledger": {"main.py": MD5}})
     board = scan_all(r)
     assert board["agility"]["without_code"] >= 1 and board["agility"]["total"] >= board["agility"]["without_code"]
-    assert board["weakest"]["name"] in ("ledger", "web", "shop") and board["weakest"]["score"] <= board["score"]
+    projects = {p["name"]: p["fix_now"] for p in r("GET", "/api/overview")["projects"]}
+    assert board["weakest"]["name"] in ("ledger", "web", "shop") and board["weakest"]["fix_now"] == max(projects.values())
+    assert board["fix_now"] == sum(projects.values()) == board["critical"] + board["high"], "the board's numbers add up"

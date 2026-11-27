@@ -310,8 +310,14 @@ def test_counts_match_the_listed_findings_when_some_are_only_in_tests(page, cons
     open_console(page, console)
     fill_setup(page, root)
     scan_shop(page)
-    page.get_by_text("only in tests").wait_for()
-    assert page.locator(".counts button").inner_text().split()[-1] == str(page.locator("#pj-result tbody tr").count())
+    page.get_by_text("only in tests").first.wait_for()
+    listed = page.get_by_role("region", name="Findings, scrolls sideways").locator("tbody tr")
+    assert page.locator(".counts button").inner_text().split()[-1] == str(listed.count())
+    page.get_by_text("Only in tests: 2 findings, not counted above").click()
+    tested = page.get_by_role("region", name="Findings only in tests, scrolls sideways")
+    assert "MD5" in tested.inner_text() and "SHA-1" in tested.inner_text() and "MD5" not in page.get_by_role("region", name="Findings, scrolls sideways").inner_text()
+    glance = page.locator("#pj-result .glance").inner_text()
+    assert "1 thing to fix now" in glance.replace("\n", " ") and "of 1 finding outside test code; 2 more only in tests" in glance, glance
 
 
 def test_after_a_restart_the_selected_repository_is_the_one_whose_results_show(browser, tmp_path, repos):
@@ -370,14 +376,17 @@ def test_a_private_repository_token_is_saved_without_ever_showing_it(page, conso
     page.get_by_text("Private repositories", exact=True).wait_for()
 
 
-def test_the_readiness_score_and_its_trend_show_for_projects_and_endpoints(page, console, repos):
+def test_the_things_to_fix_now_lead_with_their_trend_and_each_host_keeps_its_history(page, console, repos):
     open_console(page, console)
     fill_setup(page, repos)
     scan_shop(page)
-    page.locator(".score strong").wait_for()
-    assert page.locator(".score strong").inner_text().endswith(" of 100")
+    page.locator(".trendline strong").wait_for()
+    assert page.locator(".trendline").inner_text().startswith("Things to fix now: 1")
+    assert "of 100" not in page.locator("#panel").inner_text() and "score" not in page.locator("#panel").inner_text().lower(), "decision 7"
     page.get_by_role("button", name="Scan repository").click()
     page.locator("figure.trend svg").wait_for(timeout=30000)
+    assert "Things to fix now over the last 2 scans, from 1 to 1" == page.locator("figure.trend svg").get_attribute("aria-label")
+    assert page.locator("figure.trend .axis span").last.inner_text().endswith(": 1")
     page.get_by_role("tab", name="Endpoints").click()
     runs = iter([[grade("127.0.0.1:1", "C")], [grade("127.0.0.1:1", "A")]])
     with patch("acxelin_readiness.console.endpoints.scan", side_effect=lambda t: next(runs)):
@@ -386,9 +395,9 @@ def test_the_readiness_score_and_its_trend_show_for_projects_and_endpoints(page,
             page.get_by_role("button", name="Check endpoints").click()
             page.locator("#ep-result td .pill", has_text=re.compile(f"^{g}:")).wait_for()
             expect(page.locator("#check")).to_be_enabled()
-    assert page.locator(".score").inner_text().startswith("Readiness 100 of 100, up 100 since ")
-    assert page.locator("figure.trend .axis span").last.inner_text().endswith(": 100")
-    assert "from 0 to 100" in page.locator("figure.trend svg").get_attribute("aria-label")
+    page.get_by_text("Earlier checks").first.click()
+    assert re.search(r"C\s+on\s+\d{4}-\d\d-\d\d", page.locator("#ep-result table").inner_text())
+    assert "of 100" not in page.locator("#panel").inner_text()
     assert page.evaluate(AXE.read_text() + ";axe.run().then(r=>r.violations.map(v=>v.id+': '+v.help))") == []
 
 
@@ -495,7 +504,7 @@ def test_each_finding_says_how_it_was_seen_and_how_sure_the_scan_is(page, consol
     assert "In code" in basis and "confidence" in basis
 
 
-def test_coverage_shows_beside_the_score_and_a_fall_in_coverage_is_called_out(page, console):
+def test_coverage_shows_and_a_fall_in_coverage_is_called_out(page, console):
     open_console(page, console)
     page.get_by_role("tab", name="Endpoints").click()
     runs = iter([[grade("127.0.0.1:1", "C"), grade("127.0.0.1:2", "C")], [grade("127.0.0.1:1", "A"), grade("127.0.0.1:2", "F")]])
@@ -506,7 +515,7 @@ def test_coverage_shows_beside_the_score_and_a_fall_in_coverage_is_called_out(pa
             page.locator("#ep-result td .pill", has_text=re.compile(f"^{g}:")).first.wait_for()
             expect(page.locator("#check")).to_be_enabled()
     page.get_by_text("Coverage 50%: 1 of 2 endpoints could be graded.").wait_for()
-    assert "Coverage fell from 100% to 50%" in page.locator("#ep-result").inner_text(), "the score rose to 100 only because one endpoint went dark"
+    assert "Coverage fell from 100% to 50%" in page.locator("#ep-result").inner_text(), "fewer problems only because one endpoint went dark"
 
 
 def test_owners_come_from_codeowners_and_a_cmdb_export_and_unowned_findings_ask_for_review(page, console, repos, tmp_path):
@@ -546,7 +555,7 @@ def test_both_pages_show_the_four_analyses_with_their_charts_and_the_nav_reaches
         assert page.evaluate(AXE.read_text() + ";axe.run().then(r=>r.violations.map(v=>v.id+': '+v.help))") == []
 
     result = page.locator("#pj-result")
-    assert "1 of 1" in result.locator(".glance").inner_text() and "high" in result.locator("dl.key").inner_text()
+    assert "1 thing to fix now" in result.locator(".glance").inner_text().replace("\n", " ") and "high" in result.locator("dl.key").inner_text()
     assert result.locator(".bars .bar-row").filter(has_text="Breakable by a quantum computer").inner_text().endswith("1")
     assert "Replace with" in result.locator("#pj-prescriptive + ol").inner_text()
     check("pj")
@@ -594,7 +603,15 @@ def test_the_board_summary_prints_alone_and_says_when_it_is_provisional(page, co
     page.get_by_role("button", name="Board summary").click()
     board = page.locator("#board")
     board.get_by_text("First five actions").wait_for()
-    assert "readiness" in board.inner_text() and "Provisional" not in board.inner_text()
+    assert "to fix now" in board.inner_text() and "of 100" not in board.inner_text() and "Provisional" not in board.inner_text()
+    page.evaluate("window.prints = 0; window.print = () => { window.prints += 1; }; 0")  # ends in 0: Playwright calls an expression that ends in a function
+    board.get_by_role("button", name="Print or save as PDF").click()
+    page.get_by_role("tab", name="Projects").click()
+    page.get_by_role("button", name="Print or save as PDF").click()
+    assert page.evaluate("window.prints") == 2, "one click prints once (R12)"
+    page.get_by_role("tab", name="Overview").click()
+    page.get_by_role("button", name="Board summary").click()
+    board.get_by_text("First five actions").wait_for()
     page.evaluate("document.body.classList.add('board-print')")
     page.emulate_media(media="print")
     assert board.is_visible() and not page.locator("#ov").is_visible() and not page.get_by_role("tab", name="Projects").is_visible()
@@ -636,5 +653,166 @@ def test_what_it_tracks_lists_every_kind_and_algorithm_and_passes_axe(browser, c
             assert page.get_by_role("heading", name=kind, exact=True).count() == 1, kind
         assert page.evaluate(AXE.read_text() + ";axe.run().then(r=>r.violations.map(v=>v.id+': '+v.help))") == []
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    finally:
+        ctx.close()
+
+
+def axe(page):
+    return page.evaluate(AXE.read_text() + ";axe.run().then(r=>r.violations.map(v=>v.id+': '+v.help))")
+
+
+def test_a_project_is_removed_only_after_confirming(page, console, repos):
+    open_console(page, console)
+    fill_setup(page, repos)
+    scan_shop(page)
+    page.once("dialog", lambda d: d.dismiss())
+    page.get_by_role("button", name="Remove from QReadiness").click()
+    expect(page.get_by_role("heading", name="shop", exact=True)).to_be_visible()
+    asked = []
+    page.once("dialog", lambda d: asked.append(d.message) or d.accept())
+    page.get_by_role("button", name="Remove from QReadiness").click()
+    page.get_by_text("Removed shop.").wait_for()
+    assert "not touched" in asked[0] and "shop" in asked[0]
+    assert not page.locator(".list button", has_text="shop").count()
+    assert "shop" in page.get_by_label("Add a repository").inner_text(), "it can be added again"
+    assert (repos / "shop/keys.py").exists()
+
+
+def test_the_repositories_folder_can_be_changed_and_a_wrong_one_is_flagged_next_to_its_field(page, console, repos, tmp_path):
+    (tmp_path / "work/web").mkdir(parents=True)
+    open_console(page, console)
+    fill_setup(page, repos)
+    scan_shop(page)
+    page.get_by_text("Change folder").click()
+    field = page.get_by_label("Repositories folder")
+    field.fill(str(tmp_path / "nope"))
+    page.get_by_role("button", name="Use this folder").click()
+    expect(field).to_have_attribute("aria-invalid", "true")
+    error = page.locator("#" + field.get_attribute("aria-describedby"))
+    assert error.inner_text().startswith("Choose an existing folder") and field.evaluate("e => e.nextElementSibling.id") == error.get_attribute("id")
+    assert page.locator("#msg").inner_text() == "", "not in a banner at the top of the page (R6)"
+    field.fill(str(tmp_path / "work"))
+    page.get_by_role("button", name="Use this folder").click()
+    page.get_by_label("Add a repository").locator("option", has_text="web").wait_for(state="attached")
+    assert str((tmp_path / "work").resolve()) in page.locator("#panel").inner_text()
+
+
+def test_a_github_link_that_leads_nowhere_is_not_kept(page, console):
+    open_console(page, console)
+    gone = rc.remote.Refused("Repository not found on GitHub. For a private repository, save a read-only access token first.")
+    with patch("acxelin_readiness.console.remote.fetch", side_effect=gone):
+        page.get_by_label("Repository link").fill("https://github.com/acme/no-such-repo")
+        page.get_by_role("button", name="Download and scan").click()
+        page.locator("#gh-error", has_text="It was not added to your projects.").wait_for()
+    assert not page.get_by_text("github.com/acme/no-such-repo").count()
+    page.get_by_role("tab", name="Overview").click()
+    page.get_by_text("No projects yet").wait_for()
+
+
+def test_an_accepted_risk_without_a_reason_is_flagged_next_to_that_field(page, console, repos):
+    open_console(page, console)
+    fill_setup(page, repos)
+    scan_shop(page)
+    page.locator("details.track summary").first.click()
+    page.get_by_label("Status").first.select_option("exception")
+    page.get_by_label("Accepted until").first.fill("2099-01-01")
+    page.get_by_role("button", name="Save").first.click()
+    reason = page.get_by_label("Why it is accepted").first
+    expect(reason).to_have_attribute("aria-invalid", "true")
+    error = page.locator("#" + reason.get_attribute("aria-describedby"))
+    assert error.inner_text().startswith("Why it is accepted:") and reason.evaluate("e => e.nextElementSibling.id") == error.get_attribute("id")
+    assert page.locator("#msg").inner_text() == ""
+    assert axe(page) == []
+    reason.fill("Vendor appliance, replaced in 2027")
+    page.get_by_role("button", name="Save").first.click()
+    page.get_by_text("Accepted risk until 2099-01-01").wait_for()
+
+
+def test_each_host_keeps_its_last_grade_and_a_host_can_be_forgotten(page, console):
+    open_console(page, console)
+    page.get_by_role("tab", name="Endpoints").click()
+    runs = iter([[grade("a.example:443", "C")], [grade("b.example:443", "F")]])
+    with patch("acxelin_readiness.console.endpoints.scan", side_effect=lambda t: next(runs)):
+        for host, g in (("a.example", "C"), ("b.example", "F")):
+            page.get_by_label("Hosts to check").fill(host)
+            page.get_by_role("button", name="Check endpoints").click()
+            page.locator("#ep-result tr", has_text=host).locator(".pill", has_text=re.compile(f"^{g}:")).wait_for()
+            expect(page.locator("#check")).to_be_enabled()
+    table = page.locator("#ep-result table")
+    assert "a.example:443" in table.inner_text(), "checking b did not wipe a's grade (R7)"
+    page.once("dialog", lambda d: d.accept())
+    page.get_by_role("button", name="Forget b.example:443").click()
+    expect(table).not_to_contain_text("b.example:443")
+    assert "a.example:443" in table.inner_text()
+
+
+def test_a_certificate_this_computer_cannot_verify_is_reported_without_guessing_a_proxy(page, console):
+    site = grade("acxelinquantum.com:443", "B") | {"trusted": False, "trust_error": "certificate has expired", "trust_code": 10,
+                                                   "certificate": {"key": "ECDSA-secp384r1", "issuer": "CN=E7,O=Let's Encrypt,C=US", "expires": "2027-01-20",
+                                                                   "days_left": 54, "quantum_safe": False}}
+    open_console(page, console)
+    page.get_by_role("tab", name="Endpoints").click()
+    with patch("acxelin_readiness.console.endpoints.scan", side_effect=lambda t: [site]):
+        page.get_by_label("Hosts to check").fill("acxelinquantum.com")
+        page.get_by_role("button", name="Check endpoints").click()
+        page.locator("#ep-result td .pill").first.wait_for()
+    row = page.locator("#ep-result tr", has_text="acxelinquantum.com").inner_text()
+    assert "This computer couldn't verify the certificate (certificate has expired)" in row
+    assert "proxy" not in page.locator("#ep-result").inner_text().lower() and "inspect" not in page.locator("#ep-result").inner_text().lower()
+
+
+def test_projects_results_and_overview_fit_a_phone_and_long_paths_wrap(browser, console, tmp_path):
+    root = tmp_path / ("averylongfoldernamewithoutanyplacetobreakit" * 2) / "repositories"
+    (root / "shop").mkdir(parents=True)
+    (root / "shop/keys.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\nimport hashlib\n"
+                                       "rsa.generate_private_key(public_exponent=65537, key_size=2048)\nhashlib.md5(b'x')\n")
+    fits = "document.documentElement.scrollWidth <= window.innerWidth"
+    for width in (390, 1280):
+        ctx = browser.new_context(viewport={"width": width, "height": 900})
+        page = ctx.new_page()
+        try:
+            open_console(page, console)
+            if width == 390:
+                fill_setup(page, root)
+                scan_shop(page)
+            page.locator("#pj-result table").first.wait_for()
+            page.locator("details.track summary").first.click()
+            assert page.evaluate(fits), f"Projects scrolls sideways at {width} px (R11)"
+            page.get_by_role("tab", name="Overview").click()
+            page.locator("#ov table").wait_for()
+            assert page.evaluate(fits), f"Overview scrolls sideways at {width} px"
+        finally:
+            ctx.close()
+
+
+def test_scan_every_project_shows_progress_straight_away(page, console, repos):
+    import time
+    open_console(page, console)
+    fill_setup(page, repos)
+    page.get_by_role("tab", name="Overview").click()
+
+    def slow(path, **kw):
+        kw["progress"]("Analyzing source and cryptography")
+        time.sleep(1.5)
+        raise rc.workspace.ScanStopped("Scan cancelled; the previous completed assessment is preserved")
+    with patch("acxelin_readiness.console.workspace.scan", side_effect=slow):
+        page.get_by_role("button", name="Scan every project").click()
+        page.locator("#ov-state progress").wait_for(timeout=2000)
+        assert "Scanning 1 of 2" in page.locator("#ov-state").inner_text()
+        expect(page.get_by_role("button", name="Scan every project")).to_be_disabled()
+        page.get_by_text("Last run", exact=False).wait_for(timeout=15000)
+
+
+def test_times_are_the_viewers_own_with_utc_on_hover(browser, console, repos):
+    ctx = browser.new_context(timezone_id="Asia/Kolkata")  # UTC+5:30: the local time never reads like UTC
+    page = ctx.new_page()
+    try:
+        open_console(page, console)
+        fill_setup(page, repos)
+        scan_shop(page)
+        stamp = page.locator("#pj-result time").first
+        shown, title = stamp.inner_text(), stamp.get_attribute("title")
+        assert title.endswith(" UTC") and shown != title.removesuffix(" UTC") and re.fullmatch(r"\d{4}-\d\d-\d\d \d\d:\d\d", shown)
+        assert "UTC" not in page.locator("#pj-result").inner_text()
     finally:
         ctx.close()

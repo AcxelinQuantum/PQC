@@ -242,7 +242,7 @@ def to_html(rep, title="Post-quantum readiness"):
             f"<label>Status<select id=st><option value=''>All</option>{options}</select></label><span id=n role=status></span></div>"
             f"<div class=scroll tabindex=0 role=region aria-label='Every asset'><table><thead><tr><th>Area</th><th>Asset</th><th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Frameworks</th><th>Evidence</th></tr></thead>"
             f"<tbody id=rows>{rows}</tbody></table></div><p><small>{e(FRAMEWORK_NOTE)}</small></p></section>" + DASHBOARD)
-    return _page(title, "Readiness assessment", title, e(sub), body, f"Acxelin QReadiness {__version__}")
+    return _page(title, "Post-quantum readiness assessment", title, e(sub), body, f"Acxelin QReadiness {__version__}")
 
 
 DASHBOARD = """<style>.todo{list-style:none;display:grid;gap:10px}.todo small{color:var(--mute)}.filters{display:flex;flex-wrap:wrap;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
