@@ -107,7 +107,7 @@ def test_main_is_importable_and_returns_a_status():
 def test_console_container_flag_listens_on_every_interface_and_opens_no_browser(monkeypatch, tmp_path):
     from acxelin_tls import console
     seen = {}
-    monkeypatch.setattr(console, "run", lambda home, port, open_browser, ca_dir, host: seen.update(home=home, open=open_browser, host=host) or 0)
+    monkeypatch.setattr(console, "run", lambda home, port, open_browser, ca_dir, host, **kw: seen.update(home=home, open=open_browser, host=host) or 0)
     with pytest.raises(SystemExit):
         cli.main(["console", "--container", "--home", str(tmp_path)])
     assert seen == {"home": tmp_path, "open": False, "host": "0.0.0.0"}

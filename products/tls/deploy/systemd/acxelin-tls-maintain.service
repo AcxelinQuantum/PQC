@@ -6,7 +6,7 @@ ConditionPathExists=/var/lib/acxelin-tls/pki/ca.crt
 Type=oneshot
 User=acxelin
 EnvironmentFile=-/etc/acxelin-tls/ca.env
-ExecStart=/opt/acxelin-tls/bin/acxelin-tls ca maintain --dir /var/lib/acxelin-tls/pki
+ExecStart=/opt/acxelin-tls/bin/acxelin-qguard ca maintain --dir /var/lib/acxelin-tls/pki
 NoNewPrivileges=yes
 # Sandboxing: systemd-analyze security scores this unit; it keeps only what the service needs.
 PrivateTmp=yes

@@ -6,7 +6,7 @@ ConditionPathExists=/etc/acxelin-tls/edge.toml
 
 [Service]
 User=acxelin
-ExecStart=/opt/acxelin-tls/bin/acxelin-tls edge --config /etc/acxelin-tls/edge.toml
+ExecStart=/opt/acxelin-tls/bin/acxelin-qguard edge --config /etc/acxelin-tls/edge.toml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 AmbientCapabilities=CAP_NET_BIND_SERVICE
