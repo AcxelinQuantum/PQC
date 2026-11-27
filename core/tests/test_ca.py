@@ -72,6 +72,16 @@ class CATest(unittest.TestCase):
         self.assertLessEqual(dt.datetime.fromisoformat(rec.not_after), self.ca.cert.not_valid_after_utc)
         self.assertEqual(rec.names, [])
 
+    def test_a_lifetime_is_exact_even_when_the_clock_ticks_while_issuing(self):
+        start = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+        ticks = (start + dt.timedelta(seconds=i) for i in range(100))
+        with mock.patch("acxelin_core.pki.now", side_effect=lambda: next(ticks)):
+            folder, _ = self.ca.issue("svc.example", "server", hours=24, passphrase=b"root-pass", out=Path(self.tmp.name) / "svc")
+            root = CA.init(Path(self.tmp.name) / "other", "Other Root", days=30)
+        cert = x509.load_pem_x509_certificate((folder / "cert.pem").read_bytes())
+        self.assertEqual(cert.not_valid_after_utc - cert.not_valid_before_utc, dt.timedelta(hours=24))
+        self.assertEqual(root.cert.not_valid_after_utc - root.cert.not_valid_before_utc, dt.timedelta(days=30))
+
     def test_csr_is_signed_with_its_names(self):
         key = generate("ML-DSA-44")
         csr = (x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "edge")]))

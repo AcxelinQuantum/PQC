@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Fixed: a certificate's lifetime is exact. Issuing read the clock twice, so a 24-hour certificate could come out a second short.
+- For the product rework:
+  - `tls.public_roots` writes the public authorities this computer trusts, including Ubuntu's one-file-per-authority folder.
+  - Servers count a client's "certificate not trusted" alert as `client_distrusts_certificate`.
+  - `http.explain` and `openssl.not_found` say what to do next (a port in use, a reserved port, installing OpenSSL on Windows or macOS).
+  - EST tokens can be listed and cancelled.
+
 ## 1.3.0
 
 - Fixed: `CA.renew` refuses a certificate signed from a request (CSR, EST, ACME) unless given `out`, since its key is with

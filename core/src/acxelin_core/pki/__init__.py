@@ -167,9 +167,10 @@ class CA:
         except (signers.SignerError, OSError, KeyError, ValueError) as e:
             raise CAError(f"cannot use the CA key: {e}") from None
         subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)])
-        not_after = now() + dt.timedelta(days=days)
+        start = now()  # one reading of the clock, so the lifetime is exact
+        not_after = start + dt.timedelta(days=days)
         b = (x509.CertificateBuilder().subject_name(subject).issuer_name(parent.cert.subject if parent else subject)
-             .serial_number(x509.random_serial_number()).not_valid_before(now())
+             .serial_number(x509.random_serial_number()).not_valid_before(start)
              .not_valid_after(min(not_after, parent.cert.not_valid_after_utc) if parent else not_after)
              .add_extension(x509.BasicConstraints(ca=True, path_length=0 if parent else None), critical=True)
              .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False), critical=True)
@@ -238,10 +239,11 @@ class CA:
             raise CAError("the common name must be 1 to 64 characters")
         names = list(names) or ([common_name] if kind != "client" else [])
         general_names(names)
-        not_after = min(now() + lifetime, self.cert.not_valid_after_utc)
+        start = now()  # one reading of the clock, so the lifetime is exact
+        not_after = min(start + lifetime, self.cert.not_valid_after_utc)
         b = (x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
              .issuer_name(self.cert.subject).public_key(public_key).serial_number(x509.random_serial_number())
-             .not_valid_before(now()).not_valid_after(not_after)
+             .not_valid_before(start).not_valid_after(not_after)
              .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
              .add_extension(x509.KeyUsage(True, False, False, False, False, False, False, False, False), critical=True)
              .add_extension(x509.ExtendedKeyUsage(USAGE[kind]), critical=False)
