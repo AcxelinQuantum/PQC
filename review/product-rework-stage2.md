@@ -18,6 +18,9 @@ Approved by the owner on 27 November 2026, together with `review/product-rework-
 2. **Service settings:** the console reads and writes the same TOML file the QGuard service reads. Default `<console home>/edge.toml`; can be pointed at another file (for example `/etc/acxelin-tls/edge.toml`). No format change. The running edge already applies changes live.
 3. **Windows service:** a documented recipe (scheduled task at start-up), no new command.
 4. **PFX export:** added, labelled "for moving keys between tools; Windows TLS can't use ML-DSA certificates yet".
+   *Correction during Stage 2:* the audit was wrong that `cryptography` can write this. It refuses ML-DSA keys in PKCS#12
+   ("Key must be RSA, DSA, EllipticCurve, ED25519, or ED448"). Instead, downloads offer one PEM file with the full chain
+   and key, and the docs state the PFX limit.
 5. **HTTP/2:** documented as a limit; the manual's `alpn = ["h2"]` example explains that `alpn` chooses a route and HTTP/2 isn't served.
 6. **Website:** a short showcase (audit section 7). Tests for removed pages go; new tests for the showcase; CLAUDE.md's `website/` line updated.
 7. **QReadiness score:** the 0–100 number is dropped. The result leads with "N things to fix now". Reports, CBOM and CSV formats keep their fields where other tools read them (state it in the CHANGELOG if a field changes meaning).

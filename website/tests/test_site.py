@@ -1,5 +1,6 @@
-"""The website in a real browser: each product's journey from the home page, its pages naming only that product, real
-demo output, working links, and accessibility on every page in light, dark and mobile."""
+"""The website in a real browser: a short showcase. From the home page to each product and to a conversation; each product page
+names only its product and shows real, current screenshots of it; no install or manual content; working links; every earlier
+address lands on the product; accessibility on every page in light, dark and mobile."""
 import functools
 import http.server
 import re
@@ -15,11 +16,9 @@ AXE = ROOT / "tools/browser/node_modules/axe-core/axe.min.js"
 sys.path.insert(0, str(ROOT / "tools"))
 import build_site  # noqa: E402
 
-PRODUCTS = {"qreadiness": ("Acxelin QReadiness", "See Acxelin QReadiness", "sh install.sh"),
-            "qguard": ("Acxelin QGuard", "See Acxelin QGuard", "sh install.sh"),
-            "qvpn": ("Acxelin QVPN", "See Acxelin QVPN", "sh install.sh")}
-PAGES = ["index.html"] + [f"{s}/{p}" for s, (_, pages) in build_site.SECTIONS.items() for p, _ in pages]
+PAGES = ["index.html"] + [f"{s}/index.html" for s in build_site.SECTIONS]
 OLD = re.compile(r"Wolf ?Pack|wolfpack", re.I)
+CONTACT = "https://acxelinquantum.com/"
 
 
 @pytest.fixture(scope="module")
@@ -44,59 +43,56 @@ def browser():
         b.close()
 
 
-@pytest.mark.parametrize("section", PRODUCTS)
-def test_home_to_install_command_copied(browser, site, section):
+@pytest.mark.parametrize("section", build_site.SECTIONS)
+def test_home_to_the_product_and_to_a_conversation(browser, site, section):
     base, _ = site
-    name, link, install = PRODUCTS[section]
-    ctx = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
-    page = ctx.new_page()
+    name = build_site.SECTIONS[section]
+    page = browser.new_page()
     page.goto(base + "/index.html")
-    page.get_by_role("link", name=link).click()
+    page.get_by_role("link", name=f"See {name}").click()
     page.get_by_role("heading", level=1).wait_for()
     assert page.url.endswith(f"/{section}/")
-    page.get_by_role("navigation", name=name).get_by_role("link", name="Set up", exact=True).click()
-    page.get_by_role("heading", name=f"Set up {name}").wait_for()
-    step = page.locator("ol.steps > li").filter(has=page.get_by_role("heading", name="Install", exact=True))
-    step.get_by_role("button", name="Copy command").first.click()
-    assert page.evaluate("navigator.clipboard.readText()") == install
-    page.get_by_role("button", name="Copied").wait_for()
-    ctx.close()
+    assert page.locator("figure.shot img").count() >= 1
+    assert "Nothing is sent to Acxelin Quantum" in page.inner_text("main")
+    assert page.get_by_role("link", name="Talk to Acxelin Quantum").first.get_attribute("href") == CONTACT
+    page.close()
 
 
-def test_each_product_page_names_only_its_own_product_and_the_home_page_only_routes(browser, site):
+def test_each_product_page_names_only_its_own_product_and_the_home_page_names_all(browser, site):
     base, _ = site
     page = browser.new_page()
-    for section, (name, _, _) in PRODUCTS.items():
-        others = [n for s, (n, _, _) in PRODUCTS.items() if s != section]
-        expected = [name] + [label for _, label in build_site.SECTIONS[section][1]]
-        for page_name, _ in build_site.SECTIONS[section][1]:
-            page.goto(f"{base}/{section}/{page_name}")
-            text = page.inner_text("body")
-            assert not [o for o in others if o in text], (section, page_name)
-            assert not OLD.search(text), (section, page_name, OLD.search(text).group(0))
-            assert [a.inner_text() for a in page.get_by_role("navigation", name=name).get_by_role("link").all()] == expected
+    for section, name in build_site.SECTIONS.items():
+        page.goto(f"{base}/{section}/")
+        text = page.inner_text("body")
+        others = [n for s, n in build_site.SECTIONS.items() if s != section]
+        assert not [o for o in others if o in text], section
+        assert not OLD.search(text), section
+        assert [a.inner_text() for a in page.get_by_role("navigation", name=name).get_by_role("link").all()] == [name]
     page.goto(base + "/index.html")
-    home = page.inner_text("body")
-    assert all(n in home for n, _, _ in PRODUCTS.values())
-    assert not re.search(r"how it works|set up|policy|CBOM \(", home, re.I), "the home page routes; product detail lives on product pages"
+    assert all(n in page.inner_text("body") for n in build_site.SECTIONS.values())
     page.close()
 
 
-def test_demos_are_real_output(browser, site):
-    base, out = site
-    page = browser.new_page()
-    page.goto(base + "/qreadiness/sample.html")
-    page.frame_locator("iframe.report").get_by_text("payments-api").first.wait_for()
-    assert '"specVersion": "1.6"' in (out / "qreadiness/sample-cbom.json").read_text()
-    page.goto(base + "/qguard/demo.html")
-    tour = page.locator("pre code").first.inner_text()
-    assert "refused, as it should be" in tour and "MLKEM768" in tour and "ML-DSA" in tour
-    page.goto(base + "/qvpn/demo.html")
-    log = page.locator("pre code").first.inner_text()
-    assert "TLSv1.3 X25519MLKEM768" in log and "new keys" in log and "was revoked" in log and "discarded its keys" in log
-    page.get_by_role("button", name=re.compile("Both sides derive the same keys")).click()
-    assert page.get_by_text("yes, compared after the run").is_visible()
-    page.close()
+def test_the_site_shows_products_not_installation_or_manuals(site):
+    _, out = site
+    for path in PAGES:
+        text = (out / path).read_text(encoding="utf-8")
+        for word in ("install.sh", "install.ps1", "pip install", "docker", "wheelhouse", "<pre", "Set up", "Manual"):
+            assert word not in text, (path, word)
+        assert not re.search(r"\s--[a-z]", text), (path, "a command-line option")
+
+
+def test_screenshots_are_current_output_of_the_products_in_this_checkout():
+    """Each screenshot records a digest of the console files it was made from (tools/capture_screens.py); a change to those files
+    without a new screenshot fails here, so the site never shows a console that no longer exists."""
+    stale = []
+    for screen in build_site.SCREENS:
+        path = ROOT / "website/assets/screens" / screen
+        if not path.exists():
+            stale.append(f"{screen}: missing")
+        elif build_site.png_text(path).get(build_site.KEY) != build_site.digest(screen):
+            stale.append(f"{screen}: made from other files than this checkout's")
+    assert not stale, "run python tools/capture_screens.py:\n" + "\n".join(stale)
 
 
 def test_images_load_and_every_internal_link_resolves(browser, site):
@@ -127,7 +123,7 @@ def test_every_page_passes_axe_and_does_not_scroll_sideways(browser, site, schem
     for path in PAGES:
         page.goto(f"{base}/{path}")
         page.wait_for_load_state("networkidle")
-        v = page.evaluate(axe + ";axe.run({exclude:[['iframe']]}).then(r=>r.violations.map(v=>v.id+': '+v.nodes.slice(0,2).map(n=>n.html.slice(0,60)).join(' | ')))")
+        v = page.evaluate(axe + ";axe.run().then(r=>r.violations.map(v=>v.id+': '+v.nodes.slice(0,2).map(n=>n.html.slice(0,60)).join(' | ')))")
         if v:
             found[path] = v
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), (path, "scrolls sideways")
@@ -138,7 +134,7 @@ def test_every_page_passes_axe_and_does_not_scroll_sideways(browser, site, schem
 def test_skip_link_reaches_the_main_content(browser, site):
     base, _ = site
     page = browser.new_page()
-    page.goto(base + "/qguard/index.html")
+    page.goto(base + "/qguard/")
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.className") == "skip"
     page.keyboard.press("Enter")
@@ -146,20 +142,14 @@ def test_skip_link_reaches_the_main_content(browser, site):
     page.close()
 
 
-def watch(page):
-    """Every browser-side problem on a page: console errors, uncaught exceptions, failed requests and error responses."""
+def test_no_page_has_a_browser_error(browser, site):
+    base, _ = site
+    page = browser.new_page()
     problems = []
     page.on("console", lambda m: m.type == "error" and problems.append(f"console: {m.text}"))
     page.on("pageerror", lambda e: problems.append(f"exception: {e}"))
     page.on("requestfailed", lambda r: problems.append(f"failed: {r.url} {r.failure}"))
     page.on("response", lambda r: r.status >= 400 and problems.append(f"HTTP {r.status}: {r.url}"))
-    return problems
-
-
-def test_no_page_has_a_browser_error(browser, site):
-    base, _ = site
-    page = browser.new_page()
-    problems = watch(page)
     for path in PAGES:
         page.goto(f"{base}/{path}")
         page.wait_for_load_state("networkidle")
@@ -167,31 +157,15 @@ def test_no_page_has_a_browser_error(browser, site):
     page.close()
 
 
-def test_the_assets_page_shows_everything_readiness_tracks_from_the_product_itself(browser, site):
-    """Every algorithm in Readiness's catalogue, every kind of asset its CBOM holds and every source its manual lists, so the page
-    cannot promise what the product does not do or leave out what it does."""
-    from acxelin_readiness.catalog import CATALOG
+def test_every_earlier_address_lands_on_the_product(browser, site):
     base, _ = site
     page = browser.new_page()
-    page.goto(base + "/qreadiness/assets.html")
-    text = page.locator("main").inner_text()
-    missing = [name for name in CATALOG if name not in text]
-    assert not missing, missing
-    for kind in ("Algorithms", "Protocols", "Certificates", "Keys and key material", "Libraries"):
-        assert page.get_by_role("heading", name=kind, exact=True).count() == 1, kind
-    manual = (ROOT / "products/readiness/docs/manual.md").read_text(encoding="utf-8")
-    sources = re.findall(r"^\| ([A-Z][^|]+?) \|", manual.split("### What it reads", 1)[1].split("###", 1)[0], re.M)
-    assert len(sources) >= 6 and all(s.strip() in text for s in sources if s.strip() != "Source"), sources
-    assert page.get_by_text("quantum-safe", exact=False).count() and page.get_by_text("broken today", exact=False).count()
-    page.close()
-
-
-def test_the_earlier_addresses_redirect_to_the_renamed_products(browser, site):
-    base, _ = site
-    page = browser.new_page()
+    for section in build_site.SECTIONS:
+        for old in ("set-up.html", "manual.html", "how-it-works.html"):
+            page.goto(f"{base}/{section}/{old}")
+            page.wait_for_url(f"{base}/{section}/")
     for old, new in build_site.MOVED.items():
-        page.goto(f"{base}/{old}/set-up.html")
-        page.wait_for_url(f"{base}/{new}/set-up.html")
-        page.goto(f"{base}/{old}/")
-        page.wait_for_url(f"{base}/{new}/")
+        for path in ("", "set-up.html", "manual.html"):
+            page.goto(f"{base}/{old}/{path}")
+            page.wait_for_url(f"{base}/{new}/")
     page.close()
