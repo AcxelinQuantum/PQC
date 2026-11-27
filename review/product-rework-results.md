@@ -117,7 +117,16 @@ Also found and fixed during Stage 2: a QVPN test deleted the real Windows "start
 
 ## Tests
 
-_(filled in from the final runs below)_
+Final runs on the branch, each product's suite on its own as CLAUDE.md says.
+
+| Where | Suite | Result |
+|---|---|---|
+| Windows 11, Python 3.14, OpenSSL 4.1 | `ruff check .` | clean |
+| Windows 11 | core, QGuard, tools | 571 passed, 53 skipped, 1 failed: `test_evidence_cli.py::test_a_pilot_bundle_holds_the_build_config_certificates_handshake_and_counters`, which passes when run alone (timing under the full run, not a product fault) |
+| Windows 11 | QReadiness, website | 822 passed, 3 skipped, 3 failed: the symlink tests, because Windows Developer Mode is off on this machine (creating a symlink needs it) |
+| Windows 11 | QVPN | 306 passed, 21 skipped (tunnels need root or Linux) |
+| WSL Ubuntu 26.04 as root, OpenSSL 3.5.5 | core, QGuard, tools | 608 passed, 16 skipped, 0 failed |
+| GitHub Actions (Ubuntu, Windows, macOS; Python 3.11 and 3.14) | every workflow | 49 of 50 jobs passed; Windows 3.11 failed `test_http_guard.py::GuardTest::test_one_network_gets_its_share_and_no_more` because Windows reported the server's refusal as "aborted" (WinError 10053) rather than "reset". The test now counts both as refused; a connection left open still fails it |
 
 ## What was not tested, and why
 

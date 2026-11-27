@@ -17,7 +17,7 @@ def closed(s, within):
     s.settimeout(within)
     try:
         return s.recv(1) == b""
-    except ConnectionResetError:
+    except (ConnectionResetError, ConnectionAbortedError):  # Windows reports the server's close either way
         return True
     except TimeoutError:
         return False
