@@ -35,7 +35,8 @@ def test_the_board_summary_gives_the_level_its_trend_the_risks_and_the_top_actio
     assert first["actions"][0]["projects"] == ["ledger", "shop"]  # the same step in two projects is said once, naming both
     (root / "ledger/main.py").write_text("import hashlib\nhashlib.sha256(b'x')\n")
     second = scan_all(r)
-    assert second["previous"] == first["score"] and second["score"] > first["score"]
+    assert second["previous"] == first["fix_now"] and second["fix_now"] < first["fix_now"] and second["change"] == second["fix_now"] - first["fix_now"]
+    assert "score" not in second, "no 0-100 score: harmless findings could raise it (decision 7)"
     assert not second["provisional"]
 
 

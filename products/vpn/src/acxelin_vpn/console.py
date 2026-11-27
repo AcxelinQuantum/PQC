@@ -5,6 +5,7 @@ Runs on acxelin-core's console mechanism; this module is only the product's page
 from the /status address they serve with `metrics = "HOST:PORT"`. A CA passphrase is held in memory for the life of the console
 and never written anywhere; invitations go to the browser and are never written to disk, since they hold a one-time token.
 """
+import datetime as dt
 import functools
 import json
 import os
@@ -19,10 +20,10 @@ from acxelin_core import console as core
 from acxelin_core import shell
 from acxelin_core.files import locked, write
 from acxelin_core.http import explain
-from acxelin_core.pki import CA, CAError, encrypted
+from acxelin_core.pki import CA, CAError, encrypted, est
 
 from . import __version__, audit, checks, join
-from .ca_commands import CA_PASS_ENV
+from .ca_commands import CA_PASS_ENV, REVOCATION, console_home
 
 NAME = re.compile(r"[A-Za-z0-9@._-]{1,128}")
 NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -109,7 +110,7 @@ class VPNConsole:
         ca = CA(self.ca_dir)
         return 200, {"configured": True, "name": ca.cert.subject.rfc4514_string().removeprefix("CN="), "algorithm": ca.algorithm,
                      "encrypted": encrypted(self.ca_dir / "ca.key"), "unlocked": self.passphrase is not None or not encrypted(self.ca_dir / "ca.key"),
-                     "settings": self._load("settings.json", {}), "version": __version__}
+                     "settings": self._load("settings.json", {}), "version": __version__, "ca_dir": str(self.ca_dir)}
 
     @task
     def create(self, body):
@@ -140,9 +141,24 @@ class VPNConsole:
         self.passphrase = pw.encode()
         return 200, {"unlocked": True}
 
-    def _certificate(self, records, serial):
+    def _certificate(self, records, serial, peer=None):
+        """The certificate a site reports, or, once it reports none (a revoked peer's tunnel is gone), the newest one issued to
+        that peer's name, so a revoked site shows as revoked."""
         r = next((r for r in records if serial and r.serial == serial), None)
+        if not r and peer:
+            r = max((r for r in records if r.kind == "site" and r.common_name == peer), key=lambda r: r.status == "valid", default=None)
         return {"serial": r.serial, "common_name": r.common_name, "status": r.status, "not_after": r.not_after} if r else None
+
+    def _revoke(self, name, kind):
+        ca = self._ca()
+        with locked(ca.root):  # renewals take the same lock, so none can slip a fresh certificate in between
+            valid = [r for r in ca.records() if r.kind == kind and r.common_name == name and r.status == "valid"]
+            if not valid:
+                raise ValueError(f"{name} has no valid certificate to revoke")
+            for r in valid:
+                if ca.find(r.serial).status == "valid":  # an earlier one may have taken its renewals with it
+                    ca.revoke(r.serial)
+        return valid
 
     # --- sites and gateways the console reads
 
@@ -190,16 +206,25 @@ class VPNConsole:
                     continue
                 t = p.get("tunnel") or {}
                 children = t.get("children", [])
+                cert = self._certificate(records, p.get("certificate"), peer)
                 tunnels.append({"peer": peer, "state": t.get("state", "no tunnel") if t else "no tunnel", "initiates": p.get("initiate"),
+                                "revoked": bool(cert and cert["status"] == "revoked"),
                                 "protected": bool(t and t.get("state") == "ESTABLISHED" and t.get("ppk") and "ML_KEM" in t.get("key_exchange", "")
                                                   and any(c.get("state") == "INSTALLED" for c in children)),
                                 "key_exchange": t.get("key_exchange"), "encryption": t.get("encryption"), "ppk": t.get("ppk"),
                                 "classical_fallback": p.get("classical_fallback", False), "tier": p.get("tier"), "quantum_safe": p.get("quantum_safe"),
                                 "last_rotation_s": p.get("keys_age_s"), "up_s": t.get("established_s"),
                                 "bytes_in": sum(c.get("bytes_in", 0) for c in children), "bytes_out": sum(c.get("bytes_out", 0) for c in children),
-                                "certificate": self._certificate(records, p.get("certificate"))})
+                                "certificate": cert})
             out.append({"name": s["name"], "url": s["url"], "error": error, "tunnels": tunnels})
         return 200, {"sites": out}
+
+    @task
+    def revoke_site(self, body):
+        name = _text(body, "name", "the site's certificate name", NAME)
+        valid = self._revoke(name, "site")
+        self.audit("revoke", {"name": name, "kind": "site", "certificates": len(valid)})
+        return 200, {"revoked": len(valid), "crl": str(self.ca_dir / "crl.pem"), "when": REVOCATION}
 
     # --- people
 
@@ -226,7 +251,33 @@ class VPNConsole:
                         "key_age_s": c.get("keys_age_s") if c else None,
                         "handshake_age_s": int(now - c["latest_handshake"]) if c and c.get("latest_handshake") else None})
         activity = sorted(self.activity(30) + history, key=lambda e: str(e.get("time", "")), reverse=True)[:30]
-        return 200, {"people": out, "gateways": gateways, "activity": activity}
+        return 200, {"people": out, "gateways": gateways, "activity": activity, "pending": self._pending()}
+
+    def _tokens(self):
+        try:
+            return est.list_tokens(self.ca_dir)
+        except (OSError, ValueError):
+            return []
+
+    def _pending(self):
+        """Invitations for people not used, cancelled or expired yet: the CA's one-time tokens (their public ids only), with when
+        each was made from the audit log."""
+        now = dt.datetime.now(dt.timezone.utc)
+        made = {e.get("token"): e.get("time") for e in audit.invitations(self.ca_dir)}
+        return [{"id": t["id"], "name": t["common_name"], "expires": t["expires"], "invited": made.get(t["id"])}
+                for t in self._tokens() if t.get("kind") == "client" and not t.get("used") and dt.datetime.fromisoformat(t["expires"]) > now]
+
+    @task
+    def cancel(self, body):
+        """Use up an invitation's one-time token without enrolling, so the file stops working; the enrollment service then refuses it."""
+        tid = _text(body, "id", "the invitation", re.compile(r"[0-9a-f]{1,64}"))
+        if not self._exists():
+            raise ValueError("There is no certificate authority yet")
+        t = est.cancel_token(self.ca_dir, tid, kind="client")
+        if not t:
+            raise ValueError("That invitation is not pending any more: it was used, cancelled or has expired")
+        self.audit("cancel invitation", {"name": t["common_name"]})
+        return 200, {"cancelled": t["common_name"]}
 
     @task
     def settings(self, body):
@@ -251,34 +302,30 @@ class VPNConsole:
         if not s.get("enroll") or not s.get("gateway"):
             raise ValueError("Set the enrollment service and the gateway's address first")
         data, expires = join.make(ca, name, s["enroll"], s["gateway"], s.get("server_name"), hours)
-        self.audit("invite", {"name": name, "expires": expires})
+        self.audit("invite", {"name": name, "expires": expires, "token": join.token_id(data)})
         return 200, core.Download(f"{name}.acxinvite", data, "application/json")
 
     @task
     def revoke(self, body):
         name = _text(body, "name", "the person's name", NAME)
-        ca = self._ca()
-        with locked(ca.root):  # renewals take the same lock, so none can slip a fresh certificate in between
-            valid = [r for r in ca.records() if r.kind == "client" and r.common_name == name and r.status == "valid"]
-            if not valid:
-                raise ValueError(f"{name} has no valid certificate to revoke")
-            for r in valid:
-                if ca.find(r.serial).status == "valid":  # an earlier one may have taken its renewals with it
-                    ca.revoke(r.serial)
+        valid = self._revoke(name, "client")
         self.audit("revoke", {"name": name, "certificates": len(valid)})
-        return 200, {"revoked": len(valid), "crl": str(self.ca_dir / "crl.pem")}
+        return 200, {"revoked": len(valid), "crl": str(self.ca_dir / "crl.pem"), "when": REVOCATION}
 
     # --- health
 
     @task
     def health(self, body):
-        rows = [{k: r[k] for k in ("level", "message", "action")} for r in checks.prerequisites()]
+        rows = [{k: r[k] for k in ("level", "message", "action")} for r in checks.prerequisites("admin")]  # the administrator's machine
         if self._exists():
-            rows += [{"level": level, "message": message, "action": ""} for level, message in checks.ca(self.ca_dir)]
+            rows += [{"level": c[0], "message": c[1], "action": c.action} for c in checks.ca(self.ca_dir)]
         for s in self._load("services.json", []):
             _, error = self._fetch(s["url"])
-            rows.append({"level": "fail" if error else "ok", "message": error or f"{s['kind']} {s['name']} answers at {s['url']}", "action": ""})
-        return 200, {"checks": rows, "version": __version__}
+            section = "[site]" if s["kind"] == "site" else "[wireguard]"
+            rows.append({"level": "fail" if error else "ok", "message": error or f"{s['kind']} {s['name']} answers at {s['url']}",
+                         "action": f'Start it, and check that its {section} has metrics = "HOST:PORT" with this address and that this computer can reach it'
+                         if error else ""})
+        return 200, {"checks": rows, "version": __version__, "ca_dir": str(self.ca_dir)}
 
 
 def page():
@@ -288,9 +335,9 @@ def page():
 def build(home, ca_dir=None):
     c = VPNConsole(home, ca_dir)
     routes = {("GET", "/api/status"): c.status, ("POST", "/api/ca/create"): c.create, ("POST", "/api/ca/unlock"): c.unlock, ("GET", "/api/sites"): c.sites,
-              ("POST", "/api/services/add"): c.add_service, ("POST", "/api/services/remove"): c.remove_service,
+              ("POST", "/api/services/add"): c.add_service, ("POST", "/api/services/remove"): c.remove_service, ("POST", "/api/sites/revoke"): c.revoke_site,
               ("GET", "/api/people"): c.people, ("POST", "/api/people/settings"): c.settings, ("POST", "/api/people/invite"): c.invite,
-              ("POST", "/api/people/revoke"): c.revoke, ("GET", "/api/health"): c.health}
+              ("POST", "/api/people/revoke"): c.revoke, ("POST", "/api/people/cancel"): c.cancel, ("GET", "/api/health"): c.health}
     return core.App(page(), routes)
 
 
@@ -314,7 +361,7 @@ def run(home, port=8900, open_browser=True, ca_dir=None, host="127.0.0.1"):
 
 def cmd_console(a):
     import sys
-    home = Path(a.home or os.environ.get("ACXELIN_VPN_HOME") or Path.home() / ".acxelin-vpn" / "console")
+    home = Path(a.home) if a.home else console_home()
     if a.action == "link":
         try:
             if core.link_running(a.port, home) is None:

@@ -10,6 +10,7 @@
 .tunnel h3{font:500 16px var(--display);margin:0 0 4px}
 .tunnel dl.kv{grid-template-columns:9.5rem minmax(0,1fr)}.tunnel dl.kv dd{font-family:var(--mono);font-size:13px}
 @media (max-width:860px){.split>:last-child{order:-1}}
+.lede code,.legend code,p.bad code{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -86,30 +87,51 @@ function serviceForm(kind, label, hint, after) {
   return h("div", {}, h("h2", {}, label), h("p", {class: "lede"}, ...acxText(hint)), ...field(kind + "-name", "Name", name), ...field(kind + "-url", "Status address", url),
     h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn", onclick: add}, label)));
 }
-const removeButton = (name, after) => h("button", {class: "btn quiet small", "aria-label": "Remove " + name, onclick: async () => { try { await call("services/remove", {name}); await after(); } catch (e) {} }}, "Remove");
+// A button that changes something for good asks once more. The armed state lasts 6 s, and says so, and says when it lapsed.
+function confirmButton(verb, name, done, run) {
+  const b = h("button", {class: "btn quiet small", "aria-label": verb + " " + name}, verb);
+  const note = h("span", {class: "legend", role: "status"});
+  let armed = false, timer;
+  const set = (on) => { armed = on; b.textContent = on ? "Confirm " + verb.toLowerCase() : verb; b.setAttribute("aria-label", b.textContent + " " + name); b.className = "btn small " + (on ? "danger" : "quiet"); };
+  b.addEventListener("click", async () => {
+    if (!armed) { set(true); note.textContent = "Click " + b.textContent + " to go ahead. This resets in 6 seconds."; timer = setTimeout(() => { set(false); note.textContent = "Not " + done + ": not confirmed in time."; }, 6000); return; }
+    clearTimeout(timer);
+    note.textContent = "";
+    try { await run(); } catch (e) { set(false); }
+  });
+  return h("span", {class: "row", style: "gap:8px;flex-wrap:wrap"}, b, note);
+}
+const removeButton = (name, after) => confirmButton("Remove", name, "removed", async () => { await call("services/remove", {name}); await after(); });
+const noteLine = (key) => state[key] ? h("p", {class: "ok-msg", role: "status", style: "margin:0 0 12px"}, state[key]) : "";
 
 // ---- sites
 
 async function sitesView() {
   $("#panel").replaceChildren(h("h1", {}, "Sites"), h("div", {class: "split"},
-    serviceForm("site", "Add a site", "The status address of a gateway running `acxelin-qvpn up` with `metrics = \"HOST:PORT\"` in its `[site]`.", paintSites),
+    serviceForm("site", "Add a site", "The status address of a gateway running `acxelin-qvpn up` with `metrics = \"HOST:PORT\"` in its `[site]`. " +
+      "Its certificate comes from this console's certificate authority: `acxelin-qvpn ca issue site NAME --dir \"" + state.status.ca_dir + "\"`.", paintSites),
     h("div", {id: "site-list"})));
   await paintSites();
 }
+const revokeSite = (t) => confirmButton("Revoke site", t.peer, "revoked", async () => {
+  const r = await call("sites/revoke", {name: t.peer}); state.siteNote = t.peer + "'s certificate is revoked. " + r.when; await paintSites();
+});
 async function paintSites() {
   const out = $("#site-list");
   if (!out) return;
   let d; try { d = await call("sites"); } catch (e) { return; }
-  if (!d.sites.length) return out.replaceChildren(h("p", {class: "empty"}, "No sites added yet. Each site's tunnels, algorithms, key rotation and peer certificates appear here."));
-  out.replaceChildren(...d.sites.map((s) => h("section", {class: "tunnel"}, h("div", {class: "row", style: "justify-content:space-between"}, h("h3", {}, s.name), removeButton(s.name, paintSites)),
+  if (!d.sites.length) return out.replaceChildren(noteLine("siteNote"), h("p", {class: "empty"}, "No sites added yet. Each site's tunnels, algorithms, key rotation and peer certificates appear here."));
+  out.replaceChildren(noteLine("siteNote"), ...d.sites.map((s) => h("section", {class: "tunnel"}, h("div", {class: "row", style: "justify-content:space-between"}, h("h3", {}, s.name), removeButton(s.name, paintSites)),
     s.error ? h("p", {class: "bad"}, s.error) : s.tunnels.length ? h("div", {}, ...s.tunnels.map((t) => h("div", {style: "margin:10px 0 16px"},
-      h("p", {style: "margin:0 0 6px"}, h("strong", {}, t.peer), " ", t.quantum_safe === false ? pill("bad", "Not quantum safe")
+      h("p", {style: "margin:0 0 6px"}, h("strong", {}, t.peer), " ", t.revoked ? pill("bad", "Revoked") : t.quantum_safe === false ? pill("bad", "Not quantum safe")
         : t.protected ? pill("ok", "Protected") : pill("bad", t.state === "no tunnel" ? "No tunnel" : "Not protected")),
+      t.revoked ? h("p", {class: "bad", style: "margin:0 0 6px"}, ...acxText("Certificate revoked: this site gets no new keys, so its tunnel stays down. To bring it back, issue it a new certificate (`acxelin-qvpn ca issue site " + t.peer + "`).")) : "",
       t.quantum_safe === false ? h("p", {class: "bad", style: "margin:0 0 6px"}, "Classical fallback" + (t.tier === "classical+ppk" ? " with an RFC 8784 PPK" : ", no PPK") +
         ": this partner could not do hybrid ML-KEM. Traffic recorded now could be read by a future quantum computer.") : "",
       kv([["Key exchange", t.key_exchange], ["Encryption", t.encryption], ["Post-quantum PPK", t.ppk == null ? null : t.ppk ? "yes" : "no"], ["Classical fallback", t.classical_fallback ? "allowed for this peer" : null],
           ["Last key rotation", ago(t.last_rotation_s)], ["Traffic", t.protected ? t.bytes_in + " B in, " + t.bytes_out + " B out" : null],
-          ["Peer certificate", t.certificate ? t.certificate.common_name + " · " + t.certificate.status + " · until " + day(t.certificate.not_after) : "not seen yet"]]))))
+          ["Peer certificate", t.certificate ? t.certificate.common_name + " · " + t.certificate.status + " · until " + day(t.certificate.not_after) : "not seen yet"]]),
+      t.certificate && t.certificate.status === "valid" ? revokeSite(t) : "")))
       : h("p", {class: "empty"}, "This site reports no peers."))));
 }
 
@@ -118,11 +140,11 @@ async function paintSites() {
 async function peopleView() {
   const s = state.status.settings || {};
   const enroll = h("input", {type: "text", id: "enroll", value: s.enroll || "", placeholder: "https://ca.example.com:9443", autocomplete: "off"});
-  const gateway = h("input", {type: "text", id: "gateway", value: s.gateway || "", placeholder: "vpn.example.com:7443", autocomplete: "off"});
+  const gateway = h("input", {type: "text", id: "gateway", value: s.gateway || "", placeholder: "vpn.example.com:7444", autocomplete: "off"});
   const sname = h("input", {type: "text", id: "server-name", value: s.server_name || "", placeholder: "vpn.example.com", autocomplete: "off"});
   const save = async () => { try { await call("people/settings", {enroll: enroll.value, gateway: gateway.value, server_name: sname.value || null}); state.status = await call("status"); say(""); $("#saved").textContent = "Saved."; } catch (e) {} };
   const ready = s.enroll && s.gateway;
-  const where = () => [...field("enroll", "Enrollment service", enroll, "Where `acxelin-qvpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway),
+  const where = () => [...field("enroll", "Enrollment service", enroll, "Where `acxelin-qvpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway, "Where people's computers reach the WireGuard gateway (`acxelin-qvpn gateway`): its host name and key agreement port, 7444 by default. 7443 is the site-to-site port."),
     ...field("server-name", "Gateway certificate name (if different from its host)", sname),
     h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet", onclick: save}, "Save"), h("span", {id: "saved", class: "ok-msg", role: "status"}))];
   const who = h("input", {type: "text", id: "who", autocomplete: "off", placeholder: "alice"});
@@ -143,6 +165,7 @@ async function peopleView() {
   await paintPeople();
 }
 const ACTIONS = {create: "Created the certificate authority", invite: "Invited", revoke: "Revoked", enroll: "Enrolled", renew: "Renewed", "enrollment refused": "Refused an enrollment for",
+  "cancel invitation": "Cancelled the invitation for",
   connected: "Connected:", "new device": "New device for", refused: "Refused", "revoked, removed": "Cut off (revoked):", disconnected: "Disconnected:"};
 const bytes = (n) => n == null ? "" : n < 1e3 ? n + " B" : n < 1e6 ? (n / 1e3).toFixed(1) + " kB" : n < 1e9 ? (n / 1e6).toFixed(1) + " MB" : (n / 1e9).toFixed(2) + " GB";
 const span = (s) => s == null ? "" : s < 120 ? s + " s" : s < 7200 ? Math.round(s / 60) + " min" : s < 172800 ? Math.round(s / 3600) + " h" : Math.round(s / 86400) + " days";
@@ -158,7 +181,14 @@ async function paintPeople() {
     h("td", {}, p.address || ""),
     h("td", {}, p.certificate === "valid" ? pill("ok", "Valid") : p.certificate === "revoked" ? pill("bad", "Revoked") : pill("mute", "Unknown")),
     h("td", {}, p.certificate === "valid" ? revokeButton(p) : "")));
-  out.replaceChildren(d.gateways.length ? h("p", {class: "legend", style: "margin:0 0 12px"}, d.gateways.map((g) => g.error ? g.name + ": not answering. " : g.name + (g.up_s == null ? "" : ": up " + span(g.up_s)) + ". "))
+  const since = (t) => { const s = Math.round((Date.now() - Date.parse(t)) / 1000); return isNaN(s) ? "" : span(Math.max(0, s)) + " ago"; };
+  const pending = d.pending.length ? h("section", {id: "pending", style: "margin-bottom:22px"}, h("h2", {}, "Invitations not used yet"),
+    h("ul", {class: "acts"}, d.pending.map((i) => h("li", {class: "row", style: "justify-content:space-between;gap:8px"},
+      h("span", {}, h("strong", {}, i.name), " ", h("span", {class: "legend"}, (i.invited ? "invited " + since(i.invited) : "invited") + ", not enrolled yet · usable until " + day(i.expires))),
+      h("button", {class: "btn quiet small", "aria-label": "Cancel the invitation for " + i.name, onclick: async () => {
+        try { await call("people/cancel", {id: i.id}); state.peopleNote = "Cancelled " + i.name + "'s invitation; that file no longer works."; await paintPeople(); } catch (e) {}
+      }}, "Cancel"))))) : "";
+  out.replaceChildren(noteLine("peopleNote"), pending, d.gateways.length ? h("p", {class: "legend", style: "margin:0 0 12px"}, d.gateways.map((g) => g.error ? g.name + ": not answering. " : g.name + (g.up_s == null ? "" : ": up " + span(g.up_s)) + ". "))
       : h("p", {class: "legend", style: "margin:0 0 12px"}, "Who is connected now shows once you add a gateway."),
     d.people.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "People, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Person", "Now", "Since", "Traffic", "Key renewed", "Address", "Certificate", "Action"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
       : h("p", {class: "empty"}, "Nobody yet. Use Invite someone to add the first person."),
@@ -167,17 +197,9 @@ async function paintPeople() {
       (ACTIONS[a.action] || a.action) + " " + (a.name || "") + (a.reason ? " (" + a.reason + ")" : "") + (a.gateway ? " · " + a.gateway : ""))))
       : h("p", {class: "empty"}, "Nothing yet."));
 }
-function revokeButton(p) {
-  const b = h("button", {class: "btn quiet small", "aria-label": "Revoke " + p.name}, "Revoke");
-  let armed = false, timer;
-  b.addEventListener("click", async () => {
-    const set = (text) => { b.textContent = text; b.setAttribute("aria-label", text + " " + p.name); b.className = "btn small " + (armed ? "danger" : "quiet"); };
-    if (!armed) { armed = true; set("Confirm revoke"); timer = setTimeout(() => { armed = false; set("Revoke"); }, 6000); return; }
-    clearTimeout(timer);
-    try { await call("people/revoke", {name: p.name}); say(""); await paintPeople(); watchEnd(p.name); } catch (e) { armed = false; set("Revoke"); }
-  });
-  return b;
-}
+const revokeButton = (p) => confirmButton("Revoke", p.name, "revoked", async () => {
+  const r = await call("people/revoke", {name: p.name}); state.peopleNote = p.name + "'s certificate is revoked. " + r.when; await paintPeople(); watchEnd(p.name);
+});
 function watchEnd(name) {
   let n = 0;
   const t = setInterval(async () => { n += 1; if (state.tab !== "people" || n > 30) return clearInterval(t); await paintPeople(); }, 5000);
@@ -190,12 +212,12 @@ async function healthView() {
   const run = async () => {
     let d; try { d = await call("health"); } catch (e) { return; }
     const tone = {ok: "ok", warn: "warn", fail: "bad"}, label = {ok: "OK", warn: "Warning", fail: "Problem"};
-    const acts = d.checks.some((c) => c.action);
-    out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", ...(acts ? ["What to do"] : [])].map((c) => h("th", {}, c)))),
-      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, ...acxText(c.message)), acts ? h("td", {}, ...acxText(c.action)) : ""))))));
+    out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", "What to do"].map((c) => h("th", {}, c)))),
+      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, ...acxText(c.message.charAt(0).toUpperCase() + c.message.slice(1))), h("td", {}, ...acxText(c.action))))))));
   };
-  $("#panel").replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run Acxelin QVPN, whether the certificate authority is in good shape, and whether every site and gateway answers."),
-    h("div", {class: "row", style: "margin-bottom:18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);
+  $("#panel").replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run the console and its certificate authority, whether the certificate authority is in good shape, and whether every site and gateway answers."),
+    h("p", {class: "legend", id: "ca-folder"}, ...acxText("Certificate authority folder: `" + state.status.ca_dir + "`. Command-line `ca` and `invite` commands use it with `--dir \"" + state.status.ca_dir + "\"`.")),
+    h("div", {class: "row", style: "margin:16px 0 18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);
   await run();
 }
 

@@ -1,5 +1,6 @@
 """Deployment checks for `acxelin-qguard doctor --ca DIR --config FILE`: each check is (level, message) with level ok, warn or fail."""
 import datetime as dt
+import math
 import os
 from pathlib import Path
 
@@ -83,6 +84,38 @@ def ca(root):
     return out
 
 
+def expiry(path, what="certificate"):
+    """(level, message) when the first certificate in `path` is expired, not yet valid or ends within 14 days; None otherwise."""
+    try:
+        cert = x509.load_pem_x509_certificates(Path(path).read_bytes())[0]
+    except (OSError, ValueError, IndexError):
+        return None
+    t, end = now(), cert.not_valid_after_utc
+    if t < cert.not_valid_before_utc:
+        return ("fail", f"the {what} {path} is not valid until {cert.not_valid_before_utc:%Y-%m-%d %H:%M} UTC: every client will refuse it "
+                        "until then; check this machine's clock")
+    if end <= t:
+        return ("fail", f"the {what} {path} expired on {end:%Y-%m-%d}: every client will refuse it; renew it "
+                        "(console: Certificates, Renew; or `acxelin-qguard ca renew`)")
+    days = math.ceil((end - t) / dt.timedelta(days=1))
+    if days <= 14:
+        return ("warn", f"the {what} {path} ends in {days} days, on {end:%Y-%m-%d}: renew it soon "
+                        "(`acxelin-qguard ca maintain` renews what the CA issued)")
+    return None
+
+
+def browser_setup(policy, fallback_cert, shadow=False):
+    """(level, message) about how browsers will see a route with this policy; None when there is nothing to say."""
+    if policy != "transition" or shadow:
+        return None
+    if fallback_cert:
+        return ("ok", "policy transition with a public certificate: browsers get the public certificate and a post-quantum key exchange; "
+                      "use strict for clients you control")
+    return ("warn", "policy transition without a public certificate (fallback_cert): browsers cannot verify ML-DSA certificates, so "
+                    "visitors will see \"Your connection is not private\". For a public website add fallback_cert and fallback_key (an "
+                    "ordinary public certificate, such as Let's Encrypt); for clients you control use strict")
+
+
 def _files(where, d, names, base=None):
     """Each named file must exist; relative paths are read from `base`, the configuration file's folder, as the edge reads them."""
     out = []
@@ -123,14 +156,19 @@ def config(path):
                 out.append(("fail", f"{path} edge {r.name}: {e}"))
         if r.ocsp_staple:
             out += _staple(f"{path} edge {r.name}", r)
+        for what, cert in (("certificate", r.cert), ("public certificate (fallback_cert)", r.fallback_cert)):
+            found = expiry(cert, what) if r.mode == "terminate" and cert else None
+            if found:
+                out.append((found[0], f"{path} edge {r.name}: {found[1]}"))
+        found = browser_setup(r.policy, r.fallback_cert, r.shadow)
+        if found:
+            out.append(("warn" if found[0] == "warn" else "ok", f"{path} edge {r.name}: {found[1]}"))
     if not any(level == "fail" for level, _ in out):
         out.insert(0, ("ok", f"{path}: edge configuration loads"))
     keys = ("cert", "key", "ca", "crl", "fallback_cert", "fallback_key")
     for i, r in enumerate(doc["edge"]):
         where = f"{path} edge {r.get('name', i + 1)}"
         out += _files(where, r, keys, Path(path).parent)
-        if r.get("policy") == "transition":
-            out.append(("warn", f"{where}: policy transition lets clients without post-quantum key exchange in; fine for browsers, use strict for everything else"))
         if r.get("require_client_cert") and not r.get("crl"):
             out.append(("fail", f"{where}: mutual TLS without a CRL accepts revoked clients"))
         if r.get("crl") and not r.get("crl_url"):

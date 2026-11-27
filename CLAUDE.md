@@ -12,8 +12,9 @@ overclaiming.
   No product names, policies or commands.
 - `products/readiness/` (acxelin-qreadiness): QReadiness + CBOM: scan, grade, report, merge, doctor, console.
 - `products/tls/` (acxelin-qguard): QGuard, the TLS/mTLS edge; QCertificate, its CA commands, ACME, console, Docker, systemd.
-- `website/`: the shared home page and one section per product (`tools/build_site.py`), served from GitHub Pages at `/PQC/`
-  (sections `qreadiness/`, `qguard/`, `qvpn/`); demo content is real product output.
+- `website/`: a short showcase, served from GitHub Pages at `/PQC/` (`tools/build_site.py`): a home page that routes each
+  problem to its product, and one page per product (`qreadiness/`, `qguard/`, `qvpn/`). No install or manual content; that
+  ships in each release folder. Screenshots are real product output (`tools/capture_screens.py`), checked against the source.
 - `products/vpn/` (acxelin-qvpn): QVPN: site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
   CA subset, console and CBOM export, the gateway image and systemd units.
 - `documents/`: plain-language "How It Works" guides per product, Markdown plus PDF, exported from the owner's docs.

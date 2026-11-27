@@ -145,7 +145,14 @@ class DesktopTest(unittest.TestCase):
                     before = winreg.QueryValueEx(k, self.desktop.NAME)[0]
             except FileNotFoundError:
                 before = None
-            self.addCleanup(lambda: self.desktop.autostart(False) if before is None else None)
+
+            def restore():  # this is the real account's Run key: put back exactly what an installed app had there
+                if before is None:
+                    self.desktop.autostart(False)
+                else:
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, winreg_key) as k:
+                        winreg.SetValueEx(k, self.desktop.NAME, 0, winreg.REG_SZ, before)
+            self.addCleanup(restore)
         with mock.patch.dict(os.environ, env), mock.patch.object(Path, "home", return_value=self.d):
             self.assertTrue(self.desktop.autostart(True))
             self.assertTrue(self.desktop.autostart())

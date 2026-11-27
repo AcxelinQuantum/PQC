@@ -14,7 +14,6 @@ from . import __version__
 from .rank import TIERS
 from .catalog import CATALOG, HYBRIDS, GROVER, LEGACY, SAFE, SHOR, lookup, pq_from_text
 from .brand import page, tier
-from .report import MARK
 from .detectors.suites import sig_scheme
 
 ESTIMATE = {LEGACY: "critical", SHOR: "high", GROVER: "low", SAFE: "ok"}
@@ -291,7 +290,7 @@ def terminal(org, systems):
     lines = [f"{org}: {sm['systems']} systems, {sm['algorithms']} distinct algorithms, {sm['pq_ready_percent']}% of asymmetric algorithms quantum-safe", ""]
     for s in weakest_first(systems):
         r = s["readiness"]
-        lines.append(f"  {MARK.get(r['worst'], '    ')}  {r['worst'] or '-':<8} {s['name']:<32} {r['tiers']['critical']} critical, {r['tiers']['high']} high, "
+        lines.append(f"  {r['worst'] or '-':<8} {s['name']:<32} {r['tiers']['critical']} critical, {r['tiers']['high']} high, "
                      f"{r['percent']}% quantum-safe{' (estimated)' if r['estimated'] else ''}")
     return "\n".join(lines)
 

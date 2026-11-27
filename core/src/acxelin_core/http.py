@@ -1,7 +1,9 @@
 """A small loopback HTTP server for JSON, metrics and health routes, and host:port parsing."""
+import errno
 import ipaddress
 import logging
 import os
+import re
 import socket
 import sys
 import threading
@@ -34,6 +36,12 @@ def explain(e):
         return "no answer (timed out; is a firewall dropping it?)"
     if isinstance(e, ConnectionResetError):
         return "the connection was reset by the other side"
+    if isinstance(e, OSError) and (e.errno in (errno.EADDRINUSE, 10048) or getattr(e, "winerror", None) == 10048):
+        port = re.search(r"bind on address \(.*?, (\d+)", str(e))
+        return (f"port {port.group(1) if port else ''} is already in use: another program (perhaps a second copy of this service) is "
+                "listening on it; stop that program, or choose another port").replace("port  is", "the port is")
+    if isinstance(e, OSError) and (e.errno == errno.EACCES or getattr(e, "winerror", None) == 10013) and "bind" in str(e):
+        return "this port is reserved or needs administrator rights here: choose another port (above 1024), or run as administrator"
     if isinstance(e, OSError) and e.strerror:
         return f"{e.strerror}: {e.filename}" if e.filename else e.strerror
     return str(e)

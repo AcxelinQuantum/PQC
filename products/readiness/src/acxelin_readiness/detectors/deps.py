@@ -51,6 +51,15 @@ KNOWN = {
 }
 
 
+def pq_needed(ecosystem, name):
+    """Whether a library needs post-quantum support at all: not when everything it is known to implement has no quantum break to
+    migrate from (bcrypt and Argon2 hash passwords; AES and SHA-2 only need sizes). Unknown libraries are assumed to need it."""
+    from ..catalog import CATALOG, SHOR
+    key = _match(ecosystem, name)[0] if ecosystem in KNOWN else None
+    implies = KNOWN[ecosystem][key][1] if key else ()
+    return not implies or any(x not in CATALOG or CATALOG[x].threat == SHOR for x in implies)
+
+
 def _match(eco, name):
     table = KNOWN[eco]
     n = name.lower() if eco in ("pypi", "npm", "nuget") else name

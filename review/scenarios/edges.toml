@@ -1,0 +1,83 @@
+# Audit scenarios: four apps on one port chosen by host name (strict), plus one port per policy and one for a partner API (mTLS).
+[metrics]
+listen = "127.0.0.1:9100"
+
+[[edge]]
+name = "static"
+mode = "terminate"
+listen = "0.0.0.0:8443"
+target = "127.0.0.1:18080"
+policy = "strict"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+
+[[edge]]
+name = "echo"
+mode = "terminate"
+listen = "0.0.0.0:8443"
+sni = ["echo.audit.test"]
+target = "127.0.0.1:18081"
+policy = "strict"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+
+[[edge]]
+name = "grafana"
+mode = "terminate"
+listen = "0.0.0.0:8443"
+sni = ["grafana.audit.test"]
+target = "127.0.0.1:18082"
+policy = "strict"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+
+[[edge]]
+name = "wordpress"
+mode = "terminate"
+listen = "0.0.0.0:8443"
+sni = ["wp.audit.test"]
+target = "127.0.0.1:18083"
+policy = "strict"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+
+[[edge]]
+name = "transition"
+mode = "terminate"
+listen = "0.0.0.0:8444"
+target = "127.0.0.1:18080"
+policy = "transition"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+fallback_cert = "classical/fullchain.pem"
+fallback_key = "classical/privkey.pem"
+
+[[edge]]
+name = "transition-no-fallback"
+mode = "terminate"
+listen = "0.0.0.0:8447"
+target = "127.0.0.1:18080"
+policy = "transition"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+
+[[edge]]
+name = "cnsa2"
+mode = "terminate"
+listen = "0.0.0.0:8445"
+target = "127.0.0.1:18080"
+policy = "cnsa2"
+cert = "apps87/chain.pem"
+key = "apps87/key.pem"
+
+[[edge]]
+name = "partner-api"
+mode = "terminate"
+listen = "0.0.0.0:8446"
+target = "127.0.0.1:18080"
+policy = "strict"
+cert = "apps/chain.pem"
+key = "apps/key.pem"
+ca = "../ca/ca.crt"
+require_client_cert = true
+crl = "../ca/crl.pem"

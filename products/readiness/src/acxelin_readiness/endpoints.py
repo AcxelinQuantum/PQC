@@ -105,24 +105,56 @@ def _raw(out, e, host, port, cert, server_name, timeout):
     out["grade"] = "A" if pq and not classical else "B" if pq else "C" if classical else "F"
     out["certificate"], out["legacy"] = _cert_info(cert), _old_versions(out, host, port, server_name or host, timeout)
     _weak(out, host, port, server_name or host, timeout)
-    out["trusted"] = _trusted(host, port, server_name or host, timeout)
+    _trusted(out, host, port, server_name or host, timeout)
     _note(out, "Groups read with raw ClientHello messages: this machine's OpenSSL is older than 3.5.")
     return out
 
 
-def _trusted(host, port, server_name, timeout):
-    """Whether this machine's trust store accepts the certificate for this name (None when that cannot be told). A public site
-    that is not trusted usually means a TLS-inspecting proxy answered instead, as inside many company networks."""
-    import ssl
+def _trusted(out, host, port, server_name, timeout):
+    """Whether this computer's trust store accepts the certificate for this name (None when that cannot be told) and, when it
+    does not, OpenSSL's own reason. The reason describes the path this computer built, which another computer may build differently."""
+    out["trusted"] = None
     try:
         ctx = ssl.create_default_context()
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         with pacing.slot(host, port), dial(host, port, timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name):
-            return True
-    except ssl.SSLCertVerificationError:
-        return False
+            out["trusted"] = True
+    except ssl.SSLCertVerificationError as e:
+        out |= {"trusted": False, "trust_error": e.verify_message or "certificate verify failed", "trust_code": e.verify_code}
     except (OSError, ValueError):
+        pass
+    return out["trusted"]
+
+
+ISSUER_UNKNOWN = {2, 18, 19, 20, 21}  # OpenSSL: the chain ends at a certificate this computer has no root for
+
+
+def unverified(r):
+    """In words, why this computer could not verify this endpoint's certificate; None when it could, or when it was not asked."""
+    if r.get("trusted") is not False:
         return None
+    why, cert = r.get("trust_error") or "certificate verify failed", r.get("certificate") or {}
+    text = f"This computer couldn't verify the certificate ({why})."
+    if r.get("trust_code") == 10 or "expired" in why:
+        own = cert.get("days_left")
+        return text + (" The server's own certificate has expired." if own is not None and own < 0 else
+                       " The server's own certificate has not, so an expired root or intermediate in the path this computer built is the "
+                       "likely cause, such as an old one in its trust store. Browsers and other computers may accept it.")
+    if r.get("trust_code") in ISSUER_UNKNOWN:
+        return text + " Its issuer is not in this computer's trust store: a private CA, or a root this computer lacks."
+    if r.get("trust_code") == 62 or "hostname" in why:
+        return text + " The certificate is not for this name."
+    return text
+
+
+def interception(results):
+    """Hosts that look answered by one interceptor: two or more hosts, every certificate from the same issuer, and this computer
+    trusts none of them because it lacks that issuer's root. A shared public issuer is common; an unknown one for every host is not."""
+    rows = [r for r in results if r.get("protocol") == "tls" and r.get("certificate") and r["certificate"].get("issuer")]
+    hosts = {endpoint(r["target"])[1] for r in rows}
+    if len(hosts) < 2 or len({r["certificate"]["issuer"] for r in rows}) != 1:
+        return []
+    return rows if all(r.get("trusted") is False and r.get("trust_code") in ISSUER_UNKNOWN for r in rows) else []
 
 
 def _old_versions(out, host, port, server_name, timeout):
@@ -295,7 +327,7 @@ def probe(target, server_name=None, timeout=8.0):
         out["certificate"] = _cert_info(cert)
         out["legacy"] = _old_versions(out, host, port, server_name or host, timeout)
         _weak(out, host, port, server_name or host, timeout)
-        out["trusted"] = _trusted(host, port, server_name or host, timeout)
+        _trusted(out, host, port, server_name or host, timeout)
         return out
     out["certificate"] = _cert_info(cert)
     for g in PQ + CLASSICAL:
@@ -312,7 +344,7 @@ def probe(target, server_name=None, timeout=8.0):
     out["legacy"] = _old_versions(out, host, port, server_name or host, timeout)
     _weak(out, host, port, server_name or host, timeout)
     if not cert_key or not cert_key.startswith("ML-DSA"):
-        out["trusted"] = _trusted(host, port, server_name or host, timeout)
+        _trusted(out, host, port, server_name or host, timeout)
     return out
 
 
@@ -374,7 +406,12 @@ def outlook(results, today=None):
     hybrid = [r for r in results if r["grade"] == "B"]
     legacy = [r for r in results if r.get("legacy")]
     weak = [r for r in results if r.get("weak_suites")]
-    untrusted = [r for r in results if r.get("trusted") is False]
+    intercepted = interception(results)
+    why = {}
+    for r in results:
+        if unverified(r) and r not in intercepted:
+            why.setdefault(unverified(r), []).append(r)
+    untrusted = [r for rows in why.values() for r in rows]
     down = [r for r in results if r["grade"] == "F"]
     classical_key = [r for r in results if cert(r) and not cert(r)["quantum_safe"]]
     public = [r for r in results if cert(r) and r.get("trusted") and cert(r).get("issued")]
@@ -397,7 +434,10 @@ def outlook(results, today=None):
         (squeezed, f"Certificate lasts more than {nxt and nxt[1]} days: public certificates issued from {nxt and f'{nxt[0].day} {nxt[0]:%B %Y}'} may last at most "
                    f"{nxt and nxt[1]} days, and 47 from 15 March 2029, so renewing by hand will not keep up."),
         (legacy, "TLS 1.0 and 1.1 still accepted: a client that falls back to them uses protocols deprecated since 2021 (RFC 8996)."),
-        (untrusted, "Certificate not trusted by this computer: a private CA, or a TLS-inspecting proxy answered instead, and then these grades describe the proxy."),
+        (intercepted, f"Every host answered with a certificate from the same issuer ({intercepted and intercepted[0]['certificate']['issuer']}), "
+                      "which this computer does not trust: something on this network, such as a TLS-inspecting proxy, may be answering for them, "
+                      "and then these grades describe it, not the servers."),
+        *[(rows, text) for text, rows in why.items()],
         (down, "Endpoint could not be graded: unreachable from here, or no TLS or SSH. Its exposure is unknown until it answers."),
         (classical_key, "Certificate key is classical (not ML-DSA): its signature is quantum-vulnerable, so a large enough quantum computer could "
                         "impersonate the server. Unlike recorded traffic, this risk only starts once such a computer exists."),
@@ -411,7 +451,9 @@ def outlook(results, today=None):
                 "Clients without it keep working on classical key exchange."),
         (ssh_c, "Add mlkem768x25519-sha256 (OpenSSH 9.9 or later) or sntrup761x25519-sha512 (OpenSSH 9.0 or later) to KexAlgorithms."),
         (legacy, "Switch off TLS 1.0 and 1.1: set the minimum version to TLS 1.2."),
-        (untrusted, "Check again from a network without TLS inspection, or confirm the private CA is intended."),
+        (intercepted, "Check again from a network without TLS inspection, and ask who runs the issuer these hosts share."),
+        (untrusted, "Open each address in a browser or check it from another computer. If they accept it, update this computer's trusted root "
+                    "certificates (Windows Update, or the ca-certificates package); if the CA is private, confirm it is intended."),
         (down, "Check the host name, port and firewall, then check again."),
         (hybrid, "Once your clients all offer post-quantum key exchange, stop accepting classical groups to reach grade A. Check client support "
                  "first: clients without it would be locked out."),
@@ -432,7 +474,7 @@ def report_html(results, title="Post-quantum readiness"):
         f"<td>{e(', '.join(r['accepts']) or (r['error'] or ''))}"
         f"{'<br><small class=warn>also accepts ' + e(' and '.join(r['legacy'])) + ': switch it off</small>' if r.get('legacy') else ''}</td>"
         f"<td>{e((r['certificate'] or {}).get('key', ''))}<br><small>{e((r['certificate'] or {}).get('issuer', ''))}</small>"
-        f"{'<br><small class=warn>not trusted here: a private CA, or a TLS-inspecting proxy in the path (then this row describes the proxy)</small>' if r.get('trusted') is False else ''}</td>"
+        f"{'<br><small class=warn>' + e(unverified(r)) + '</small>' if unverified(r) else ''}</td>"
         f"<td class=mono>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
         for r in sorted(results, key=lambda r: (r["grade"], r["target"])))
     legend = "".join(f"<li><span class='pill {tone[g]}'>{g}</span> {e(t)} <small>· {s['grades'][g]}</small></li>" for g, t in GRADES.items())
@@ -442,7 +484,7 @@ def report_html(results, title="Post-quantum readiness"):
     body = (f"<div class=tiles>{tiles}</div><section class=panel><h2>What the grades mean</h2><ul>{legend}</ul></section>"
             "<section class=panel><h2>Endpoints</h2><div class=scroll tabindex=0 role=region aria-label='Endpoints'><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th>"
             f"<th>Accepted key exchanges</th><th>Certificate key and issuer</th><th>Expires</th></tr></thead><tbody>{rows}</tbody></table></div></section>")
-    return page(title, "Readiness assessment", f"{s['endpoints']} endpoints scanned for post-quantum key exchange and certificates.", body)
+    return page(title, "Post-quantum readiness assessment", f"{s['endpoints']} endpoints scanned for post-quantum key exchange and certificates.", body)
 
 
 def _join(host, port):

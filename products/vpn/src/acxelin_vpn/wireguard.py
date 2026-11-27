@@ -456,7 +456,7 @@ class Client:
         self.status_file = status_file or (Path(tunnel.folder) / f"{interface}.status.json" if apply and hasattr(tunnel, "folder") else None)
         self.stop_file = Path(tunnel.folder) / f"{interface}.disconnect" if apply and hasattr(tunnel, "folder") else None
         self.renew_url = (self.dir / "enroll.url").read_text().strip() if (self.dir / "enroll.url").exists() else None
-        self.renewed_at, self.pins, self.rebuild = 0.0, {}, False
+        self.renewed_at, self.pins, self.rebuild, self.revoked = 0.0, {}, False, False
 
     def agree(self):
         tag = agreement.new_tag()
@@ -547,6 +547,9 @@ class Client:
             self.stop_file.unlink(missing_ok=True)
             self.stop.set()
             return 0
+        if self.revoked:  # a revoked certificate stays revoked: stop asking the gateway, keep saying why
+            self.report()
+            return 5.0
         self.renew()
         silent = time.time() < self.due and self.quiet()
         if time.time() >= self.due or silent:
@@ -562,8 +565,9 @@ class Client:
             except (tls.TLSError, WGError, OSError, ValueError, KeyError) as e:
                 self.failures += 1
                 retry = min(5 * 2 ** (self.failures - 1), 60)
-                self.error, self.since = explain(e), None
-                log.warning("key agreement failed: %s; retrying in %ds", self.error, retry)
+                self.revoked = isinstance(e, Refused) and e.reason == "revoked"
+                self.error, self.since = (f"cannot reach the gateway at {self.host}:{self.port}: {explain(e)}" if isinstance(e, OSError) else explain(e)), None
+                log.warning("key agreement failed: %s; %s", self.error, "not asking again" if self.revoked else f"retrying in {retry}s")
                 now = time.time()
                 # In full-tunnel mode the agreement travels through the tunnel, so a timeout there means the tunnel itself is dead (the
                 # gateway forgot this laptop), whatever the last handshake says; a refusal means only the key service is down.
@@ -596,8 +600,12 @@ class Client:
             s["last_key_s"] = round(time.time() - self.agreed_at)
         if self.ks_changed:
             s["kill_switch_changed"] = {k: self.ks_changed[k] for k in ("time", "action")}
-        if self.failures:
+        if self.failures and not self.revoked:
             s["retry_in_s"] = max(0, round(self.due - time.time()))
+        if self.last:
+            s["full_tunnel"] = "0.0.0.0/0" in self.last["routes"]
+        if self.revoked:
+            s["revoked"] = True
         if self.degraded_since and self.last:
             s |= {"state": "degraded", "address": self.last["address"], "routes": self.last["routes"], "full_tunnel": "0.0.0.0/0" in self.last["routes"],
                   "degraded_since": self.degraded_since, "degraded_left_s": max(0, round(self.degraded_since + self.keep_s - time.time())),

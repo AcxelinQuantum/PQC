@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+- **The console protects services.** It is rebuilt around five places: Overview, Services, QCertificate, Check a connection
+  and Settings. First run creates QCertificate, then protects the first service. A service is chosen by kind (public website,
+  internal app or API, partner API, database or other); the console issues its certificate and writes the settings file the
+  QGuard service reads (default `edge.toml` in the console's folder; `console --settings FILE` for another). Settings you wrote
+  by hand are kept, comments are not. Watch mode, then **Turn on enforcement**; each service shows what the running QGuard
+  sees, including who watch mode would refuse and why. **Start QGuard on this computer** runs it until it is a system
+  service. Downloads add one PEM file with the full chain and key; devices get one-time enrolment tokens and ACME account keys,
+  shown once.
+- New route setting `forwarded_headers = true` (`edge --forwarded-headers`): for web apps, QGuard adds `X-Forwarded-For`,
+  `-Proto` and `-Host` to each HTTP/1.x request and removes any the visitor sent; ambiguous requests (the shapes behind request
+  smuggling) get 400. Off by default; the console turns it on for websites, apps and partner APIs.
+- The edge and `doctor --config` warn about a served certificate that is expired, not yet valid or ends within 14 days, and
+  about `transition` without a public certificate, which browsers show as "Your connection is not private".
+- **Behaviour change:** a client that rejects the server's certificate (a browser, usually) is counted as
+  `client_distrusts_certificate` in `/status` and `/metrics`, no longer as `handshake_failed`, which now counts only clients the
+  server refused.
+- `connect`: `--ca` is optional (without it, the public authorities this computer trusts); a failed connection is explained;
+  key types are named and a verdict line is added. `--json` keeps its fields and adds `verdict` and `peer_key_name`.
+- Errors in words, with the next step: a port in use, a missing certificate or key file, an encrypted key without its
+  passphrase, a missing OpenSSL (with Windows and macOS install advice). `try` ends at the console without log lines.
+  Scheduling advice names Task Scheduler on Windows.
+- The systemd units run `acxelin-qguard` (unit and folder names are unchanged). The manual shows how to install for them,
+  what the maintenance timer needs, and how to run QGuard at start-up on Windows; it no longer tells you to pull a container
+  image that cannot be pulled yet.
+
 ## 1.3.0
 
 - Renamed: Acxelin TLS is now Acxelin QGuard. The command and package are `acxelin-qguard`; `acxelin-tls` still works through 1.x and says so on

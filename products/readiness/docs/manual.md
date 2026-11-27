@@ -23,7 +23,7 @@ It never changes the files it scans and never sends them anywhere.
 
 ## 3. Install
 
-The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
+The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, build the Docker image (below).
 
 Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qreadiness-v1.4.0) and save them in one folder:
 
@@ -76,12 +76,13 @@ On Windows, the first command tells Windows you trust this downloaded script, an
 
 The installer checks your Python, puts `acxelin-qreadiness` on your PATH, runs `acxelin-qreadiness doctor` and says what to do next. To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). Your scan results stay where they were written.
 
-**With Docker instead:** each release publishes an image. Pull it and give it a short name:
+**With Docker instead:** build the image from the source download (the repository's root folder), and give it a short name:
 
 ```
-docker pull ghcr.io/acxelinquantum/acxelin-qreadiness:1.4.0
-docker tag ghcr.io/acxelinquantum/acxelin-qreadiness:1.4.0 acxelin-qreadiness
+docker build -f products/readiness/deploy/Dockerfile -t acxelin-qreadiness .
 ```
+
+The images on GitHub's container registry are not public yet, so pulling them fails; build your own until they are.
 
 ## 4. Your first scan in five minutes
 
@@ -91,19 +92,25 @@ docker tag ghcr.io/acxelinquantum/acxelin-qreadiness:1.4.0 acxelin-qreadiness
 acxelin-qreadiness scan path/to/your/project
 ```
 
-The terminal shows the ranking at once:
+The terminal leads with the things to fix now, then lists every finding, most urgent first (shortened here):
 
 ```
 acxelin-qreadiness 1.4.0  payments-api
-detectors 49 raw  ->  verify 26 verified, 0 held, 0 rejected, 0 suppressed  ->  rank 0 promoted, 1 trails  ->  16 assets
-quantum-safe asymmetric: 1/6 (17%)   hybrid KEX: yes
+public-key findings already quantum-safe: 1 of 6   hybrid post-quantum key exchange seen: yes
+coverage: 6 of 6 source and configuration files analysed (100%)
 
-  ■■■■  critical TLS 1.1                          deployed configuration         1x  TLS 1.3 with X25519MLKEM768
-  ■■■□  high     RSA-2048                         deployed key or certificate    2x  ML-KEM-768 for encryption, ML-DSA-65 for signatures
-  ■■■□  high     AES-ECB                          application code               2x  Switch to AES-256-GCM (authenticated, randomized)
-  ■■□□  medium   ECDSA-P-256                      application code               2x  ML-DSA-65 (or hybrid ECDSA+ML-DSA during transition)
-  □□□□  ok       X25519MLKEM768                   deployed configuration         1x
+6 things to fix now (3 critical, 3 high), of 17 findings.
+  critical TLS 1.1                          deployed configuration       1 place                TLS 1.3 with X25519MLKEM768
+  critical AES-ECB                          application code             2 places               Switch to AES-256-GCM (authenticated, randomized)
+  critical MD5                              application code             1 place                SHA-256 or SHA3-256
+  high     RSA-2048                         deployed key or certificate  3 places               ML-KEM-768 for encryption, ML-DSA-65 for signatures
+  medium   ECDSA-P-256                      application code             2 places               ML-DSA-65 (or hybrid ECDSA+ML-DSA during transition)
+  ok       X25519MLKEM768                   deployed configuration       1 place
 ```
+
+The things to fix now are the critical and high findings outside test code. Findings only in test code are counted apart and
+listed after the others under **Only in tests**, in the terminal, the report and the console alike. `--verbose` adds a line
+on how the scan decided: how many detections it made, accepted, held back and ranked.
 
 ### Step 2: open the report
 
@@ -179,6 +186,17 @@ unencrypted unless the sender insists. Your MX hosts are the names `nslookup -ty
 | **C** | classical TLS 1.3, or TLS 1.2 |
 | **F** | nothing answered, or no TLS |
 
+`grade` exits with status 3 when any endpoint could not be reached or graded, after printing and writing every result, so a
+script never reads an unreachable host as graded.
+
+Each TLS endpoint is also checked against this computer's trusted root certificates. When that fails, the result says
+**This computer couldn't verify the certificate**, with the reason OpenSSL gave, such as `certificate has expired` or
+`unable to get local issuer certificate`. That describes this computer's view: if the server's own certificate is valid, an
+expired certificate in the path this computer built usually means an outdated root in its trust store, and browsers and other
+computers may accept the site. Open the address in a browser or check from another computer; if they accept it, update this
+computer's roots (Windows Update, or the `ca-certificates` package). A TLS-inspecting proxy is named only on its own evidence:
+two or more hosts all answering with a certificate from one issuer that this computer has no root for.
+
 ### The evidence report
 
 `acxelin-qreadiness report` maps what you give it to NIST IR 8547 and CNSA 2.0 on one page, ordered by what to do first:
@@ -223,7 +241,7 @@ Scan on every pull request, and fail only when someone adds new cryptography at 
 acxelin-qreadiness scan . --baseline cbom.json --fail-on high
 ```
 
-`--baseline` compares with the CBOM you kept, so old findings do not block new work. `--changed-since origin/main` scans only the files a pull request changes. With `-q` the scan prints nothing on success; when a gate fires it still prints why (`failing: 2 asset(s) at high or worse introduced since the baseline`) on stderr and exits 2.
+`--baseline` compares with the CBOM you kept, so old findings do not block new work. `--changed-since origin/main` scans only the files a pull request changes. With `-q` the scan prints nothing on success; when a gate fires it still prints why (`failing: 2 finding(s) at high or worse introduced since the baseline`) on stderr and exits 2.
 
 **GitHub Actions:**
 
@@ -240,7 +258,9 @@ acxelin-qreadiness scan . --baseline cbom.json --fail-on high
 
 ### Test code
 
-A finding in test code is lowered one step in priority. It is never hidden: it stays in the report, the CBOM and `findings.json`. Folders named `test`, `tests`, `__tests__` or `spec` are test code, matched as whole folder names, so `testcode`, `latest` or `contests` are not. Name anything else in `test_paths` (or `--test-path`): a name glob such as `benches` or `*_test.go` matches any folder or file name, and a path such as `qa/load` matches that folder and everything in it.
+A finding only in test code is lowered one step in priority and counted apart: it is not one of the things to fix now, and the
+terminal, the report and the console list it under **Only in tests**. It is never hidden: it stays in the report, the CBOM
+and `findings.json`, and `--fail-on` still sees it at its lowered priority. Folders named `test`, `tests`, `__tests__` or `spec` are test code, matched as whole folder names, so `testcode`, `latest` or `contests` are not. Name anything else in `test_paths` (or `--test-path`): a name glob such as `benches` or `*_test.go` matches any folder or file name, and a path such as `qa/load` matches that folder and everything in it.
 
 ### Settings
 
@@ -251,7 +271,7 @@ exclude = ["generated", "*.min.js"]
 test_paths = ["benches", "*_test.go"]  # also test code: lowers priority, never hides
 shelf_life = 10                       # years the protected data must stay secret
 migration = 5                         # years your migration will take
-crqc_year = 2035                      # assumed year a quantum computer can break today's keys
+crqc_year = 2035                      # assumed year a quantum computer can break today's public-key cryptography
 fail_on = "high"
 rate = 2                              # live probes: new connections a second to one host:port (0 for no limit)
 workers = 4                           # live probes: endpoints probed at once
@@ -293,9 +313,12 @@ Your browser opens, already signed in, with three parts:
 
 | Part | What you do there |
 |---|---|
-| **Projects** | Add a folder or a GitHub link, scan it, cancel a running scan (the previous result is kept), and see priorities and history. |
+| **Projects** | Add a folder or a GitHub link, scan it, cancel a running scan (the previous result is kept), see the things to fix now and their trend, remove a project, and change the repositories folder. |
 | **Overview** | Every project side by side, scan them all with one button, add every repository of a GitHub organisation, the business services most at risk, and the scheduled scans. |
-| **Endpoints** | Scan hosts, see what changed since the last scan, what can happen if nothing changes and what to do first, and export the CBOM. |
+| **Endpoints** | Check hosts; each host keeps its own dated results, and what changed compares it with its own last check. See what can happen if nothing changes and what to do first, and export the CBOM. |
+
+Times are shown in your computer's time zone; hover one for the same time in UTC. When the console refuses something you
+typed, it says why next to that field, in that field's words.
 
 The console listens only on this machine. From a remote server, forward a port and ask for a fresh link:
 
@@ -313,9 +336,10 @@ docker exec -it readiness acxelin-qreadiness console link
 
 ### Many repositories at once
 
-**Overview** lists every project with its score, critical and high findings, and what changed since the scan before
+**Overview** lists every project with its things to fix now, critical and high findings, and what changed since the scan before
 ("2 fixed · 1 new"). **Scan every project** first adds each repository in the chosen folder that is not yet a project, then
-scans them one after another; a repository that fails is named and the rest carry on. **Add every repository of a GitHub
+scans them one after another, showing which one it is on and a progress bar; a repository that fails is named and the rest
+carry on. **Add every repository of a GitHub
 organisation** takes a name such as `acme` (or its link) and adds each repository except archived ones and forks, up to 200;
 private ones need the token saved under Projects. Services are ranked across all projects by their critical, then high,
 findings.
@@ -323,13 +347,25 @@ findings.
 To try it without your own code, choose the `products/readiness/examples` folder of the source download: it holds three
 small sample systems (`payments-api`, `customer-portal`, `batch-jobs`) with deliberate old cryptography.
 
-**Board summary** turns the same data into one printable page for directors: the average readiness score and how it moved since
-the scans before, how many findings need action now, how many protect data that can be recorded now and read later, how many
-NIST IR 8547 (draft) wants replaced by 2030 to 2035, how much of the work is done, what the rest takes, the first five actions
-with the projects they apply to, and the services most at risk. It is marked **provisional** when some projects are not scanned
-or a project's coverage is under 80%, and it says that owners, budget and vendor commitments are for the board to confirm. It
-also gives the weakest project's score beside the average, and crypto-agility: the share of the remaining changes that need no
-code change (a setting, a new key or certificate, or a library upgrade).
+**Board summary** turns the same data into one printable page for directors: the things to fix now across every project and
+how that number moved since the scans before (comparing the same projects), how many projects are scanned, how many findings
+protect data that can be recorded now and read later, how many NIST IR 8547 (draft) wants replaced by 2030 to 2035, how much of
+the work is done, what the rest takes, the first five actions with the projects they apply to, and the services most at risk.
+It is marked **provisional** when some projects are not scanned or a project's coverage is under 80%, and it says that owners,
+budget and vendor commitments are for the board to confirm. It also names the project with the most to fix, and
+crypto-agility: the share of the remaining changes that need no code change (a setting, a new key or certificate, or a library
+upgrade).
+
+### Removing a project, changing the folder
+
+**Remove from QReadiness**, beside **Scan repository**, takes the chosen project off the list after you confirm. Its saved
+results, owners and tracking are deleted; a repository on this computer is never touched, and it can be added again. A
+GitHub download or an imported CBOM, which the console keeps in its own folder, is deleted with it. A GitHub link that cannot
+be downloaded the first time (it does not exist, it is private and no token is saved, or GitHub cannot be reached) is not kept
+as a project; the message next to the link box says why.
+
+**Change folder**, under the list of repositories, points the console at another folder of repositories. The projects of the
+old folder stay saved and come back when you choose it again.
 
 **Deadlines that apply to you**, on the Overview, takes the countries (United States, United Kingdom, European Union, Canada,
 India) and sectors (enterprise, government, critical infrastructure, national security) you operate in, lists their dated
@@ -342,9 +378,9 @@ is not listed yet: its milestones could not be checked against the ASD's own pag
 After a rescan, a project shows what is no longer found and what is new, side by side, each with its priority. "No longer
 found" means the scan did not see it, which is usually a fix but can also be a file that was not read.
 
-### The change in your language
+### An example fix in your language
 
-Findings in Python, Java, Go, JavaScript, TypeScript or nginx files show **See the change in …**: a short before and after
+Findings in Python, Java, Go, JavaScript, TypeScript or nginx files show **Example fix in …**: a short, generic before and after
 for weak hashes, RSA and ECDSA signatures (ML-DSA), ECDH and X25519 (ML-KEM), old ciphers (AES-GCM) and old TLS versions.
 They show the shape of the change, not a patch for your code; ML-DSA and ML-KEM need a cryptography release that has them, Java 24 or
 later, or Go 1.24 or later.
@@ -352,13 +388,14 @@ later, or Go 1.24 or later.
 ### Finding your way
 
 Projects with more than five findings have a search box (press `/`) that matches the algorithm, file, owner or service.
-Saving a status, an owner list or a token says so at the top of the page, and removing a saved token or an owner list asks
-first.
+Saving a status, an owner list or a token says so at the top of the page, and removing a saved token, an owner list, a project
+or an endpoint asks first. A value the console refuses is explained next to its field, starting with that field's label (for
+example "Why it is accepted: say why this risk is accepted").
 
 ### Importing another tool's CBOM
 
 **Import a CBOM** takes a CycloneDX file from another tool, such as CodeQL, and shows it as a project: the same table,
-tracking, history and score. Priorities come from the file's own `acxelin:*` properties when it has them, otherwise from
+tracking and history. Priorities come from the file's own `acxelin:*` properties when it has them, otherwise from
 the algorithm alone, and the page says so. Names the catalogue does not recognise are counted, not rated. Nothing in the
 file is re-checked: it describes what the other tool found. Importing a file with the same name again replaces it and
 compares, like a rescan. Files up to 16 MB; for larger ones, use `acxelin-qreadiness merge`.
@@ -399,8 +436,10 @@ how the code is built.
 ### Third-party libraries
 
 The Overview lists, folded away, the cryptography libraries every project depends on, which projects use each, and whether it
-supports post-quantum algorithms, with a note for libraries that are unmaintained. It covers libraries Readiness recognises in
-dependency manifests and binaries; ask the suppliers of the others, and of the ones without support, for their plans.
+supports post-quantum algorithms, with a note for libraries that are unmaintained. A library that only hashes passwords or does
+symmetric cryptography (bcrypt, Argon2, an AES or SHA package) is marked **not needed**: there is nothing quantum-vulnerable in
+it to migrate, so it is not on the board's list of suppliers to ask. It covers libraries QReadiness recognises in dependency
+manifests and binaries; ask the suppliers of the others, and of the ones marked **not yet**, for their plans.
 
 ### How a finding was seen
 
@@ -423,23 +462,24 @@ kept under **History**, the last 50 per finding. A finding marked Fixed that a l
 found**; once a scan no longer sees it, it moves to the findings no longer observed, still marked Fixed. The line above
 the table counts the findings at each status.
 
-### The readiness score
+### Things to fix now
 
-Each scan gets a score from 0 to 100, shown with its trend over the last 30 scans. Hover a point for its date, or open the
-table. It is a plain average, not a prediction:
+A project's result leads with one number: the **things to fix now**, its critical and high findings outside test code, with
+how many of each. Below it, the findings outside test code add up to the counts by priority, and the findings only in tests are
+counted apart. There is no 0 to 100 score: an average of priorities rose whenever harmless cryptography was added, so it could
+say "better" when nothing was fixed. The things to fix now only fall when something that needs fixing goes away.
 
-- **Projects:** the average priority of the listed findings: ok 100, low 75, medium 50, high 25, critical 0. Test-only
-  findings are not listed, so they are not counted.
-- **Endpoints:** grade A counts 100, B 50, C 0. Endpoints that could not be graded (F) are left out, because their state
-  is unknown.
+Under **Why it matters**, the console shows that number over the last 30 scans (hover a point for its date, or open the table)
+and the scan's coverage: the share of source and configuration files fully analysed (files over 2 MB, and Python that could not
+be parsed, are not). Fewer things to fix can also mean less was read, so when coverage falls by 10 points or more since the scan
+before, the console says so. Finding no cryptography is not proof there is none.
 
-Coverage is shown beside the score, because a score can rise simply because less was read. For a project it is the
-share of source and configuration files fully analysed (files over 2 MB, and Python that could not be parsed, are not).
-For endpoints it is the share that could be graded. When coverage falls by 10 points or more since the scan before, the
-console says so.
+### Endpoints, host by host
 
-With nothing to score, the console says so instead of showing 100: finding no cryptography is not proof there is none. Scores
-from different repositories, or from different lists of endpoints, are not comparable.
+Each check adds a dated result to every host it checks and leaves the other hosts' last results in place, so checking three
+unreachable hosts no longer hides the grades you had. The table lists every host with when it was last checked and its earlier
+checks; "Changed since the scan before" compares each host with its own previous result. **Forget** removes a host and its
+history after you confirm. For endpoints, coverage is the share of hosts that could be graded.
 
 ### GitHub repositories
 
@@ -458,7 +498,7 @@ your computer probes. Pass `--config` to use settings you trust.
 
 ### What it tracks
 
-The **What it tracks** tab lists the five kinds of asset Readiness records (algorithms, protocols, certificates, keys and key material, libraries), every algorithm it knows with its verdict, strength and replacement, and every place it looks. The website shows the same list.
+The **What it tracks** tab lists the five kinds of asset QReadiness records (algorithms, protocols, certificates, keys and key material, libraries), every algorithm it knows with its verdict, strength and replacement, and every place it looks. The website shows the same list.
 
 ### Full TLS handshakes
 
@@ -485,7 +525,10 @@ Grades, accepted groups and SSH algorithms need nothing extra. To read the certi
 
 ### Tiers and the timeline
 
-The tier follows Mosca's inequality: an asset is urgent when the years its data must stay secret, plus the years your migration takes, exceed the years until a quantum computer can break it. Set the three numbers with `--shelf-life`, `--migration` and `--crqc-year`, or in the settings file.
+A quantum-vulnerable finding is high, not medium, when the years its data must stay secret plus the years your migration takes
+reach past the year a quantum computer able to break today's public-key cryptography is assumed to exist (researchers call this
+Mosca's inequality, and such a machine a CRQC, a cryptographically relevant quantum computer). Set the three numbers with
+`--shelf-life`, `--migration` and `--crqc-year`, or in the settings file.
 
 ### Standards
 
@@ -503,6 +546,8 @@ set `india_deadline = 2033` under `[policy]`.
 | `certificates ... not observed` in the report | The server offers only post-quantum key exchange, and this machine has no OpenSSL 3.5. | Point `ACXELIN_OPENSSL` at OpenSSL 3.5, or run the scan from the Docker image. |
 | `Permission denied` writing `readiness-out` in Docker | The image runs as user 10001. | Add `--user "$(id -u):$(id -g)"` on Linux. |
 | `The project scan failed` in the console | The folder could not be read. | Check its permissions; `acxelin-qreadiness scan` on the same folder shows details. |
+| `This computer couldn't verify the certificate (certificate has expired)` for a site browsers accept | This computer's trusted roots are out of date, so the path it built ends at an expired root. | Update this computer's root certificates (Windows Update, or the `ca-certificates` package), then check again. The grade itself is unaffected. |
+| `FILE does not exist` | A file named on the command line (a hosts list, `--owners`) is not there. | Check the path; relative paths start from the folder you run the command in. |
 | CI fails on old findings | No baseline was given. | Keep `cbom.json` from a scan of your main branch and pass it with `--baseline`. |
 
 ### Exit codes
@@ -512,6 +557,7 @@ set `india_deadline = 2033` under `[policy]`.
 | 0 | Finished |
 | 1 | Bad usage or unreadable input |
 | 2 | A gate fired: the `--fail-on` tier was reached, or `--fail-on-policy` found a broken rule |
+| 3 | `grade`: at least one endpoint could not be reached or graded (the others are still printed and written) |
 
 ## 10. Questions
 

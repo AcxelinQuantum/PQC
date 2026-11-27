@@ -282,14 +282,14 @@ def assess(a, h, hybrid_files):
         shelf, given = h.shelf({s.file for s in a.detections if "://" not in s.file})
         if conf and shelf + h.migration > z:
             tier = "high"
-            a.why = (f"Harvest now, decrypt later: data needs {shelf:g}y secrecy{' (CMDB export)' if given else ''} + {h.migration:g}y migration "
-                     f"= {shelf + h.migration:g}y, but a CRQC is assumed in {z}y (Mosca)")
+            a.why = (f"Harvest now, decrypt later: the data must stay secret {shelf:g} years{' (CMDB export)' if given else ''} and migrating takes "
+                     f"{h.migration:g}, {shelf + h.migration:g} in all, but a quantum computer able to break it is assumed in {z}")
         elif not conf and h.migration > z:
             tier = "high"
-            a.why = f"Signature migration ({h.migration:g}y) exceeds assumed time to a CRQC ({z}y)"
+            a.why = f"Migrating signatures takes {h.migration:g} years, longer than the {z} assumed until a quantum computer can forge them"
         else:
             tier = "medium"
-            a.why = "Breakable by Shor's algorithm on a future quantum computer" + ("" if conf else "; no harvest-now risk for signatures, but forgery risk once a CRQC exists")
+            a.why = "Breakable by Shor's algorithm on a future quantum computer" + ("" if conf else "; no harvest-now risk for signatures, but forgery risk once such a computer exists")
         if a.algo == "ECC":
             a.why += ". Key use (signing or key agreement) not determined, so confidentiality is assumed"
         places = {s.file for s in a.detections}

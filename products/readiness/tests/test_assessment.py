@@ -28,10 +28,10 @@ def tier(root, secrets=()):
 
 def test_data_that_stays_secret_briefly_is_not_a_harvest_now_risk_but_long_lived_data_is(tmp_path):
     (tmp_path / "chat.py").write_text(KX)
-    assert tier(tmp_path)[0] == "high" and "10y secrecy" in tier(tmp_path)[1]
+    assert tier(tmp_path)[0] == "high" and "secret 10 years" in tier(tmp_path)[1]
     assert tier(tmp_path, [("chat.py", 1.0)])[0] == "medium"
     long = tier(tmp_path, [("*.py", 1.0), ("chat.py", 30.0)])
-    assert long[0] == "high" and "30y secrecy (CMDB export)" in long[1]
+    assert long[0] == "high" and "secret 30 years (CMDB export)" in long[1]
 
 
 def test_the_console_ranks_by_the_cmdb_lifetimes_from_the_next_scan_and_weighs_services_by_importance(tmp_path):

@@ -42,6 +42,10 @@ def cmd_vpn(a):
         path = platforms.folder() / f"{a.interface}.status.json"
         if path.exists():
             return laptop_status(path, a)
+        s = running_window(a.interface)
+        if s:  # `app --no-apply`, or the tray's service before it has a tunnel: no status file, but a window to ask
+            print(json.dumps(s, indent=1) if a.json else describe_vpn(s, a.details))
+            return 0 if s["state"] == "protected" else 1
     if a.cmd in ("invite", "join", "app", "desktop", "setup"):
         return {"invite": cmd_invite, "join": cmd_join, "app": cmd_app, "desktop": cmd_desktop, "setup": cmd_setup}[a.cmd](a)
     try:
@@ -77,6 +81,18 @@ def laptop_status(path, a):
     return 0 if s["state"] == "protected" else 1
 
 
+def running_window(interface):
+    """The state of a VPN window running for this account (`acxelin-qvpn app`, or the tray's service), or None."""
+    from . import app
+    for name in (f"{interface}.app.json", f"{interface}.desktop.json"):
+        try:
+            session = json.loads((Path.home() / ".acxelin-vpn" / name).read_text(encoding="utf-8"))
+            return app.request(int(session["port"]), str(session["token"]), "GET", "/api/state", timeout=3)["status"]
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return None
+
+
 def cmd_setup(a):
     from . import setup
     from .ca_commands import ca_passphrase
@@ -104,9 +120,10 @@ def cmd_invite(a):
     out = Path(a.out or f"{a.name}.acxinvite")
     if out.exists():
         raise ValueError(f"{out} already exists; choose another --out")
+    ca_commands.require_ca(a)
     data, expires = join.make(CA(a.dir), a.name, a.enroll, a.gateway, a.server_name, a.hours, a.keep_minutes)
     write(out, data, secret=True)
-    audit.record(a.dir, "invite", name=a.name, expires=expires)
+    audit.record(a.dir, "invite", name=a.name, expires=expires, token=join.token_id(data))
     print(f"wrote {out}: it lets {a.name} enroll once before {expires} and then connect to {a.gateway}.\n"
           f"Send it through a channel you trust (it holds a one-time token and the CA fingerprint the device will trust).\n"
           f"On the device, in an administrator terminal: acxelin-qvpn join {out.name}")
@@ -124,9 +141,12 @@ def cmd_join(a):
     passphrase = env_passphrase(a.key_passphrase_env)
     if enroll:
         if passphrase is None:
-            passphrase = ask("Choose a passphrase for this device's key: ", "supply --key-passphrase-env with a protected environment variable")
-            if not passphrase or passphrase != ask("Repeat it: ", "supply --key-passphrase-env"):
-                raise ValueError("the passphrases were empty or did not match; nothing was changed")
+            passphrase = ask(f"Choose a passphrase for this device's key (at least {join.MIN_PASSPHRASE} characters): ",
+                             "supply --key-passphrase-env with a protected environment variable")
+            join.new_passphrase(passphrase)
+            if passphrase != ask("Repeat it: ", "supply --key-passphrase-env"):
+                raise ValueError("the passphrases did not match; nothing was changed")
+        join.new_passphrase(passphrase)
         print(f"Enrolling {inv['name']} with {inv['enroll']} (CA pinned by the invitation's fingerprint) ...", flush=True)
         cert = join.enroll(inv, device, a.invitation, passphrase)
         print(f"Enrolled: certificate valid until {cert.not_valid_after_utc.date()}, key encrypted in {device}. The invitation's one-time token is used up.", flush=True)
@@ -190,11 +210,11 @@ def cmd_desktop(a):
     from . import desktop
     if a.launcher or a.remove_launcher:
         path = desktop.launcher(remove=a.remove_launcher)
-        print(f"removed {path}" if a.remove_launcher else f"added {desktop.NAME}: {path}")
+        print(f"removed {path}" if a.remove_launcher else f"added {desktop.TITLE}: {path}")
         return 0
     if a.start_at_login:
         desktop.autostart(a.start_at_login == "on")
-        print(f"{desktop.NAME} {'starts' if a.start_at_login == 'on' else 'no longer starts'} when you log in"
+        print(f"{desktop.TITLE} {'starts' if a.start_at_login == 'on' else 'no longer starts'} when you log in"
               + (" (the tray icon only; connecting still asks for your passphrase)" if a.start_at_login == "on" else ""))
         return 0
     return desktop.main(a.invitation, a.interface, not a.no_apply, a.background)
@@ -280,8 +300,13 @@ def describe_vpn(s, details=False):
         lines = ["Disconnected. The tunnel is down and nothing is blocked."]
     elif state == "stopped":
         lines = [f"Not running. The VPN client last reported at {s['last_seen']}; start it again with `acxelin-qvpn join` or `acxelin-qvpn connect`."]
+    elif s.get("revoked"):
+        lines = ["Not protected. This computer's certificate has been revoked, so the gateway refuses it and it stops asking; "
+                 "ask your administrator for a new invitation."
+                 + (" Internet traffic stays blocked (full tunnel) until you run `acxelin-qvpn disconnect`." if s.get("full_tunnel") else "")]
     else:
-        lines = [f"Not protected. {s.get('error') or 'Not connected yet'}. Retrying automatically; full-tunnel traffic stays blocked meanwhile."]
+        lines = [f"Not protected. {s.get('error') or 'Not connected yet'}. Retrying automatically"
+                 + ("; internet traffic stays blocked meanwhile (full tunnel)." if s.get("full_tunnel") else ".")]
     if state in ("degraded", "not_protected"):
         if s.get("renewal_failures", 0) > 1:
             lines.append(f"  {s['renewal_failures']} renewals in a row have failed; the next try is in {s.get('retry_in_s', 0)} s"
@@ -344,22 +369,20 @@ def cmd_inventory(a):
 
 
 def cmd_doctor(a):
-    machine = checks.prerequisites()
+    machine = checks.prerequisites("gateway" if a.config else "admin" if a.ca else None)  # checking a CA folder: the administrator's machine
     results = [r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
     broken = any(r["level"] == "fail" for r in machine)
     fails, warns = sum(r[0] == "fail" for r in results), sum(r[0] == "warn" for r in results)
     code = 3 if broken else 2 if fails else 1 if warns and a.strict else 0
+    rows = machine + [{"product": "deployment", "level": r[0], "message": r[1], "action": r.action} for r in results]
     if a.json:
-        print(json.dumps({"version": __version__, "checks": machine + [{"product": "deployment", "level": lv, "message": m, "action": ""} for lv, m in results]}, indent=1))
+        print(json.dumps({"version": __version__, "checks": rows}, indent=1))
         return code
     print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
     mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
-    for r in machine:
+    for r in rows:
         print(f"{mark[r['level']]}  {r['message'].rstrip('.')}" + (f". {r['action']}" if r["action"] else ""))
-    for level, msg in results:
-        print(f"{mark[level]}  {msg}")
-    if results:
-        print(f"\n{fails} problem(s), {warns} warning(s)")
+    print(f"\n{sum(r['level'] == 'fail' for r in rows)} problem(s), {sum(r['level'] == 'warn' for r in rows)} warning(s)")
     return code
 
 

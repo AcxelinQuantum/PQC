@@ -7,8 +7,6 @@ from html import escape as e
 from . import __version__, cbom
 from .brand import page, tier
 
-MARK = {"critical": "■■■■", "high": "■■■□", "medium": "■■□□", "low": "■□□□", "ok": "□□□□"}
-
 def _code(text):
     """Escapes text and renders `backticked` parts as code."""
     parts = e(text).split("`")
@@ -55,9 +53,15 @@ def policy_html(c):
 
 
 def html(r):
-    st, rd = r.stats, r.readiness
-    rows = []
+    from .detectors.deps import pq_needed
+    from .workspace import headline
+    st, rd, hl = r.stats, r.readiness, headline(r.assets)
+    rows, tested = [], []
     for index, a in enumerate(r.assets):
+        if a.test_only:
+            tested.append(f"<tr><td>{tier(a.tier)}</td><td><b>{e(a.variant)}</b></td><td class='w'>{e(a.why)}</td><td>{e(places(a))}</td>"
+                          f"<td class='w dim'>{e(', '.join(sorted({s.file for s in a.detections})[:4]))}</td></tr>")
+            continue
         locs = sorted({s.file for s in a.detections})
         new = ("<span class=new>new</span>" if a.new_files else "") + ("<span class=new title='only named in an algorithm list or table, not seen in use'>declared</span>" if a.declared else "")
         rows.append(f"""<tr class="{a.tier}" data-asset="{index}" data-tier="{e(a.tier)}" data-count="{len(a.detections)}" data-confidence="{a.confidence}"><td>{tier(a.tier)}</td><td><a href="#asset-{index}"><b>{e(a.variant)}</b></a>{new}</td>
@@ -65,6 +69,8 @@ def html(r):
 <td>{len(a.detections)} in {_plural(len(locs), 'place')}</td><td>{a.confidence:.2f}</td></tr>""")
     detail = []
     for index, a in enumerate(r.assets):
+        if a.test_only:
+            continue
         occ = "".join(f"<div><code>{e(s.file)}{':' + str(s.line) if s.line else ''}</code> {e(s.evidence)}, {e(s.reason)}<br>{e(s.snippet)}</div>" for s in a.detections[:60])
         fixes = "".join(f"<div><b>{e(w)}</b>: {_code(f)}</div>" for w, f in a.remedies)
         impact = a.params.get("code_impact")
@@ -77,11 +83,12 @@ def html(r):
     pats = "".join(f"<tr><td><span class='tag {e(p.severity)}'>{e(p.severity)}</span></td><td><b>{e(p.title)}</b><br><span class=dim>{e(p.rule)}, {e(p.cwe)}</span></td>"
                    f"<td><code>{e(p.file)}:{p.line}</code><br><span class=dim>{e(p.snippet)}</span></td><td class=w>{e(p.fix)}</td></tr>" for p in r.patterns)
     libs = "".join(f"<tr><td>{e(l.name)}</td><td>{e(l.ecosystem)}</td><td>{e(l.version) or '<span class=dim>unpinned</span>'}</td>"
-                   f"<td>{_plural(len(l.used_in), 'file')}</td><td>{'yes' if l.pq else ''}</td><td class='dim w'>{e(l.manifest)}{'<br>' + e(l.note) if l.note else ''}</td></tr>" for l in r.libraries)
+                   f"<td>{_plural(len(l.used_in), 'file')}</td><td>{'yes' if l.pq else 'not yet' if pq_needed(l.ecosystem, l.name) else '<span class=dim>not needed</span>'}</td>"
+                   f"<td class='dim w'>{e(l.manifest)}{'<br>' + e(l.note) if l.note else ''}</td></tr>" for l in r.libraries)
     q = [s for s in r.detections if s.verdict != "accepted"]
     why = Counter(s.reason for s in q)
     quar = "".join(f"<div><code>{e(s.file)}:{s.line}</code> {e(s.algo)}, {e(s.verdict)}: {e(s.reason)}<br>{e(s.snippet)}</div>" for s in q[:300])
-    tiers, hz = rd["tiers"], st["horizon"]
+    hz = st["horizon"]
     changed = [a for a in r.assets if a.new_files]
     base = ""
     if r.baseline:
@@ -90,15 +97,17 @@ def html(r):
     scanned = st['files_code'] + st['files_config'] + st['files_artifacts'] + st['files_binary']
     pol = policy_html(r.compliance)
     body = f"""<div class="stats">
-<div><span>Scanned</span><b>{scanned + st['endpoints']}</b><small>{_plural(scanned, 'file')} and {_plural(st['endpoints'], 'endpoint')} checked against the rule base</small></div>
-<div><span>Detectors</span><b>{st['raw_detections']}</b><small>raw detections, noisy by design</small></div>
-<div><span>Verified</span><b>{st['accepted']}</b><small>verified; {st['quarantined']} held, {st['rejected']} rejected, {st['suppressed']} suppressed</small></div>
-<div><span>Act first</span><b>{tiers['critical'] + tiers['high']}</b><small>assets to act on first; {st['promoted_on_second_look']} promoted on second look, {_plural(st['references_followed'], 'key trail')} followed</small></div>
+<div><span>Fix now</span><b>{hl['fix_now']}</b><small>{'thing' if hl['fix_now'] == 1 else 'things'} to fix now: {hl['critical']} critical, {hl['high']} high</small></div>
+<div><span>Findings</span><b>{hl['findings']}</b><small>in all, outside test code; the queue below ranks them</small></div>
+<div><span>Only in tests</span><b>{hl['test_only']}</b><small>counted apart and listed after the queue</small></div>
+<div><span>Read</span><b>{scanned + st['endpoints']}</b><small>{_plural(scanned, 'file')} and {_plural(st['endpoints'], 'endpoint')}</small></div>
 </div>
 <div class="ready">
-<div>Asymmetric assets that are quantum-safe: {rd['pq_safe']} of {rd['asymmetric']}<div class="bar"><i style="width:{rd['percent']}%"></i></div></div>
-<div>Hybrid PQ key exchange seen: {'yes' if rd['hybrid'] else 'no'}</div>
-<div class="dim">Assumptions: {hz['shelf_life']:g}y data shelf life, {hz['migration']:g}y migration, CRQC by {hz['crqc_year']} ({hz['years_to_crqc']}y)</div>
+<div>Public-key findings already quantum-safe: {rd['pq_safe']} of {rd['asymmetric']}<div class="bar"><i style="width:{rd['percent']}%"></i></div></div>
+<div>Hybrid post-quantum key exchange seen: {'yes' if rd['hybrid'] else 'no'}</div>
+<div class="dim">Assumptions: the data must stay secret for {hz['shelf_life']:g} years and the migration takes {hz['migration']:g} years, and a quantum computer able to
+break today's public-key cryptography is assumed by {hz['crqc_year']} (in {hz['years_to_crqc']} years). A finding is high when the first two add up to more than the third.
+Change them with --shelf-life, --migration and --crqc-year.</div>
 </div>
 {endpoints_html(r.endpoints)}
 {base}
@@ -112,6 +121,8 @@ def html(r):
 <div class="scroll" tabindex="0"><table><thead><tr><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
 <tbody id="migration-rows">{''.join(rows) or '<tr><td colspan=7 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
 <p id="finding-empty" hidden>No findings match. Clear the search or choose All priorities.</p>
+{f'''<h2>Only in tests</h2><p class="dim">{_plural(len(tested), 'finding')} only in test code: not counted above, each ranked one step lower.</p>
+<div class="scroll" tabindex="0"><table><thead><tr><th>Tier</th><th>Finding</th><th>Why</th><th>Places</th><th>Files</th></tr></thead><tbody>{''.join(tested)}</tbody></table></div>''' if tested else ''}
 <h2>Hygiene alerts</h2>{alerts}
 <h2>Security patterns</h2>
 <p class="dim">Rules matched one line at a time on code without comments: a starting point for review, not taint tracking. Test code is ranked low.</p>
@@ -121,8 +132,9 @@ def html(r):
 <h2>Crypto libraries</h2>
 <div class="scroll" tabindex="0"><table><thead><tr><th>Library</th><th>Source</th><th>Version</th><th>Imported by</th><th>PQ-capable</th><th>Where declared</th></tr></thead>
 <tbody>{libs or '<tr><td colspan=6 class=dim>No known crypto libraries declared.</td></tr>'}</tbody></table></div>
-<h2>Held back by verification</h2>
-<p class="dim">{'; '.join(f'{v} {k}' for k, v in why.most_common())}</p>
+<h2>Held back by the scan's checks</h2>
+<p class="dim">The scan made {st['raw_detections']} detections; its checks accepted {st['accepted']}, held {st['quarantined']}, rejected {st['rejected']} and
+left out {st['suppressed']} that the code marks to ignore. {'; '.join(f'{v} {k}' for k, v in why.most_common())}</p>
 <details><summary>Show {len(q)} detections that did not enter the CBOM</summary><div class="occ">{quar}</div></details>
 {''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}""" + INTERACTIVE
     sub = f"Cryptographic inventory and quantum migration plan, scanned in {st['seconds']}s."
@@ -130,26 +142,39 @@ def html(r):
                 "CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in readiness.sarif, full audit trail in findings.json, static code relationships in relationships.json")
 
 
-def terminal(r):
+def places(a):
+    """How many places a finding is in, and how many of them are test code."""
+    from .detectors import is_test
+    files = [s.file for s in a.detections]
+    tests = sum(is_test(f) for f in files)
+    return f"{_plural(len(files), 'place')}" + (f", {tests} in tests" if tests and tests < len(files) else "")
+
+
+def terminal(r, verbose=False):
+    from .workspace import headline, headline_text
     st, rd = r.stats, r.readiness
-    out = [f"\nacxelin-qreadiness {__version__}  {r.project}",
-           f"detectors {st['raw_detections']} raw  ->  verify {st['accepted']} verified, {st['quarantined']} held, {st['rejected']} rejected, "
-           f"{st['suppressed']} suppressed  ->  rank {st['promoted_on_second_look']} promoted, {st['references_followed']} trails  ->  {len(r.assets)} assets",
-           f"quantum-safe asymmetric: {rd['pq_safe']}/{rd['asymmetric']} ({rd['percent']}%)   hybrid KEX: {'yes' if rd['hybrid'] else 'no'}"]
+    out = [f"\nacxelin-qreadiness {__version__}  {r.project}"]
+    if verbose:
+        out.append(f"detectors {st['raw_detections']} raw  ->  verify {st['accepted']} verified, {st['quarantined']} held, {st['rejected']} rejected, "
+                   f"{st['suppressed']} suppressed  ->  rank {st['promoted_on_second_look']} promoted, {st['references_followed']} trails  ->  {len(r.assets)} findings")
+    out.append(f"public-key findings already quantum-safe: {rd['pq_safe']} of {rd['asymmetric']}   hybrid post-quantum key exchange seen: {'yes' if rd['hybrid'] else 'no'}")
     cov = st.get("coverage") or {}
     if cov.get("files"):
         gaps = ", ".join(f"{n} {k}" for k, n in cov["not_read"].items())
-        out.append(f"coverage: {cov['read']}/{cov['files']} source and configuration files analysed ({cov['percent']}%)" + (f"; not read: {gaps}" if gaps else ""))
+        out.append(f"coverage: {cov['read']} of {cov['files']} source and configuration files analysed ({cov['percent']}%)" + (f"; not read: {gaps}" if gaps else ""))
     for ep in r.endpoints:
         if ep.get("error"):
             out.append(f"  endpoint {ep['target']}: unreachable ({ep['error']})")
         else:
-            out.append(f"  endpoint {ep['target']}: {ep.get('version')}, PQ groups: {', '.join(ep.get('pq_groups', [])) or 'none'}, preferred {ep.get('preferred_group')}")
-    out.append("")
+            out.append(f"  endpoint {ep['target']}: {ep.get('version')}, post-quantum groups: {', '.join(ep.get('pq_groups', [])) or 'none'}, preferred {ep.get('preferred_group')}")
+    out += ["", headline_text(headline(r.assets))]
     w = max([len(a.variant) for a in r.assets] + [10])
-    for a in r.assets:
-        tag = " new" if a.new_files else " decl" if a.declared else "    "
-        out.append(f"  {MARK[a.tier]}  {a.tier:<8} {a.variant:<{w}}{tag}  {a.exposure:<28} {len(a.detections):>3}x  {a.action[:60]}")
+    line = lambda a: (f"  {a.tier:<8} {a.variant:<{w}}{' new' if a.new_files else ' decl' if a.declared else '    '}  {a.exposure:<28} "
+                      f"{places(a):<22} {a.action[:60]}")
+    out += [line(a) for a in r.assets if not a.test_only]
+    tests = [a for a in r.assets if a.test_only]
+    if tests:
+        out += ["", f"Only in tests ({len(tests)}, not counted above; each is ranked one step lower):"] + [line(a) for a in tests]
     if r.alerts:
         out.append("")
         for s, t, where, _ in r.alerts:

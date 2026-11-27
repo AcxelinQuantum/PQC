@@ -59,6 +59,15 @@ def pacer_for(a, cfg, workers):
     return prof, pacing.Pacer(prof.rate)
 
 
+def plain(e):
+    """An error as a sentence: a missing file by its name, not [Errno 2]."""
+    if isinstance(e, FileNotFoundError) and e.filename:
+        return f"{e.filename} does not exist"
+    if isinstance(e, OSError) and e.strerror:
+        return f"{e.filename}: {e.strerror}" if e.filename else e.strerror
+    return str(e)
+
+
 def stop_cleanly():
     """SIGTERM (systemd, docker stop, a CI timeout) ends the run as Ctrl+C does, so downloaded and unpacked files are removed."""
     import signal
@@ -76,7 +85,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="acxelin-qreadiness", description="Cryptographic inventory (CycloneDX 1.6 CBOM) and quantum migration planner")
     ap.add_argument("--version", action="version", version=f"acxelin-qreadiness {__version__}")
     sub = ap.add_subparsers(dest="cmd")
-    s = sub.add_parser("scan", help="send the pipeline over a repository and/or live TLS and SSH endpoints")
+    s = sub.add_parser("scan", help="find the cryptography in a repository, and in live TLS and SSH endpoints, and rank what to fix first")
     s.add_argument("path", nargs="?", default=None, help="folder to scan, a GitHub link (https://github.com/owner/repo; GITHUB_TOKEN for private ones), or a container image saved with `docker save` or as an OCI archive (default: current folder, or none if only --tls/--ssh are given)")
     s.add_argument("--tls", action="append", default=[], metavar="HOST:PORT", help="probe a live TLS endpoint, including which key-exchange groups it accepts (repeatable)")
     s.add_argument("--ssh", action="append", default=[], metavar="HOST[:PORT]", help="read a live SSH server's algorithm lists (repeatable)")
@@ -94,18 +103,20 @@ def main(argv=None):
     s.add_argument("--test-path", action="append", default=[], metavar="PATTERN",
                    help="also treat matching paths as test code, which lowers a finding's priority and never hides it: a name glob "
                         "(benches, *_it.py) or a path glob from the root (qa/load/*); repeatable. Folders named test, tests, __tests__ and spec always count")
-    s.add_argument("--shelf-life", type=float, help="years the protected data must stay secret (Mosca X, default 10)")
-    s.add_argument("--migration", type=float, help="years your migration will take (Mosca Y, default 5)")
-    s.add_argument("--crqc-year", type=int, help="assumed year a cryptographically relevant quantum computer exists (default 2035)")
+    s.add_argument("--shelf-life", type=float, help="years the protected data must stay secret (default 10)")
+    s.add_argument("--migration", type=float, help="years your migration will take (default 5); with --shelf-life, a finding is high when "
+                                                    "the two add up to more than the years left until --crqc-year")
+    s.add_argument("--crqc-year", type=int, metavar="YEAR", help="assumed year a quantum computer able to break today's public-key cryptography exists (default 2035)")
     s.add_argument("--threshold", type=float, help="verify confidence needed to accept a finding (default 0.6)")
     s.add_argument("--include-vendor", action="store_true", help="also scan vendor/, node_modules/ and similar")
-    s.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any asset is at this tier or worse (for CI)")
+    s.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any finding is at this tier or worse (for CI)")
     s.add_argument("--policy", action="append", default=[], choices=compliance.PROFILES, metavar="PROFILE",
                    help=f"check against a published transition standard (repeatable): {', '.join(compliance.PROFILES)}; own rules go in [policy] in .acxelin-readiness.toml")
     s.add_argument("--as-of", type=int, metavar="YEAR", help="judge policy deadlines as of this year (default: this year)")
     s.add_argument("--fail-on-policy", action="store_true", help="exit 2 if any policy rule is already broken (deadline passed or none)")
     s.add_argument("--owners", metavar="CSV", help="CMDB export with path and owner columns; a keep secret (years) column sets how long each path's data must stay secret")
     s.add_argument("-q", "--quiet", action="store_true")
+    s.add_argument("-v", "--verbose", action="store_true", help="also show how the scan decided: detections made, checked, held back and ranked")
     pacing_flags(s)
     w = sub.add_parser("watch", help="scan again on a schedule and say what appeared or disappeared since the last scan")
     w.add_argument("path", nargs="?", default=".", help="folder or GitHub link to scan; its .acxelin-readiness.toml adds endpoints and other settings")
@@ -235,7 +246,7 @@ def main(argv=None):
     try:
         cmdb = owners.from_csv(owners.decode(Path(a.owners).read_bytes())) if a.owners else []
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin-qreadiness: cannot read --owners {a.owners}: {e}")
+        sys.exit(f"acxelin-qreadiness: --owners: {plain(e)}")
     h = Horizon(a.shelf_life, a.migration, a.crqc_year, owners.secrets(cmdb))
     prof, pacer = pacer_for(a, cfg, 1)  # endpoints are probed one after another unless asked
     if (a.tls or a.ssh) and not a.quiet:
@@ -260,7 +271,7 @@ def main(argv=None):
     except OSError as e:
         sys.exit(f"acxelin-qreadiness: cannot write to {out}: {e}")
     if not a.quiet:
-        print(report.terminal(r))
+        print(report.terminal(r, a.verbose))
         print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'readiness.sarif'}, {out / 'findings.json'}, {out / 'relationships.json'}")
     if a.fail_on_policy and r.compliance and not r.compliance["passed"]:
         print(f"\nfailing: {r.compliance['overdue']} policy rule(s) already broken", file=sys.stderr if a.quiet else sys.stdout)
@@ -269,7 +280,7 @@ def main(argv=None):
         bad = TIERS[:TIERS.index(a.fail_on) + 1]
         hits = [x for x in r.assets if x.tier in bad and (x.new_files or not a.baseline)]
         if hits:
-            print(f"\nfailing: {len(hits)} asset(s) at {a.fail_on} or worse" + (" introduced since the baseline" if a.baseline else ""),
+            print(f"\nfailing: {len(hits)} finding(s) at {a.fail_on} or worse" + (" introduced since the baseline" if a.baseline else ""),
                   file=sys.stderr if a.quiet else sys.stdout)
             sys.exit(2)
     return 0
@@ -411,7 +422,7 @@ def grade(a):
     try:
         targets = endpoints.load_targets(a.targets)
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin-qreadiness: {e}")
+        sys.exit(f"acxelin-qreadiness: {plain(e)}")
     if not targets:
         sys.exit("acxelin-qreadiness: no targets: give host, host:port, ssh://host, or a .txt file with one per line")
     prof, pacer = pacer_for(a, settings(a.config, None), None)
@@ -421,14 +432,19 @@ def grade(a):
         print(pacer.summary(), file=sys.stderr)
     for r in results:
         print(f"{r.get('grade', 'F')}  {r.get('target', '?')}  {r.get('error') or r.get('negotiated') or ''}")
-        if r.get("note"):
-            print(f"   {r['note']}")
+        for line in (r.get("note"), endpoints.unverified(r)):
+            if line:
+                print(f"   {line}")
     for path, text in ((a.json, endpoints.to_json), (a.html, endpoints.report_html)):
         if path:
             try:
                 Path(path).write_text(text(results), encoding="utf-8")
             except OSError as e:
                 sys.exit(f"acxelin-qreadiness: cannot write {path}: {e.strerror or e}")
+    down = sum(r.get("grade") == "F" for r in results)
+    if down:  # exit 3, so a script does not read an unreachable host as graded
+        print(f"acxelin-qreadiness: {down} of {len(results)} endpoints could not be reached or graded (exit status 3)", file=sys.stderr)
+        return 3
     return 0
 
 
@@ -479,7 +495,7 @@ def report_command(a):
         for source in a.cbom:
             rows += evidence.code(source)
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin-qreadiness: {e}")
+        sys.exit(f"acxelin-qreadiness: {plain(e)}")
     rep = evidence.report(rows)
     out = Path(a.out)
     try:

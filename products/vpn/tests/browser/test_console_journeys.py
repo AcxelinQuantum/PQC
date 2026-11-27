@@ -80,8 +80,31 @@ def test_an_administrator_adds_a_site_and_reads_its_tunnel(browser, console):
     page.get_by_role("heading", name="Headquarters").wait_for()
     for text in ("branch.acme", "Protected", "CURVE_25519 + ML_KEM_768", "AES_GCM_16_256", "42 s ago", "branch.acme · valid"):
         assert page.get_by_text(text).first.is_visible(), text
+    # V7: revoking a site takes a confirmation, then Sites says revoked
+    page.get_by_role("button", name="Revoke site branch.acme").click()
+    page.get_by_role("button", name="Confirm revoke site branch.acme").wait_for()
+    assert next(r for r in CA(console[2] / "ca").records() if r.common_name == "branch.acme").status == "valid", "the first click changes nothing"
+    page.get_by_role("button", name="Confirm revoke site branch.acme").click()
+    page.get_by_text("Certificate revoked").wait_for()
+    assert next(r for r in CA(console[2] / "ca").records() if r.common_name == "branch.acme").status == "revoked"
+    assert page.get_by_role("button", name="Revoke site branch.acme").count() == 0
+    # Remove asks too, and only stops reading the site
     page.get_by_role("button", name="Remove Headquarters").click()
+    page.get_by_role("heading", name="Headquarters").wait_for()
+    page.get_by_role("button", name="Confirm remove Headquarters").click()
     page.get_by_text("No sites added yet").wait_for()
+    c.close()
+
+
+def test_an_unconfirmed_revoke_says_so_when_it_times_out(browser, console):
+    """V11: the armed button reverts after a few seconds; the page says nothing was revoked instead of silently changing back."""
+    c, page = opened(browser, console)
+    page.get_by_role("tab", name="People").click()
+    page.get_by_role("button", name="Revoke alice").click()
+    page.get_by_text("Click Confirm revoke to go ahead").wait_for()
+    page.get_by_text("Not revoked: not confirmed in time").wait_for(timeout=10000)
+    page.get_by_role("button", name="Revoke alice").wait_for()
+    assert next(r for r in CA(console[2] / "ca").records() if r.common_name == "alice").status == "valid"
     c.close()
 
 
@@ -99,6 +122,13 @@ def test_an_administrator_invites_someone_downloads_the_file_and_revokes_alice_i
     d.value.save_as(saved)
     assert saved.name == "bob.acxinvite" and join.read(saved)["name"] == "bob"
     page.get_by_text("Downloaded bob.acxinvite").wait_for()
+    # V10: the invitation shows until it is used, and can be cancelled
+    pending = page.locator("#pending")
+    pending.get_by_text("bob").wait_for()
+    assert "not enrolled yet" in pending.inner_text()
+    page.get_by_role("button", name="Cancel the invitation for bob").click()
+    page.get_by_text("Cancelled the invitation for bob").wait_for()
+    page.wait_for_function("!(document.querySelector('#pending')?.textContent || '').includes('bob')")
     page.get_by_role("cell", name="alice", exact=True).wait_for()
     page.get_by_role("button", name="Revoke alice").click()
     page.get_by_role("button", name="Confirm revoke alice").click()
@@ -113,6 +143,27 @@ def test_health_lists_checks_with_what_to_do(browser, console):
     page.get_by_role("tab", name="Health").click()
     page.locator("th", has_text="What to do").wait_for()
     assert page.get_by_text("VPN Root").first.is_visible()
+    # V5 and V6: advice for the administrator's machine, a fix for every problem, and the CA folder the command line should use
+    assert "pip install" not in page.content() and "desktop app (tray icon)" not in page.content()
+    for row in page.locator("tbody tr").all():
+        cells = row.locator("td").all_inner_texts()
+        if cells[0] == "Problem":
+            assert cells[2].strip(), cells
+    assert str(console[2] / "ca") in page.locator("#ca-folder").inner_text()
+    c.close()
+
+
+def test_health_says_what_to_do_about_a_site_that_does_not_answer(browser, console):
+    c, page = opened(browser, console)
+    page.get_by_label("Name", exact=True).fill("Gone")
+    page.get_by_label("Status address").fill("http://127.0.0.1:1")
+    page.get_by_role("button", name="Add a site").click()
+    page.get_by_role("heading", name="Gone").wait_for()
+    page.get_by_role("tab", name="Health").click()
+    row = page.locator("tbody tr", has_text="127.0.0.1:1")
+    row.wait_for()
+    cells = row.locator("td").all_inner_texts()
+    assert cells[0] == "Problem" and "metrics" in cells[2], cells
     c.close()
 
 
@@ -153,6 +204,9 @@ def test_a_new_administrator_creates_the_certificate_authority_in_the_console(br
         first = page.get_by_role("heading", name="First, say where invitations point")
         first.wait_for()
         assert first.bounding_box()["y"] < page.get_by_role("heading", name="Invite someone").bounding_box()["y"]
+        gateway = page.get_by_label("Gateway key agreement address")
+        assert gateway.get_attribute("placeholder") == "vpn.example.com:7444", "V3: the person gateway's port, not the site port"
+        page.get_by_text("7444 by default").wait_for()
         page.get_by_text("Use Invite someone to add the first person.").wait_for()
         assert "on the left" not in page.content()
     finally:

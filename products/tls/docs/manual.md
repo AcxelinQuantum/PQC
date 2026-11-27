@@ -1,16 +1,18 @@
 # Acxelin QGuard manual
 
-Acxelin QGuard puts post-quantum TLS 1.3 and mutual TLS in front of the services you already run, and issues the ML-DSA certificates they need from your own certificate authority. The service behind it does not change.
+Acxelin QGuard is software you install on your own servers. It sits in front of the websites, APIs and databases you already run and makes every connection to them quantum-safe, with your own certificate authority, QCertificate, built in. The services behind it do not change. It is not a cloud service: it runs on your machines, holds your keys, and never contacts Acxelin Quantum.
 
-This manual covers installing it, a first edge in ten minutes, the everyday work, running it in production, and what to do when something goes wrong. Acxelin QGuard installs and runs on its own; it needs no other Acxelin product.
+This manual covers installing it, protecting a first service in five minutes, the everyday work, running it in production, and what to do when something goes wrong. Acxelin QGuard installs and runs on its own; it needs no other Acxelin product.
 
 ## 1. What you get
 
+One installation gives one command, `acxelin-qguard`, and three parts:
+
 | Part | What it does |
 |---|---|
-| **The edge** | A proxy that accepts only post-quantum clients in front of any TCP service (web apps, PostgreSQL, MQTT, anything), or a tunnel that lets a plain local client reach a remote edge. |
-| **The certificate authority** | Issues, renews and revokes ML-DSA certificates, keeps the revocation list fresh, and enrolls machines over EST and ACME. |
-| **The console** | A local web page for the routine work: create the CA; issue, download, renew and revoke certificates; check edges; test a connection. |
+| **The guard** (the `edge` in commands and settings) | Sits in front of a service you protect (a web app, PostgreSQL, MQTT, anything on TCP) and lets in only quantum-safe connections; or, as a tunnel, lets a plain local client reach a remote guard. |
+| **QCertificate**, the certificate authority | Issues, renews and revokes the quantum-safe (ML-DSA) certificates, keeps the revocation list fresh, and enrols machines over EST and ACME. |
+| **The console** | A local web page for the everyday work: protect a service, watch what it sees, turn on enforcement, run QCertificate, check any connection. |
 
 A connection that cannot meet your policy ends. Nothing falls back silently to a key exchange a quantum computer could break.
 
@@ -85,13 +87,15 @@ If OpenSSL 3.5 is in a folder of its own, run `ACXELIN_OPENSSL=/path/to/openssl-
 
 To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). Your certificates and settings stay where you put them.
 
-**With Docker instead:** each release publishes an image with OpenSSL 3.5 included. Pull it and give it a short name, which the rest of this manual uses:
+**With Docker instead:** build the image, which includes OpenSSL 3.5, from the repository at the release's tag, and give it the short name the rest of this manual uses. (A published image is planned; it cannot be pulled yet.)
 
 ```
-docker pull ghcr.io/acxelinquantum/acxelin-qguard:1.3.0
-docker tag ghcr.io/acxelinquantum/acxelin-qguard:1.3.0 acxelin-qguard
+git clone --branch qguard-v1.3.0 https://github.com/AcxelinQuantum/PQC && cd PQC
+docker build -f products/tls/deploy/Dockerfile -t acxelin-qguard .
 docker run --rm acxelin-qguard doctor
 ```
+
+On Windows, clone with `git -c core.autocrlf=false clone ...` so the image's start-up script keeps Linux line endings.
 
 ## 4. See it work in one minute
 
@@ -101,9 +105,23 @@ acxelin-qguard try
 
 The tour sets up a CA, an ordinary web server and an edge in front of it, then shows a post-quantum client getting through and a classical client being refused. It needs nothing else and leaves nothing behind.
 
-## 5. Your first edge in ten minutes
+## 5. Protect your first service in five minutes
 
-These steps put post-quantum TLS in front of a web app listening on `127.0.0.1:8080`.
+These steps put QGuard in front of a web app listening on `127.0.0.1:8080`.
+
+### In the console
+
+1. Run `acxelin-qguard console`. Your browser opens, signed in.
+2. **Create your certificate authority**: give it a name and a passphrase. That is QCertificate.
+3. **Protect your first service**: choose what it is (a public website, an internal app or API, a partner API, or a database), type the address people use (such as `shop.example.com`) and the port, and where the service runs now (`127.0.0.1:8080`). For a public website, also give its ordinary public certificate (section 6, "Public websites and browsers"). Choose **Protect service**: the console issues the certificate and writes QGuard's settings file.
+4. Choose **Start QGuard on this computer**. QGuard is now in front of the app.
+5. Choose **Check connection** on the service: it says whether the key exchange and the certificate are quantum-safe.
+
+For a server, run QGuard as a system service instead of from the console (section 8). The console keeps editing the same settings file, and the running service applies every change within seconds.
+
+### From the command line
+
+The same, step by step, for scripts and servers without a browser.
 
 ### Step 1: create the certificate authority
 
@@ -131,23 +149,28 @@ acxelin-qguard ca issue server web.example.com --dir pki --out web
 acxelin-qguard edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.pem --key web/key.pem --metrics 127.0.0.1:9100
 ```
 
+For a web app, add `--forwarded-headers` so it sees each visitor's address and that the visit was https (section 6, "Web apps behind QGuard").
+
 ### Step 4: test it
 
-From any machine that has `pki/ca.crt`:
+From any machine that has `pki/ca.crt` (without `--ca`, `connect` trusts the public authorities this computer trusts, as a browser does):
 
 ```
 acxelin-qguard connect web.example.com:8443 --ca pki/ca.crt --send "GET / HTTP/1.0\r\n\r\n"
 ```
 
-You see what was negotiated, then the app's reply:
+You see what was negotiated, a one-line verdict, then the app's reply:
 
 ```
     version  TLSv1.3
       group  X25519MLKEM768
        peer  CN=web.example.com
    peer_key  ML-DSA-65
+    verdict  quantum-safe key exchange, quantum-safe certificate (ML-DSA-65)
       reply  HTTP/1.0 200 OK
 ```
+
+When a connection fails, `connect` says why in words, for example that a site offers a post-quantum key exchange but a classical certificate. `acxelin-qguard connect www.example.com:443 --policy transition` checks any public site the way a browser would.
 
 ### Step 5: check the edge's counters
 
@@ -281,6 +304,8 @@ cert = "web/chain.pem"
 key = "web/key.pem"
 ```
 
+`alpn` only chooses the route: QGuard serves HTTP/1.1 and passes other protocols through as they are, but it does not negotiate HTTP/2 with clients (see Limits).
+
 An exact name beats a wildcard, which beats no name; asking for a protocol adds to it. A route with neither is the default for the port, and there can be only one. Each route keeps its own certificate, policy, client-certificate rule, CRL and limits. A client that asks for a name no route serves, with no default to catch it, is closed and counted (`unrouted` in the status). A client that sends no readable hello within a few seconds is closed (`unreadable`).
 
 Limits: a client that sends no server name reaches only routes without `sni`. Changing one route while running leaves the others on the port untouched. The routing decision reads only the name and protocol, never a certificate or any application data. Routes in `originate` mode have their own ports.
@@ -292,6 +317,34 @@ Limits: a client that sends no server name reaches only routes without `sni`. Ch
 | `strict` (default) | post-quantum key exchange and ML-DSA certificates only |
 | `transition` | also classical clients while you migrate; use it with `fallback_cert` for browsers, which cannot verify ML-DSA yet |
 | `cnsa2` | NSA CNSA 2.0: pure ML-KEM-1024 (no hybrid: NSA's CNSA 2.0 FAQ names none for TLS), ML-DSA-87 and AES-256 only |
+
+### Web apps behind QGuard
+
+QGuard passes bytes through unchanged unless you ask it to tell a web app about its visitors. Without that, the app sees every visitor as `127.0.0.1` and believes it is reached over plain `http`, so apps that build absolute links or redirects (WordPress, for one) send visitors to `http://...` and break.
+
+Put `forwarded_headers = true` on the route (`--forwarded-headers` on the command line; the console sets it for websites, apps and partner APIs). For each HTTP/1.x request, QGuard then:
+
+- removes any `Forwarded`, `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` or `X-Real-IP` the visitor sent, so nobody can pose as someone else;
+- adds `X-Forwarded-For` (the visitor's address), `X-Forwarded-Proto: https` and `X-Forwarded-Host` (the host asked for);
+- passes request bodies unchanged, and refuses with `400` anything ambiguous: both `Content-Length` and `Transfer-Encoding`, conflicting lengths, folded headers, bare line feeds, `CONNECT`. These are the shapes behind request smuggling. Headers over 64 KB get `431`;
+- relays a WebSocket unchanged once the app answers `101 Switching Protocols`. An upgrade must be the first request on its connection, as browsers send it.
+
+Tell the app to trust these headers from `127.0.0.1` only: WordPress's official Docker image reads `X-Forwarded-Proto` by itself; Grafana needs `root_url`; most frameworks have a "trusted proxy" setting. Leave `forwarded_headers` off for databases and other protocols that are not HTTP.
+
+Two more things web apps meet: QGuard closes a connection on which nothing is sent within 30 seconds of the handshake (`first_data_timeout`), and it does not serve HTTP/2 (browsers use HTTP/1.1 through it).
+
+### Public websites and browsers
+
+Browsers already use a quantum-safe key exchange (X25519MLKEM768), but they only trust certificates from public authorities, and those do not issue ML-DSA certificates yet. What a visitor sees depends on the route:
+
+| Route | What Chrome and Edge show (tested with Chrome 158 and Edge 158) |
+|---|---|
+| `transition` with `fallback_cert` and `fallback_key`, an ordinary public certificate (Let's Encrypt, DigiCert) | The site, with a normal padlock. The key exchange is quantum-safe; the certificate is classical, as on every public site today (Google, Cloudflare, GitHub). |
+| `transition` without a public certificate | "Your connection is not private" (NET::ERR_CERT_AUTHORITY_INVALID). |
+| `strict` | "Your connection is not private", because the only certificate is ML-DSA. |
+| `cnsa2` | "This site can't provide a secure connection" (ERR_SSL_VERSION_OR_CIPHER_MISMATCH): browsers do not offer ML-KEM-1024. |
+
+So a public website uses `transition` with a public certificate. Keep `strict` and `cnsa2` for clients you control. The edge and `doctor` warn when a `transition` route has no public certificate, and the console says so on the service.
 
 ### Find out who `strict` would break, before you enforce it
 
@@ -305,7 +358,7 @@ web: 203.0.113.9 would be refused under strict (no post-quantum key exchange off
 That line has the client's address, what it offered for key exchange and for signatures, and why. It is written once per address
 every ten seconds. Nothing else of the client is read or kept: not the server name, the certificate, the key shares or any
 application data. `/metrics` counts `shadow_ok` and `shadow_would_refuse` (and one counter per reason), and `/status` shows
-`"shadow": true`. Watch for a few days, fix or exempt the clients that appear, then remove `shadow` to enforce.
+`"shadow": true`. Watch for a few days, fix or exempt the clients that appear, then remove `shadow` to enforce. In the console, the service shows who would be refused and why, and **Turn on enforcement** makes the change; it also removes a `fallback_cert`, which a `strict` route cannot have (by hand, remove both lines, or the edge refuses to start with the new settings and keeps the old ones).
 
 **Shadow mode does not enforce anything.** Classical clients are served, and they are as exposed to a recorded session as
 before. A client that cannot verify ML-DSA certificates still fails the handshake unless the route has a `fallback_cert` (a
@@ -319,15 +372,17 @@ handshake then succeeds. Clients that send their hello in several records, or so
 acxelin-qguard console
 ```
 
-Your browser opens, already signed in. The first time, create the certificate authority. The console asks for the key's passphrase and keeps it in memory only, so it asks again after a restart.
+Your browser opens, already signed in. The first time, it walks you through creating QCertificate and protecting your first service. The console asks for the authority's passphrase and keeps it in memory only, so it asks again after a restart.
 
-| Tab | What you do there |
+| Place | What you do there |
 |---|---|
-| **Certificates** | Issue, download, renew and revoke. A private key reaches the browser only when you choose With key, and never for a revoked certificate or an encrypted key. |
-| **Edges** | Add a running edge by its metrics address to see its policy and negotiated key exchanges. Test a connection to any host, with a client certificate for mutual TLS. |
-| **Health** | Whether this computer can run Acxelin QGuard, and whether the CA, its CRL and its certificates are in good shape. |
+| **Overview** | Every protected service at a glance: its kind, protection, how many connections were quantum-safe, who was refused, and what needs your attention (an expiring certificate, a public website without a public certificate, QGuard not running, a watched service ready for enforcement). |
+| **Services** | Protect a service, edit or remove it, start by watching and turn on enforcement, check its connection. Start or stop QGuard on this computer. |
+| **QCertificate** | Issue, renew, revoke and download certificates (a zip of the certificate, chain and CA, or one PEM file with the full chain and key); one-time tokens for devices that enrol themselves (EST); ACME account keys; the revocation list; the authority's details and its certificate. A private key reaches the browser only when you ask for it, and never for a revoked certificate or an encrypted key. |
+| **Check a connection** | Connect to any address as a client would, trusting public authorities (like a browser) or QCertificate, and see whether the key exchange and certificate are quantum-safe, or why it failed. |
+| **Settings** | Where the settings file, data and log are; whether this computer can run QGuard; other QGuard services to watch by their status address. |
 
-Every action is written to an audit log that only you can read.
+The console writes the same settings file the QGuard service reads (by default `edge.toml` in its data folder; `--settings FILE` points it at another, such as `/etc/acxelin-tls/edge.toml`). Settings you wrote by hand are kept, but comments are not. Every action is written to an audit log that only you can read.
 
 The console listens only on the machine it runs on. For a remote server, forward a port and ask the running console for a fresh link:
 
@@ -340,7 +395,35 @@ Run the second command in that SSH session, then open the address it prints on y
 
 ## 8. Running it in production
 
-**Docker.** One image, with OpenSSL 3.5 included. It runs as user 10001 and keeps its files in `/data`:
+Run QGuard as a system service so it starts with the machine, and keep the console for the everyday work: point it at the service's settings file with `--settings`.
+
+**Linux (systemd).** The release folder's `deploy/systemd` has `acxelin-tls-edge.service`, which runs `/opt/acxelin-tls/bin/acxelin-qguard edge --config /etc/acxelin-tls/edge.toml` as the user `acxelin`. As root:
+
+```
+ACXELIN_PREFIX=/opt/acxelin-tls ACXELIN_BIN=/opt/acxelin-tls/bin sh install.sh
+useradd --system --home /var/lib/acxelin-tls --shell /usr/sbin/nologin acxelin
+mkdir -p /etc/acxelin-tls /var/lib/acxelin-tls
+cp deploy/systemd/acxelin-tls-edge.service /etc/systemd/system/
+```
+
+Put the settings file at `/etc/acxelin-tls/edge.toml` (the console writes it with `--settings /etc/acxelin-tls/edge.toml` when the admin running it can write there), make it and the certificates readable by `acxelin`, then `systemctl enable --now acxelin-tls-edge`. `systemctl reload acxelin-tls-edge` re-reads the settings; the service also applies changes on its own within seconds. Tested on Ubuntu 26.04 (systemd-analyze security rates the unit 1.6, "OK").
+
+`acxelin-tls-maintain.service` and its daily timer run `ca maintain` for a CA in `/var/lib/acxelin-tls/pki`. It can only do that with the CA's passphrase, which it reads from `/etc/acxelin-tls/ca.env` (`ACXELIN_TLS_CA_PASSPHRASE=...`, mode 600). That puts the passphrase on the server. Choose one:
+- run the timer only on the machine that holds the CA;
+- give servers short-lived certificates they renew themselves over EST (section 9), so the CA's passphrase never leaves its machine;
+- keep the CA key in an HSM or KMS (below).
+
+**Windows.** Run QGuard at start-up with a scheduled task, in an administrator PowerShell:
+
+```
+$exe = "$env:LOCALAPPDATA\Acxelin\bin\acxelin-qguard.cmd"
+$action = New-ScheduledTaskAction -Execute $exe -Argument "edge --config C:\ProgramData\Acxelin\edge.toml"
+Register-ScheduledTask -TaskName "Acxelin QGuard" -Action $action -Trigger (New-ScheduledTaskTrigger -AtStartup) -User "SYSTEM" -RunLevel Highest
+```
+
+Install QGuard for an account the task can use (or copy the install to `C:\Program Files`), set `ACXELIN_OPENSSL` for that account, and start the console with `--settings C:\ProgramData\Acxelin\edge.toml`. Schedule `acxelin-qguard ca maintain` daily the same way on the machine that holds the CA.
+
+**Docker.** Build the image (section 3); it includes OpenSSL 3.5, runs as user 10001 and keeps its files in `/data`:
 
 ```
 docker run -d --name edge -v /etc/acxelin-tls:/data:ro -p 8443:8443 acxelin-qguard edge --config /data/edge.toml
@@ -349,8 +432,6 @@ docker exec -it console acxelin-qguard console link
 ```
 
 The files in `/etc/acxelin-tls` must be readable by user 10001. Publish the console's port on `127.0.0.1` only, as above.
-
-**systemd.** `deploy/systemd` has `acxelin-tls-edge.service` for the edge, and `acxelin-tls-maintain.service` with a daily timer that runs `ca maintain`. They use `/etc/acxelin-tls`, `/var/lib/acxelin-tls` and the service user `acxelin`.
 
 **Before going live**, run `acxelin-qguard doctor --strict --ca pki --config edge.toml`. It exits 0 only when nothing needs attention.
 
@@ -505,6 +586,11 @@ What Wireshark cannot show you: the certificate, the HTTP inside, or the keys. T
 | `the server closed the connection right after the handshake` | The edge refused the client certificate (missing, untrusted or revoked), or the service behind the edge is down. | Read the edge's log, which says which one. Check that the target is listening. |
 | Every client is refused after a week | The CRL has expired, and mutual TLS fails closed. | Run `acxelin-qguard ca maintain --dir pki` now, and schedule it daily. |
 | `The CA key is locked` in the console | The console restarted and forgot the passphrase. | Enter the passphrase again. |
+| `port 443 is already in use` | Another program, perhaps a second copy of QGuard or a web server, listens on that port. | Stop it, or choose another port. |
+| "Your connection is not private" in a browser | The route has no public certificate, or it is `strict`. | For a public website, use `transition` with `fallback_cert` and `fallback_key` (section 6, "Public websites and browsers"). |
+| A web app redirects to `http://...` or sees every visitor as `127.0.0.1` | The route does not pass forwarded headers. | Set `forwarded_headers = true` (section 6, "Web apps behind QGuard"). |
+| `... does not trust this server's certificate` in the edge's log | A client (often a browser) refused the certificate. It is counted as `client_distrusts_certificate`, apart from clients the edge refuses. | Give the client the CA certificate, or, for browsers, a public certificate. |
+| `the certificate ... expired` when the edge starts | The certificate it serves has expired; every client refuses it. | Renew it (console: QCertificate, Renew; or `ca renew`). |
 | `doctor` exits 2 | A check failed. | The line marked `FAIL` names the problem and the fix. |
 
 ### Exit codes
@@ -513,7 +599,9 @@ What Wireshark cannot show you: the certificate, the HTTP inside, or the keys. T
 
 ## 13. Questions
 
-**Do browsers work?** Not with ML-DSA certificates, which no browser verifies yet. Use the `transition` policy with a classical `fallback_cert` for browser traffic, and `strict` for your own clients and services.
+**Is QGuard a product, a service or a package?** A product: software you install and run yourself, delivered as a package (one offline installer folder, or an image you build). It is not a service: nothing runs at Acxelin Quantum, and your keys and traffic never leave your machines.
+
+**Do browsers work?** Yes, with the `transition` policy and an ordinary public certificate as `fallback_cert`: the key exchange is quantum-safe, the certificate classical. Browsers do not verify ML-DSA certificates yet (section 6, "Public websites and browsers"). Use `strict` for your own clients and services.
 
 **Do I have to change my application?** No. The edge sits in front of it, and the application keeps speaking plain TCP on a local port.
 
@@ -526,5 +614,10 @@ What Wireshark cannot show you: the certificate, the HTTP inside, or the keys. T
 ## 14. Limits
 
 - Browsers cannot verify ML-DSA certificates yet (see Questions).
+- QGuard does not serve HTTP/2; browsers use HTTP/1.1 through it.
+- No PFX (PKCS#12) export: no tool can write an ML-DSA key into one yet, and Windows TLS cannot use ML-DSA certificates. Downloads are PEM.
+- Browsers cannot present ML-DSA client certificates, so a partner API with client certificates is for programs (curl, OpenSSL 3.5, your partner's code), not browsers.
+- ACME clients take ML-DSA certificates only through a request made beforehand (`certbot --csr`), and certbot does not renew those by itself: schedule the same command.
+- Forwarded headers cover HTTP/1.x; other protocols pass through unchanged.
 - A revoked client keeps access until its edge has the new CRL.
 - KMS and HSM signing are implemented, but they have not been tested against real HSMs or cloud accounts here.

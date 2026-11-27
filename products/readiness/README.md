@@ -5,7 +5,8 @@ Find every piece of cryptography your organisation depends on, see which of it a
 Acxelin QReadiness reads source code, configuration, keys and certificates, binaries, container images, dependency manifests, packet captures and live TLS and SSH endpoints. It writes:
 - a CycloneDX 1.6 cryptographic bill of materials (CBOM)
 - SARIF for code scanning
-- a self-contained HTML report that ranks every asset from critical to ok, with the fix for each
+- a self-contained HTML report that leads with the things to fix now (the critical and high findings outside test code) and ranks
+  every finding from critical to ok, with the fix for each; findings only in tests are counted and listed apart
 
 ## Install
 
@@ -26,14 +27,15 @@ For a virtual environment of your own: `pip install ./core ./products/readiness`
 |---|---|
 | Scan a repository | `acxelin-qreadiness scan PATH` (then open `readiness-out/report.html`) |
 | Include live endpoints | `acxelin-qreadiness scan PATH --tls api.example.com:443 --ssh bastion.example.com` |
-| Grade endpoints A to F | `acxelin-qreadiness grade hosts.txt --html grades.html` (live probes are paced: `--rate N`, `--workers N`, `--aggressive`) |
+| Grade endpoints A to F | `acxelin-qreadiness grade hosts.txt --html grades.html` (live probes are paced: `--rate N`, `--workers N`, `--aggressive`; exits 3 when a host cannot be reached) |
+| Track findings, owners and endpoint history in a browser | `acxelin-qreadiness console` |
 | Evidence for an audit | `acxelin-qreadiness report --certs certs/ --targets hosts.txt --cbom readiness-out` |
 | Check against standards | `acxelin-qreadiness scan PATH --policy nist-ir-8547 --policy cnsa-2.0 --fail-on-policy` |
 | Fail CI only on new cryptography | `acxelin-qreadiness scan . --baseline cbom.json --fail-on high` |
 | One view of many systems | `acxelin-qreadiness merge out-a out-b other-tool.cbom.json --name "Example Bank"` |
 | See what this machine can scan | `acxelin-qreadiness doctor` |
 
-Outputs land in `readiness-out/`: `cbom.json`, `readiness.sarif`, `findings.json` (every detection and its verdict), `relationships.json` (call relationships) and `report.html`. The report has a button that downloads the migration plan as `migration.csv`.
+Outputs land in `readiness-out/`: `cbom.json`, `readiness.sarif`, `findings.json` (every detection and its verdict), `relationships.json` (call relationships) and `report.html`. The report has a button that downloads the migration plan as `migration.csv`. The terminal and the console count the same scan the same way; `scan --verbose` also shows how the scan decided.
 
 To mark a line that uses cryptography for something other than security (a cache key, a checksum), add `acxelin:ignore` with the reason in a comment on that line or the line above.
 
@@ -48,7 +50,7 @@ Grades, accepted groups and SSH algorithms need nothing extra. To read the certi
 ## Deploy
 
 - **GitHub Action:** `uses: AcxelinQuantum/PQC/products/readiness@<tag>` with inputs `path`, `fail-on`, `baseline`, `args`, `output` and `upload-sarif`.
-- **Docker:** `docker build -f products/readiness/deploy/Dockerfile -t acxelin-qreadiness .`, then `docker run --rm -v "$PWD:/scan" acxelin-qreadiness` (on Linux add `--user "$(id -u):$(id -g)"`, so the scan can write `readiness-out` into your folder).
+- **Docker:** build the image yourself from the source (the published images are not public yet): `docker build -f products/readiness/deploy/Dockerfile -t acxelin-qreadiness .`, then `docker run --rm -v "$PWD:/scan" acxelin-qreadiness` (on Linux add `--user "$(id -u):$(id -g)"`, so the scan can write `readiness-out` into your folder).
 
 ## Limits
 

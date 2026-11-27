@@ -6,12 +6,36 @@
 <title>Acxelin QGuard</title>
 <style>
 /*SHELL*/
-.inline-acts{flex-wrap:nowrap;gap:6px}
-td:last-child{padding-right:16px}
-@media (max-width:560px){.inline-acts{flex-wrap:wrap}}
-.edge{border-top:1px solid var(--rule);padding:14px 0}
-.edge h3{font:500 15px var(--display);margin:0 0 4px;color:var(--ink)}
+[hidden]{display:none!important}
+.inline-acts{flex-wrap:wrap;gap:6px}
 .copyable{display:grid;gap:6px;justify-items:start;min-width:0}.copyable pre{margin:0;max-width:100%;overflow-x:auto;white-space:pre;font-size:12.5px}
+.path{font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere;word-break:break-all}
+.svc{border-top:1px solid var(--rule);padding:18px 0}
+.svc:first-of-type{border-top:0}
+.svc h2{margin:0}
+.svc .sub{color:var(--muted);margin:2px 0 8px}
+.svc ul.problems{margin:8px 0 0;padding-left:18px;color:var(--ink)}
+.svc ul.problems li{margin:3px 0}
+.section{margin-top:34px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend{font-weight:600;font-size:13.5px;color:var(--ink);margin:18px 0 6px;padding:0}
+.choices{display:grid;gap:8px}
+.choices label{display:flex;gap:10px;align-items:flex-start;margin:0;font-weight:400;padding:10px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--pane);cursor:pointer}
+.choices label:has(input:checked){border-color:var(--ink)}
+.choices input{margin-top:3px}
+.choices strong{display:block}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:400}
+.check input{margin-top:3px}
+.form{max-width:620px}
+.form .msg{margin-top:14px}
+.form-row{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:0 14px}
+@media (max-width:560px){.form-row{grid-template-columns:minmax(0,1fr)}}
+.verdict{font:500 17px/1.4 var(--display);color:var(--ink);margin:0 0 10px}
+.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+.downloads{margin-top:8px}
+.attention{margin:6px 0 0;padding-left:18px}.attention li{margin:5px 0;color:var(--ink)}
+.token{font-family:var(--mono);font-size:13px;background:var(--sunken);padding:6px 8px;border-radius:4px;overflow-wrap:anywhere}
+input[type=number]{width:100%;font:inherit;color:var(--ink);background:var(--pane);border:1px solid var(--rule-strong);border-radius:6px;padding:9px 11px;min-height:40px}
 </style>
 </head>
 <body>
@@ -32,16 +56,40 @@ const h = (tag, props = {}, ...kids) => {
   return el;
 };
 const say = (text) => { const m = $("#msg"); m.textContent = text || ""; if (text) m.scrollIntoView({block: "center", behavior: "smooth"}); };
-const quote = (p) => /[\s"]/.test(p) ? '"' + p + '"' : p;
-function copyable(text) {
-  const b = h("button", {class: "btn quiet small", type: "button"}, "Copy command");
-  b.addEventListener("click", async () => { try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch (e) { b.textContent = "Select and copy"; } });
-  return h("div", {class: "copyable"}, h("pre", {tabindex: "0", "aria-label": "Command"}, h("code", {}, text)), b);
+const state = {tab: "overview", status: null, services: null, first: false, editing: null, check: null};
+// An error goes next to the form it came from (`where`, a role=alert element), or to the top of the page.
+async function call(path, body, where) {
+  if (where) where.textContent = ""; else say("");
+  try { return await acx.api(path, body); }
+  catch (e) {
+    const text = e.status === 401 ? "This session has ended. Run acxelin-qguard console again to open a new one." : e.message;
+    if (where) { where.textContent = text; where.scrollIntoView({block: "nearest"}); } else say(text);
+    throw e;
+  }
 }
-const state = {tab: "certs", status: null};
-const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
-const day = (t) => t ? t.slice(0, 10) : "";
-const field = (id, label, input, hint) => [h("label", {for: id}, label), input, hint ? h("p", {class: "legend"}, ...acxText(hint)) : ""];
+const alertBox = () => h("p", {class: "msg", role: "alert"});
+const when = (t) => { if (!t) return ""; const d = new Date(t.replace(/Z?$/, t.endsWith("Z") || /[+-]\d\d:\d\d$/.test(t) ? "" : "Z")); return isNaN(d) ? t : d.toLocaleString(undefined, {dateStyle: "medium", timeStyle: "short"}); };
+const day = (t) => { if (!t) return ""; const d = new Date(t); return isNaN(d) ? t.slice(0, 10) : d.toLocaleDateString(undefined, {dateStyle: "medium"}); };
+const field = (id, label, input, hint) => [h("label", {for: id}, label), input, hint ? h("p", {class: "legend", id: id + "-hint"}, hint) : ""];
+function copyable(text, label = "Copy") {
+  const b = h("button", {class: "btn quiet small", type: "button"}, label);
+  b.addEventListener("click", async () => { try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch (e) { b.textContent = "Select and copy"; } });
+  return h("div", {class: "copyable"}, h("pre", {tabindex: "0"}, h("code", {}, text)), b);
+}
+// A destructive button asks once more: the first click arms it for six seconds and says so.
+function twoStep(label, aria, confirmText, run) {
+  const b = h("button", {class: "btn quiet small", type: "button", "aria-label": aria}, label);
+  let armed = false, timer;
+  const set = (a) => { armed = a; b.textContent = a ? confirmText : label; b.setAttribute("aria-label", a ? confirmText : aria); b.className = "btn small " + (a ? "danger" : "quiet"); };
+  b.addEventListener("click", async () => {
+    if (!armed) { set(true); timer = setTimeout(() => set(false), 6000); return; }
+    clearTimeout(timer);
+    try { await run(); } catch (e) { set(false); }
+  });
+  return b;
+}
+
+// ---- first run, unlock and sign-in
 
 function signedOut() {
   $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "This link has expired"),
@@ -50,18 +98,19 @@ function signedOut() {
 }
 
 function createCa() {
-  const name = h("input", {type: "text", id: "ca-name", autocomplete: "off", placeholder: "Example Root CA", required: true});
-  const pass = h("input", {type: "password", id: "ca-pass", autocomplete: "new-password"});
+  const name = h("input", {type: "text", id: "ca-name", autocomplete: "off", placeholder: "for example: Acme Corp Root CA", required: true});
+  const pass = h("input", {type: "password", id: "ca-pass", autocomplete: "new-password", "aria-describedby": "ca-pass-hint"});
   const again = h("input", {type: "password", id: "ca-pass2", autocomplete: "new-password"});
   const go = async () => {
     if (pass.value !== again.value) { say("The two passphrases are different. Type the same passphrase in both boxes."); again.select(); return; }
-    try { await call("ca/create", {name: name.value, passphrase: pass.value || null}); await load(); } catch (e) {}
+    try { await call("ca/create", {name: name.value, passphrase: pass.value || null}); state.first = true; await load(); } catch (e) {}
   };
-  $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Create your certificate authority"),
-    h("p", {class: "lede"}, "The certificate authority signs the certificates your services and users present. It uses ML-DSA-87, a post-quantum signature."),
-    ...field("ca-name", "Name", name), ...field("ca-pass", "Passphrase (recommended)", pass, "Encrypts the CA key. The console keeps it in memory only, so you enter it again after a restart. Without one, the key file is stored unencrypted."),
+  $("#app").replaceChildren(h("div", {class: "narrow"}, h("p", {class: "mute"}, "Step 1 of 2"), h("h1", {}, "Create your certificate authority"),
+    h("p", {class: "lede"}, "QCertificate is your own certificate authority. It issues the quantum-safe certificates your services and partners use, and nobody outside your organisation holds its key."),
+    ...field("ca-name", "Name", name, ""), ...field("ca-pass", "Passphrase (recommended)", pass, "Protects the authority's key. The console keeps it in memory only, so you type it again after a restart. Without one, the key file is stored unencrypted."),
     ...field("ca-pass2", "Repeat passphrase", again),
-    h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", onclick: go}, "Create certificate authority"))));
+    h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", type: "button", onclick: go}, "Create certificate authority")),
+    h("details", {style: "margin-top:22px"}, h("summary", {}, "Technical details"), h("p", {class: "legend"}, "The authority signs with ML-DSA-87 (FIPS 204), a post-quantum signature. Its files live in the console's data folder (Settings shows where)."))));
   name.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   name.focus();
 }
@@ -70,164 +119,403 @@ function unlock() {
   const pass = h("input", {type: "password", id: "unlock-pass", autocomplete: "current-password"});
   const go = async () => { try { await call("ca/unlock", {passphrase: pass.value}); await load(); } catch (e) { pass.select(); } };
   $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Unlock the certificate authority"),
-    h("p", {class: "lede"}, "The CA key for " + state.status.name + " is encrypted. Enter its passphrase to issue and revoke certificates."),
-    ...field("unlock-pass", "Passphrase", pass), h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", onclick: go}, "Unlock"))));
+    h("p", {class: "lede"}, "The key of " + state.status.name + " is protected by a passphrase. Type it to issue, renew and revoke certificates and to protect services."),
+    ...field("unlock-pass", "Passphrase", pass), h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", type: "button", onclick: go}, "Unlock"))));
   pass.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   pass.focus();
 }
 
+// ---- the shell
+
+const TABS = [["overview", "Overview"], ["services", "Services"], ["ca", "QCertificate"], ["check", "Check a connection"], ["settings", "Settings"]];
 function shell() {
-  const tab = (id, label) => h("button", {role: "tab", id: "tab-" + id, "aria-selected": String(state.tab === id), "aria-controls": "panel", onclick: () => { state.tab = id; shell(); }}, label);
-  $("#app").replaceChildren(h("div", {class: "tabs", role: "tablist"}, tab("certs", "Certificates"), tab("edges", "Edges"), tab("health", "Health")), h("div", {id: "panel", role: "tabpanel", "aria-labelledby": "tab-" + state.tab}));
-  ({certs: certsView, edges: edgesView, health: healthView})[state.tab]();
+  const tab = (id, label) => h("button", {role: "tab", type: "button", id: "tab-" + id, "aria-selected": String(state.tab === id), "aria-controls": "panel", tabindex: state.tab === id ? "0" : "-1", onclick: () => go(id)}, label);
+  const list = h("div", {class: "tabs", role: "tablist", "aria-label": "Console sections"}, TABS.map(([id, l]) => tab(id, l)));
+  list.addEventListener("keydown", (e) => {
+    const i = TABS.findIndex(([id]) => id === state.tab), n = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (n) { go(TABS[(i + n + TABS.length) % TABS.length][0]); $("#tab-" + state.tab).focus(); }
+  });
+  $("#app").replaceChildren(list, h("div", {id: "panel", role: "tabpanel", "aria-labelledby": "tab-" + state.tab}));
+  ({overview: overviewView, services: servicesView, ca: caView, check: checkView, settings: settingsView})[state.tab]();
+}
+function go(id) { state.tab = id; say(""); shell(); }
+async function refresh() { state.status = await call("status"); state.services = await call("services"); }
+
+// ---- words for settings
+
+const PROTECTION = (s) => s.policy === "transition" ? "Quantum-safe, browsers welcome" : s.shadow ? "Watching: nothing is refused yet" : s.policy === "cnsa2" ? "CNSA 2.0 only" : "Quantum-safe only";
+const TECH = (s) => s.policy + (s.shadow ? ", shadow = true" : "") + (s.forwarded ? ", forwarded_headers = true" : "") + (s.mode === "originate" ? ", originate" : "");
+function pill(s) {
+  if (s.shadow) return h("span", {class: "pill warn"}, "Watching");
+  return h("span", {class: "pill ok"}, s.policy === "transition" ? "Serving" : "Enforcing");
+}
+function seen(s) {
+  const t = s.status;
+  if (!t) return "No connections seen (QGuard is not running)";
+  if (!t.handshakes && !t.would_refuse && !t.refused && !t.distrusts) return "No connections yet";
+  const parts = [t.quantum_safe + " of " + t.handshakes + " connections quantum-safe"];
+  if (t.refused) parts.push(t.refused + " refused");
+  if (t.would_refuse) parts.push(t.would_refuse + " would be refused once enforcing");
+  if (t.distrusts) parts.push(t.distrusts + " did not trust the certificate");
+  return parts.join(" · ");
 }
 
-// ---- certificates
+// ---- overview
 
-const factSpans = (s) => [s.algorithm, s.counts.valid + " valid", s.counts.revoked + " revoked", s.counts.expiring + " expiring within 30 days"].map((t) => h("span", {}, t));
-function crlLine(s) {
-  if (!s.crl) return "No revocation list yet.";
-  return "Revocation list valid for " + Math.max(0, Math.floor(s.crl.days_left)) + " more days (until " + day(s.crl.next_update) + ").";
+const loading = (title) => $("#panel").replaceChildren(h("h1", {}, title), h("p", {class: "state"}, "Loading…"));
+async function overviewView() {
+  const panel = $("#panel");
+  loading("Overview");
+  try { await refresh(); } catch (e) { return; }
+  const svc = state.services, list = svc.services;
+  const running = svc.running;
+  const attention = [];
+  for (const s of list) for (const p of s.problems) attention.push(s.host ? s.host + ":" + s.port + ": " + p : s.name + ": " + p);
+  if (list.length && !running) attention.push("QGuard is not running, so these services are not protected yet. Start it in Services.");
+  for (const s of list) if (s.shadow && s.status && s.status.handshakes && !s.status.would_refuse) attention.push(s.host + ":" + s.port + " is ready: nobody it has seen would be refused. Turn on enforcement in Services.");
+  const c = state.status.counts;
+  if (c.expiring) attention.push(c.expiring + " certificate" + (c.expiring > 1 ? "s expire" : " expires") + " within 30 days: renew in QCertificate.");
+  const crl = state.status.crl;
+  if (!crl) attention.push("QCertificate has no revocation list yet: refresh it in QCertificate.");
+  else if (crl.days_left < 2) attention.push("The revocation list ends in " + Math.max(0, Math.floor(crl.days_left)) + " days: refresh it in QCertificate.");
+  const rows = list.map((s) => h("tr", {}, h("td", {"data-label": "Service"}, s.host ? s.host + ":" + s.port : s.name), h("td", {"data-label": "Kind"}, s.label),
+    h("td", {"data-label": "Protection"}, PROTECTION(s)), h("td", {"data-label": "Mode"}, pill(s)), h("td", {"data-label": "Seen"}, seen(s))));
+  panel.replaceChildren(h("h1", {}, "Overview"),
+    h("p", {class: "lede"}, running ? "QGuard is running and protecting the services below." : "QGuard is not running."),
+    h("h2", {}, "Protected services"),
+    list.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Protected services"}, h("table", {}, h("thead", {}, h("tr", {}, ["Service", "Kind", "Protection", "Mode", "Seen"].map((x) => h("th", {}, x)))), h("tbody", {}, rows)))
+      : h("div", {}, h("p", {class: "empty"}, "No services yet."), h("button", {class: "btn", type: "button", onclick: () => go("services")}, "Protect a service")),
+    h("h2", {class: "section"}, "Needs attention"),
+    attention.length ? h("ul", {class: "attention"}, attention.map((a) => h("li", {}, a))) : h("p", {class: "empty"}, "Nothing needs your attention."));
 }
 
-async function certsView() {
-  const s = state.status, panel = $("#panel");
-  const kind = h("select", {id: "kind"}, [["server", "Server"], ["client", "Client"]].map(([v, l]) => h("option", {value: v}, l)));
-  const cn = h("input", {type: "text", id: "cn", autocomplete: "off", placeholder: "web.example.com"});
+// ---- services
+
+async function servicesView() {
+  const panel = $("#panel");
+  if (!panel.querySelector("h1")) loading(state.services && !state.services.services.length ? "Protect your first service" : "Services");
+  try { await refresh(); } catch (e) { return; }
+  const svc = state.services;
+  const first = !svc.services.length;
+  const showForm = first || state.editing !== null;
+  const top = [h("h1", {}, first ? "Protect your first service" : "Services"),
+    h("p", {class: "lede"}, "A protected service is the name and port people use, and where the service runs now. QGuard sits in between: everything that reaches the service has come over a quantum-safe connection, and the service itself does not change.")];
+  if (first) top.unshift(h("p", {class: "mute"}, "Step 2 of 2"));
+  if (!first && !showForm) top.push(h("div", {class: "row", style: "margin-bottom:8px"}, h("button", {class: "btn", type: "button", onclick: () => { state.editing = ""; servicesView(); }}, "Protect a service")));
+  const items = svc.services.map((s) => serviceItem(s, svc.running));
+  panel.replaceChildren(...top, showForm ? serviceForm(state.editing ? svc.services.find((s) => s.name === state.editing) : null, first) : "",
+    items.length ? h("div", {class: "section"}, ...items) : "", guardSection(svc));
+}
+
+function serviceItem(s, running) {
+  const acts = h("div", {class: "row inline-acts", style: "margin-top:10px"});
+  if (s.managed) {
+    acts.append(h("button", {class: "btn quiet small", type: "button", "aria-label": "Check " + s.host, onclick: () => { state.check = {target: "127.0.0.1:" + s.port, name: s.host, trust: s.policy === "transition" && s.public_cert ? "public" : "qcertificate"}; go("check"); }}, "Check connection"));
+    if (s.shadow) acts.append(twoStep("Turn on enforcement", "Turn on enforcement for " + s.host, "Confirm: refuse clients that are not quantum-safe", async () => { state.services = await call("services/enforce", {name: s.name}); servicesView(); }));
+    else if (s.policy !== "transition") acts.append(twoStep("Watch only", "Watch only " + s.host, "Confirm: serve everyone and only report", async () => { state.services = await call("services/watch", {name: s.name}); servicesView(); }));
+    acts.append(h("button", {class: "btn quiet small", type: "button", "aria-label": "Edit " + s.host, onclick: () => { state.editing = s.name; servicesView(); $("#service-form") && $("#service-form").scrollIntoView(); }}, "Edit"));
+  }
+  acts.append(twoStep("Remove", "Remove " + s.name, "Confirm remove " + s.name, async () => { state.services = await call("services/remove", {name: s.name}); servicesView(); }));
+  const reasons = s.status && Object.keys(s.status.reasons || {}).length ? h("p", {class: "legend"}, "Why they would be refused: " + Object.entries(s.status.reasons).map(([r, n]) => r + " (" + n + ")").join("; ")) : "";
+  return h("section", {class: "svc", "aria-labelledby": "svc-" + s.name},
+    h("div", {class: "row", style: "justify-content:space-between"}, h("h2", {id: "svc-" + s.name}, s.host ? s.host + ":" + s.port : s.name), pill(s)),
+    h("p", {class: "sub"}, s.label + " · " + PROTECTION(s) + " · passes traffic to " + s.target),
+    h("p", {style: "margin:0"}, seen(s)), reasons,
+    s.problems.length ? h("ul", {class: "problems"}, s.problems.map((p) => h("li", {}, p))) : "",
+    s.managed ? "" : h("p", {class: "legend"}, "Written by hand in the settings file: edit it there."),
+    h("details", {}, h("summary", {class: "mute"}, "Technical details"), h("dl", {class: "kv", style: "margin-top:8px"},
+      h("dt", {}, "Policy"), h("dd", {}, TECH(s)), h("dt", {}, "Listens on"), h("dd", {}, s.listen), h("dt", {}, "Certificate"), h("dd", {class: "path"}, s.cert || "none"),
+      ...(s.public_cert ? [h("dt", {}, "Public certificate"), h("dd", {class: "path"}, s.public_cert)] : []))),
+    acts);
+}
+
+const KINDS = [["website", "Public website", "People visit it in a browser. Also needs an ordinary public certificate, such as Let's Encrypt."],
+  ["app", "Internal app or API", "Your own staff, apps and scripts connect to it."],
+  ["partner", "Partner API", "Only partners holding a certificate from QCertificate get in."],
+  ["tcp", "Database or other service", "Any other service, such as PostgreSQL or MQTT."]];
+function serviceForm(editing, first) {
+  const msg = alertBox();
+  let kind = editing ? editing.kind : "website";
+  const radios = KINDS.map(([v, label, desc]) => h("label", {}, h("input", {type: "radio", name: "kind", value: v, checked: v === kind, onchange: () => { kind = v; sync(); }}), h("span", {}, h("strong", {}, label), h("span", {class: "mute"}, desc))));
+  const host = h("input", {type: "text", id: "s-host", autocomplete: "off", placeholder: "shop.example.com", value: editing ? editing.host : "", "aria-describedby": "s-host-hint"});
+  const port = h("input", {type: "number", id: "s-port", min: "1", max: "65535", value: editing ? String(editing.port) : "443", "aria-describedby": "s-port-hint"});
+  const target = h("input", {type: "text", id: "s-target", autocomplete: "off", placeholder: "127.0.0.1:8080", value: editing ? editing.target : "", "aria-describedby": "s-target-hint"});
+  const pub = h("input", {type: "text", id: "s-pub", autocomplete: "off", placeholder: "/etc/letsencrypt/live/shop.example.com/fullchain.pem", value: editing ? editing.public_cert : ""});
+  const pubKey = h("input", {type: "text", id: "s-pubkey", autocomplete: "off", placeholder: "/etc/letsencrypt/live/shop.example.com/privkey.pem", value: editing ? editing.public_key : ""});
+  const watch = h("input", {type: "checkbox", id: "s-watch", checked: editing ? editing.shadow : true});
+  const publicBox = h("div", {}, h(first ? "h2" : "h3", {style: "margin-top:22px"}, "Public certificate for browsers"),
+    h("p", {class: "legend"}, "Browsers only trust public authorities, and these do not issue quantum-safe certificates yet. With an ordinary public certificate here, browsers connect normally and the key exchange is still quantum-safe. Without one, visitors see \"Your connection is not private\"."),
+    ...field("s-pub", "Full chain file (optional)", pub), ...field("s-pubkey", "Its key file", pubKey));
+  const watchBox = h("div", {}, h("label", {class: "check", for: "s-watch", style: "margin-top:18px"}, watch, h("span", {}, "Start by watching: serve everyone as today and report who would be refused. Turn on enforcement when nobody would be.")));
+  const tech = h("p", {class: "legend"});
+  function sync() {
+    publicBox.hidden = kind !== "website"; watchBox.hidden = kind === "website";
+    tech.textContent = "Settings written: policy " + (kind === "website" ? "transition" : "strict") + (kind !== "website" && watch.checked ? ", shadow" : "") + (kind !== "tcp" ? ", forwarded_headers (the app sees the visitor's address and https)" : "") + (kind === "partner" ? ", require_client_cert with QCertificate's revocation list" : "") + ", sni (chosen by name on a shared port).";
+  }
+  watch.addEventListener("change", sync);
+  const submit = async (ev) => {
+    ev.preventDefault();
+    const body = {kind, host: host.value.trim(), port: Number(port.value), target: target.value.trim(), watch: kind !== "website" && watch.checked};
+    if (kind === "website") { body.public_cert = pub.value.trim(); body.public_key = pubKey.value.trim(); }
+    if (editing) body.original = editing.name;
+    try { state.services = await call("services/save", body, msg); state.editing = null; state.first = false; servicesView(); } catch (e) {}
+  };
+  const form = h("form", {class: "form", id: "service-form", onsubmit: submit}, first ? "" : h("h2", {}, editing ? "Edit " + editing.host : "Protect a service"),
+    h("fieldset", {}, h("legend", {}, "What is it?"), h("div", {class: "choices"}, radios)),
+    h("div", {class: "form-row"}, h("div", {}, ...field("s-host", "Address people use", host, "The name in the address bar or in the client's settings, such as shop.example.com.")),
+      h("div", {}, ...field("s-port", "Port", port, "443 for a website."))),
+    ...field("s-target", "Where it runs now", target, "Where QGuard passes the traffic on to: the service's current address, usually on this computer, such as 127.0.0.1:8080."),
+    publicBox, watchBox, h("details", {style: "margin-top:16px"}, h("summary", {class: "mute"}, "Technical details"), tech),
+    h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", type: "submit"}, editing ? "Save changes" : "Protect service"),
+      editing || !first ? h("button", {class: "btn quiet", type: "button", onclick: () => { state.editing = null; servicesView(); }}, "Cancel") : ""),
+    msg);
+  sync();
+  return form;
+}
+
+function guardSection(svc) {
+  const msg = alertBox();
+  const start = async () => { try { state.services = await call("guard/start", {}, msg); servicesView(); } catch (e) {} };
+  const stop = async () => { try { state.services = await call("guard/stop", {}, msg); servicesView(); } catch (e) {} };
+  const acts = h("div", {class: "row", style: "margin-top:10px"});
+  if (!svc.running && svc.services.length) acts.append(h("button", {class: "btn", type: "button", onclick: start}, "Start QGuard on this computer"));
+  if (svc.started_here) acts.append(h("button", {class: "btn quiet", type: "button", onclick: stop}, "Stop QGuard"));
+  acts.append(h("button", {class: "btn quiet", type: "button", onclick: () => servicesView()}, "Refresh"));
+  return h("section", {class: "section", "aria-labelledby": "guard-h"}, h("h2", {id: "guard-h"}, "QGuard on this computer"),
+    h("p", {style: "margin:0"}, svc.running ? (svc.started_here ? "QGuard is running, started from this console. It keeps running when you close the console." : "QGuard is running (as a system service, or from a terminal).") : "QGuard is not running."),
+    h("p", {class: "legend"}, "QGuard reads its settings from ", h("span", {class: "path"}, svc.settings), " and applies every change you save here within seconds. For a server, run it as a system service so it starts with the computer: the manual's \"Running it in production\" section shows how on Linux and Windows."),
+    acts, msg);
+}
+
+// ---- QCertificate
+
+async function caView() {
+  const panel = $("#panel");
+  loading(state.status.name);
+  let s, auth;
+  try { state.status = s = await call("status"); auth = await call("authority"); } catch (e) { return; }
+  const issueMsg = alertBox();
+  const kind = h("select", {id: "kind"}, h("option", {value: "server"}, "A service"), h("option", {value: "client"}, "A person, device or partner"));
+  const cn = h("input", {type: "text", id: "cn", autocomplete: "off", placeholder: "web.example.com", "aria-describedby": "cn-hint"});
   const names = h("textarea", {id: "names", spellcheck: "false", placeholder: "api.example.com\n10.0.0.5"});
-  const days = h("input", {type: "text", id: "days", value: "397", inputmode: "numeric"});
+  const days = h("input", {type: "number", id: "days", value: "397", min: "1", max: "3650"});
   const result = h("div", {id: "issued", "aria-live": "polite"});
   const issue = async (ev) => {
     ev.preventDefault();
     try {
-      const r = await call("certificates/issue", {kind: kind.value, common_name: cn.value, names: names.value, days: Number(days.value)});
-      const next = r.kind === "server" ? [h("p", {style: "margin:12px 0 6px"}, "To put it in front of a service on this computer (change the ports to yours):"),
-        copyable("acxelin-qguard edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert " + quote(r.chain) + " --key " + quote(r.key))]
-        : [h("p", {style: "margin:12px 0 0"}, "Give these two files to the client, or download them from the list.")];
-      result.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg"}, "Issued " + r.common_name + "."),
-        h("p", {style: "margin:0"}, "Certificate: ", h("code", {}, r.chain)), h("p", {style: "margin:0"}, "Key: ", h("code", {}, r.key)), ...next));
+      const r = await call("certificates/issue", {kind: kind.value, common_name: cn.value, names: names.value, days: Number(days.value)}, issueMsg);
+      result.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg", style: "margin-top:0"}, "Issued " + r.common_name + "."),
+        h("dl", {class: "kv"}, h("dt", {}, "Certificate"), h("dd", {class: "path"}, r.chain), h("dt", {}, "Key"), h("dd", {class: "path"}, r.key)),
+        r.kind === "server" ? h("p", {style: "margin:10px 0 0"}, "To put a service behind QGuard, use ", h("button", {class: "btn quiet small", type: "button", onclick: () => { state.editing = ""; go("services"); }}, "Protect a service"), " (it issues its own certificate). Use this one for a server that does its own TLS.")
+          : h("p", {style: "margin:10px 0 0"}, "Give the partner or device these two files, or download them from the list below.")));
       cn.value = ""; names.value = "";
-      await refreshCerts();
+      await paintCerts();
     } catch (e) {}
   };
-  const refresh = h("button", {class: "btn quiet small", id: "crl-refresh", onclick: async () => { try { await call("crl/refresh", {}); await reload(); } catch (e) {} }}, "Refresh revocation list");
-  const maintain = h("button", {class: "btn quiet small", id: "maintain", onclick: async () => { try { const r = await call("certificates/maintain", {}); say(""); await refreshCerts(); $("#crl-line").textContent = crlLine(state.status) + (r.renewed.length ? " Renewed: " + r.renewed.join(", ") + "." : " Nothing needed renewing."); } catch (e) {} }}, "Run maintenance");
-  const form = h("form", {onsubmit: issue}, h("h2", {}, "Issue a certificate"), ...field("kind", "Kind", kind), ...field("cn", "Name", cn, "The name the certificate is for, such as web.example.com."),
-    ...field("names", "Other names (one per line)", names), ...field("days", "Valid for (days)", days), h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Issue certificate")), result);
-  const list = h("div", {id: "cert-list"});
-  panel.replaceChildren(h("h1", {}, s.name), h("div", {class: "facts", id: "facts"}, ...factSpans(s)),
-    h("p", {class: "state", id: "crl-line", style: "margin:6px 0 10px"}, crlLine(s)), h("div", {class: "row", style: "margin:0 0 24px"}, refresh, maintain), h("div", {class: "split"}, form, list));
-  await refreshCerts();
+  const crlLine = h("p", {class: "state", id: "crl-line", style: "margin:6px 0 10px"}, crlText(s.crl));
+  const revMsg = alertBox();
+  const refreshCrl = h("button", {class: "btn quiet small", type: "button", onclick: async () => { try { await call("crl/refresh", {}, revMsg); state.status = await call("status"); crlLine.textContent = crlText(state.status.crl); } catch (e) {} }}, "Refresh the revocation list");
+  const maintain = h("button", {class: "btn quiet small", type: "button", onclick: async () => { try { const r = await call("certificates/maintain", {}, revMsg); state.status = await call("status"); crlLine.textContent = crlText(state.status.crl) + (r.renewed.length ? " Renewed: " + r.renewed.join(", ") + "." : " Nothing needed renewing."); await paintCerts(); } catch (e) {} }}, "Renew what expires soon");
+  panel.replaceChildren(h("h1", {}, s.name),
+    h("p", {class: "lede"}, "QCertificate, your certificate authority. " + s.counts.valid + " valid, " + s.counts.revoked + " revoked, " + s.counts.expiring + " expiring within 30 days."),
+    h("form", {class: "form", id: "issue-form", onsubmit: issue}, h("h2", {}, "Issue a certificate"),
+      ...field("kind", "Certificate for", kind), ...field("cn", "Name", cn, "For a service, its address, such as web.example.com. For a person, device or partner, a name you will recognise."),
+      ...field("names", "Other addresses (one per line, optional)", names), ...field("days", "Valid for (days)", days),
+      h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Issue certificate")), issueMsg, result),
+    h("div", {id: "cert-list", class: "section"}),
+    enrolSection(),
+    h("section", {class: "section", "aria-labelledby": "rev-h"}, h("h2", {id: "rev-h"}, "Revocation list"),
+      h("p", {class: "legend", style: "margin-top:0"}, "Services that ask for client certificates refuse the revoked ones listed here. QGuard on this computer reads it at once; other servers fetch it (see the manual)."),
+      crlLine, h("div", {class: "row"}, refreshCrl, maintain), revMsg),
+    authoritySection(auth),
+    h("div", {id: "activity", class: "section"}));
+  await paintCerts();
+  await paintEnrolment();
 }
-async function reload() { state.status = await call("status"); const l = $("#crl-line"), f = $("#facts"); if (l) l.textContent = crlLine(state.status); if (f) f.replaceChildren(...factSpans(state.status)); }
-async function refreshCerts() {
-  await reload();
+const crlText = (c) => !c ? "No revocation list yet." : "Revocation list valid for " + Math.max(0, Math.floor(c.days_left)) + " more days (until " + day(c.next_update) + ").";
+
+async function paintCerts() {
   const out = $("#cert-list");
   if (!out) return;
-  let data; try { data = await call("certificates"); } catch (e) { return; }
-  const rows = data.certificates.slice().reverse().map((c) => {
-    const acts = h("div", {class: "row inline-acts"});
-    if (c.has_files) acts.append(fileButton(c, false), ...(c.status === "valid" ? [fileButton(c, true), renewButton(c)] : []));
-    if (c.status === "valid") acts.append(revokeButton(c));
-    const state = c.status !== "valid" ? "Revoked" : c.renewed ? "Renewed" : "Valid";
-    return h("tr", {}, h("td", {class: "nw"}, c.common_name), h("td", {class: "nw"}, (c.kind === "server" ? "Server" : "Client") + " · " + c.algorithm), h("td", {class: "num"}, day(c.not_after)), h("td", {}, h("span", {class: "pill " + (state === "Valid" ? "ok" : state === "Renewed" ? "mute" : "bad")}, state)), h("td", {}, acts));
-  });
-  out.replaceChildren(h("h2", {}, "Issued certificates"), data.certificates.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Type", "Expires", "Status", "Actions"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
-    : h("p", {class: "empty"}, "Nothing issued yet. Use Issue a certificate to make your first one."),
-    h("p", {class: "legend"}, "Download gives the certificate, its chain and the CA certificate. The private key is included only when you choose With key; every download is recorded."),
-    activityList(state.status.activity || []));
+  let data; try { data = await call("certificates"); state.status = await call("status"); } catch (e) { return; }
+  const all = data.certificates.slice().reverse();
+  const table = (title, rows) => [h("h3", {style: "margin-top:16px"}, title), rows.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": title},
+    h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Expires", "Status", "Actions"].map((c) => h("th", {}, c)))), h("tbody", {}, rows.map(certRow)))) : h("p", {class: "empty"}, "None yet.")];
+  const current = all.filter((c) => !c.renewed), replaced = all.filter((c) => c.renewed);
+  out.replaceChildren(h("h2", {}, "Issued certificates"),
+    all.length ? "" : h("p", {class: "empty"}, "Nothing issued yet. Protecting a service issues its certificate; you can also issue one above."),
+    ...(all.length ? [...table("For services", current.filter((c) => c.kind === "server")), ...table("For people, devices and partners", current.filter((c) => c.kind !== "server"))] : []),
+    replaced.length ? h("details", {style: "margin-top:12px"}, h("summary", {class: "mute"}, "Replaced by a renewal (" + replaced.length + ")"), ...table("Replaced certificates", replaced)) : "",
+    h("p", {class: "legend"}, "A download gives the certificate, its chain and the CA certificate. The private key is included only when you choose it, never for a revoked certificate, and every download is recorded."));
+  const act = $("#activity");
+  if (act) act.replaceWith(activityList(state.status.activity || []));
 }
-function fileButton(c, withKey) {
-  const label = withKey ? "Download with key" : "Download";
-  return h("button", {class: "btn quiet small", "aria-label": label + " " + c.common_name, onclick: async () => { try { say(""); await acx.download("certificates/download", {serial: c.serial, key: withKey}); await reload(); paintActivity(); } catch (e) { say(e.message); } }}, withKey ? "With key" : label);
+function certRow(c) {
+  const acts = h("div", {class: "row inline-acts"});
+  const downloads = h("div", {class: "row inline-acts downloads", hidden: true});
+  const dl = (label, body) => h("button", {class: "btn quiet small", type: "button", onclick: async () => {
+    try { say(""); await acx.download("certificates/download", {serial: c.serial, ...body}); state.status = await call("status"); const act = $("#activity"); if (act) act.replaceWith(activityList(state.status.activity || [])); }
+    catch (e) { say(e.message); } }}, label);
+  if (c.has_files) {
+    downloads.append(dl("Certificate and chain (zip)", {}));
+    if (c.status === "valid") downloads.append(dl("With the private key (zip)", {key: true}), dl("One PEM file: full chain and key", {key: true, format: "pem"}));
+    acts.append(h("button", {class: "btn quiet small", type: "button", "aria-label": "Download " + c.common_name, "aria-expanded": "false", onclick: (e) => { downloads.hidden = !downloads.hidden; e.currentTarget.setAttribute("aria-expanded", String(!downloads.hidden)); }}, "Download"));
+    if (c.status === "valid" && !c.renewed) acts.append(h("button", {class: "btn quiet small", type: "button", "aria-label": "Renew " + c.common_name, onclick: async () => { try { await call("certificates/renew", {serial: c.serial}); await paintCerts(); } catch (e) {} }}, "Renew"));
+  }
+  if (c.status === "valid") acts.append(twoStep("Revoke", "Revoke " + c.common_name, "Confirm revoke " + c.common_name, async () => { await call("certificates/revoke", {serial: c.serial, reason: "unspecified"}); await paintCerts(); }));
+  const st = c.status !== "valid" ? "Revoked" : c.renewed ? "Replaced" : "Valid";
+  return h("tr", {}, h("td", {"data-label": "Name"}, c.common_name), h("td", {class: "num", "data-label": "Expires"}, day(c.not_after)),
+    h("td", {"data-label": "Status"}, h("span", {class: "pill " + (st === "Valid" ? "ok" : st === "Revoked" ? "bad" : "mute")}, st)), h("td", {"data-label": "Actions"}, acts, downloads));
 }
-function renewButton(c) {
-  return h("button", {class: "btn quiet small", "aria-label": "Renew " + c.common_name, onclick: async () => { try { await call("certificates/renew", {serial: c.serial}); await refreshCerts(); } catch (e) {} }}, "Renew");
-}
-const ACTIONS = {issue: "Issued", renew: "Renewed", revoke: "Revoked", download: "Downloaded", maintain: "Maintenance", test: "Tested a connection"};
+const ACTIONS = {issue: "Issued", renew: "Renewed", revoke: "Revoked", download: "Downloaded", maintain: "Renewal check", test: "Checked a connection to", service: "Service", guard: "QGuard", token: "Enrolment token for", eab: "ACME account key"};
 function activityList(items) {
-  return h("div", {id: "activity", style: "margin-top:26px"}, h("h2", {}, "Recent activity"), items.length ? h("ul", {class: "acts"}, items.map((a) => h("li", {}, h("span", {class: "mute"}, (a.time || "").replace("T", " ").replace("Z", " UTC")), " ",
-    (ACTIONS[a.action] || a.action) + (a.common_name ? " " + a.common_name : a.target ? " " + a.target : "") + (a.action === "download" && a.key ? " (with key)" : "")))) : h("p", {class: "empty"}, "Nothing yet."));
-}
-async function paintActivity() { const el = $("#activity"); if (el) el.replaceWith(activityList(state.status.activity || [])); }
-function revokeButton(c) {
-  const b = h("button", {class: "btn quiet small", "aria-label": "Revoke " + c.common_name}, "Revoke");
-  let armed = false, timer;
-  b.addEventListener("click", async () => {
-    const set = (text) => { b.textContent = text; b.setAttribute("aria-label", text + " " + c.common_name); b.className = "btn small " + (armed ? "danger" : "quiet"); };
-    if (!armed) { armed = true; set("Confirm revoke"); timer = setTimeout(() => { armed = false; set("Revoke"); }, 6000); return; }
-    clearTimeout(timer);
-    try { await call("certificates/revoke", {serial: c.serial, reason: "unspecified"}); await refreshCerts(); } catch (e) { armed = false; set("Revoke"); }
-  });
-  return b;
+  const text = (a) => (ACTIONS[a.action] || a.action) + (a.common_name ? " " + a.common_name : a.target ? " " + a.target : a.name ? " " + a.name : "") + (a.change ? " " + a.change : "") + (a.action === "download" && a.key ? " (with key)" : "");
+  return h("div", {id: "activity", class: "section"}, h("h2", {}, "Recent activity"), items.length ? h("ul", {class: "acts"}, items.map((a) => h("li", {}, h("span", {class: "mute", title: a.time}, when(a.time)), " ", text(a)))) : h("p", {class: "empty"}, "Nothing yet."));
 }
 
-// ---- edges
-
-async function edgesView() {
-  const panel = $("#panel");
-  const url = h("input", {type: "text", id: "edge-url", placeholder: "http://127.0.0.1:9100", autocomplete: "off"});
-  const add = async () => { try { await call("edges/add", {url: url.value}); url.value = ""; await paintEdges(); } catch (e) {} };
-  const target = h("input", {type: "text", id: "t-target", placeholder: "127.0.0.1:8443", autocomplete: "off"});
-  const sname = h("input", {type: "text", id: "t-name", placeholder: "web.example.com", autocomplete: "off"});
-  const pol = h("select", {id: "t-policy"}, [["strict", "Post-quantum only (strict)"], ["transition", "Also classical (transition)"], ["cnsa2", "CNSA 2.0"]].map(([v, l]) => h("option", {value: v}, l)));
-  const client = h("select", {id: "t-client"}, h("option", {value: ""}, "None"));
-  call("certificates").then((d) => d.certificates.filter((c) => c.kind === "client" && c.has_files).forEach((c) => client.append(h("option", {value: c.serial}, c.common_name + (c.status === "valid" ? "" : " (revoked)"))))).catch(() => {});
-  const out = h("div", {id: "t-result", "aria-live": "polite"});
-  const kv = (pairs) => h("dl", {class: "kv"}, pairs.filter(([, v]) => v).flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
-  const test = async (ev) => {
+function enrolSection() {
+  const msg = alertBox(), eabMsg = alertBox();
+  const name = h("input", {type: "text", id: "t-cn", autocomplete: "off", placeholder: "device1.example.com"});
+  const kind = h("select", {id: "t-kind"}, h("option", {value: "server"}, "A service"), h("option", {value: "client"}, "A person, device or partner"));
+  const hours = h("input", {type: "number", id: "t-hours", value: "24", min: "1", max: "720"});
+  const out = h("div", {id: "token-result", "aria-live": "polite"});
+  const make = async (ev) => {
     ev.preventDefault();
     try {
-      const r = await call("edges/test", {target: target.value, server_name: sname.value || null, policy: pol.value, client: client.value || null});
-      const parts = [h("p", {class: r.ok ? "ok-msg" : "bad"}, r.ok ? (r.quantum_safe ? "Connected, quantum-safe." : "Connected, but not quantum-safe.") : "Not connected.")];
-      if (r.error) parts.push(h("p", {}, r.error));
-      if (r.group) parts.push(kv([["Key exchange", r.group], ["Certificate key", r.peer_key], ["Cipher", r.cipher], ["Protocol", r.version]]));
-      if (r.client_status === "revoked") parts.push(h("p", {}, "The client certificate you chose is revoked."));
-      if (r.offers) parts.push(h("p", {class: "legend"}, "With no checks, the server offers " + r.offers.group + " and a " + (r.offers.peer_key || "unknown") + " certificate. If that looks right, it trusts or uses a different certificate authority."));
-      out.replaceChildren(h("div", {class: "result"}, ...parts));
+      const r = await call("enrollment/token", {kind: kind.value, common_name: name.value, hours: Number(hours.value)}, msg);
+      out.replaceChildren(h("div", {class: "result"}, h("p", {style: "margin-top:0"}, h("strong", {}, "One-time token for " + r.common_name + ", shown only once:")), h("p", {}, h("code", {class: "token"}, r.token)),
+        h("p", {class: "legend"}, "On the device, put the token in the environment variable ACXELIN_TLS_ENROLL_TOKEN and run the command below, with this authority's EST address (acxelin-qguard ca serve). The key is made on the device and never leaves it."), copyable(r.command, "Copy command")));
+      name.value = ""; await paintEnrolment();
+    } catch (e) {}
+  };
+  const note = h("input", {type: "text", id: "eab-note", autocomplete: "off", placeholder: "certbot on web1"});
+  const eabOut = h("div", {"aria-live": "polite"});
+  const makeEab = async (ev) => {
+    ev.preventDefault();
+    try {
+      const r = await call("enrollment/eab", {note: note.value}, eabMsg);
+      eabOut.replaceChildren(h("div", {class: "result"}, h("p", {style: "margin-top:0"}, h("strong", {}, "Account key " + r.kid + ", shown only once:")), copyable(r.command, "Copy command")));
+      note.value = ""; await paintEnrolment();
+    } catch (e) {}
+  };
+  return h("section", {class: "section", "aria-labelledby": "enrol-h"}, h("h2", {id: "enrol-h"}, "Let a device enrol"),
+    h("p", {class: "legend", style: "margin-top:0"}, "A device or server can request its own certificate (EST), so its key never leaves it. Give it a one-time token."),
+    h("form", {class: "form", onsubmit: make}, ...field("t-cn", "Device or service name", name), h("div", {class: "form-row"}, h("div", {}, ...field("t-kind", "Enrols as", kind)), h("div", {}, ...field("t-hours", "Token lasts (hours)", hours))),
+      h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Create a one-time token")), msg, out),
+    h("div", {id: "token-list"}),
+    h("h3", {style: "margin-top:26px"}, "ACME account keys"),
+    h("p", {class: "legend", style: "margin-top:0"}, "For ACME clients such as certbot, when the ACME service requires an account key (acxelin-qguard ca acme --require-eab)."),
+    h("form", {class: "form", onsubmit: makeEab}, ...field("eab-note", "What it is for", note), h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn quiet", type: "submit"}, "Create an account key")), eabMsg, eabOut),
+    h("div", {id: "eab-list"}));
+}
+async function paintEnrolment() {
+  let d; try { d = await call("enrollment"); } catch (e) { return; }
+  const tl = $("#token-list"), el = $("#eab-list");
+  const STATE = {unused: "Unused", used: "Used", expired: "Expired"};
+  if (tl) tl.replaceChildren(d.tokens.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Enrolment tokens", style: "margin-top:16px"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Enrols as", "State", "Usable until"].map((c) => h("th", {}, c)))),
+    h("tbody", {}, d.tokens.map((t) => h("tr", {}, h("td", {"data-label": "Name"}, t.common_name), h("td", {"data-label": "Enrols as"}, t.kind === "client" ? "Person, device or partner" : "Service"), h("td", {"data-label": "State"}, STATE[t.state]), h("td", {"data-label": "Usable until"}, when(t.expires)))))))
+    : h("p", {class: "empty"}, "No tokens yet."));
+  if (el) el.replaceChildren(d.eab.length ? h("ul", {class: "acts"}, d.eab.map((k) => h("li", {}, h("span", {class: "mute"}, k.kid), " ", k.note || "", k.used ? " (used)" : ""))) : "");
+}
+
+function authoritySection(a) {
+  const msg = alertBox();
+  const acts = h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet small", type: "button", onclick: async () => { try { await acx.download("ca/download", {}); } catch (e) { msg.textContent = e.message; } }}, "Download the CA certificate"));
+  if (a.encrypted && a.unlocked) acts.append(h("button", {class: "btn quiet small", type: "button", onclick: async () => { try { await call("ca/lock", {}, msg); await load(); } catch (e) {} }}, "Lock now"));
+  return h("section", {class: "section", "aria-labelledby": "auth-h"}, h("h2", {id: "auth-h"}, "The authority"),
+    h("p", {class: "legend", style: "margin-top:0"}, "Clients that should trust your services need the CA certificate. Keep the authority's folder backed up and its passphrase in your password manager."),
+    h("dl", {class: "kv", style: "margin-top:10px"}, h("dt", {}, "Name"), h("dd", {}, a.name), h("dt", {}, "Signature"), h("dd", {}, a.algorithm + " (post-quantum)"),
+      h("dt", {}, "Valid until"), h("dd", {}, day(a.not_after)), h("dt", {}, "Key"), h("dd", {}, a.encrypted ? (a.unlocked ? "Protected by a passphrase, unlocked" : "Protected by a passphrase, locked") : "Not protected by a passphrase"),
+      h("dt", {}, "Folder"), h("dd", {class: "path"}, a.folder), h("dt", {}, "Fingerprint (SHA-256)"), h("dd", {class: "path"}, a.fingerprint)),
+    acts, msg);
+}
+
+// ---- check a connection
+
+async function checkView() {
+  const panel = $("#panel");
+  const pre = state.check || {}; state.check = null;
+  const msg = alertBox();
+  const target = h("input", {type: "text", id: "c-target", autocomplete: "off", placeholder: "www.example.com or shop.example.com:8443", value: pre.target || ""});
+  const name = h("input", {type: "text", id: "c-name", autocomplete: "off", placeholder: "shop.example.com", value: pre.name || ""});
+  let trust = pre.trust || "public";
+  const trustRadios = [["public", "Public authorities, as a browser does", "For public websites."], ["qcertificate", "My QCertificate authority", "For services behind QGuard."]].map(([v, l, d]) =>
+    h("label", {}, h("input", {type: "radio", name: "trust", value: v, checked: v === trust, onchange: () => { trust = v; }}), h("span", {}, h("strong", {}, l), h("span", {class: "mute"}, d))));
+  const client = h("select", {id: "c-client"}, h("option", {value: ""}, "None"));
+  call("certificates").then((d) => d.certificates.filter((c) => c.kind === "client" && c.has_files && !c.renewed).forEach((c) => client.append(h("option", {value: c.serial}, c.common_name + (c.status === "valid" ? "" : " (revoked)"))))).catch(() => {});
+  const out = h("div", {id: "c-result", "aria-live": "polite"});
+  const check = async (ev) => {
+    ev.preventDefault();
+    out.replaceChildren(h("p", {class: "state"}, "Checking…"));
+    try {
+      const r = await call("check", {target: target.value.trim(), server_name: name.value.trim() || null, trust, client: client.value || null}, msg);
+      const kv = (pairs) => h("dl", {class: "kv"}, pairs.filter(([, v]) => v).flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
+      out.replaceChildren(h("div", {class: "result"},
+        h("p", {class: "verdict " + (r.ok && r.quantum_safe ? "ok" : r.ok ? "" : "bad")}, r.ok ? "Connected: " + r.verdict + "." : "Not connected."),
+        r.error ? h("p", {}, r.error) : "",
+        r.group ? kv([["Key exchange", r.group], ["Certificate key", r.peer_key], ["Protocol", r.version], ["Cipher", r.cipher], ["Time", r.ms + " ms"]]) : "",
+        r.client_status === "revoked" ? h("p", {}, "The client certificate you chose is revoked.") : ""));
     } catch (e) { out.replaceChildren(); }
   };
-  panel.replaceChildren(h("h1", {}, "Edges"), h("p", {class: "lede"}, "Add the metrics address of each running edge (its ", h("code", {}, "--metrics"), " option) to see its policy and negotiated key exchanges."),
-    h("div", {class: "split"}, h("div", {}, h("h2", {}, "Running edges"),
-      ...field("edge-url", "Edge metrics address", url), h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn", onclick: add}, "Add edge")), h("div", {id: "edge-list", style: "margin-top:22px"})),
-    h("form", {onsubmit: test}, h("h2", {}, "Test a connection"), h("p", {class: "lede"}, "Connect to an edge as a client that trusts your certificate authority."),
-      ...field("t-target", "Host and port", target), ...field("t-name", "Certificate name (if different from the host)", sname), ...field("t-policy", "Client policy", pol), ...field("t-client", "Client certificate (for mutual TLS)", client),
-      h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Test connection")), out)));
-  await paintEdges();
-}
-async function paintEdges() {
-  const out = $("#edge-list");
-  if (!out) return;
-  let data; try { data = await call("edges"); } catch (e) { return; }
-  if (!data.edges.length) { out.replaceChildren(h("p", {class: "empty"}, "No edges added yet.")); return; }
-  out.replaceChildren(...data.edges.map((e) => {
-    const rm = h("button", {class: "btn quiet small", "aria-label": "Remove " + e.url, onclick: async () => { try { await call("edges/remove", {url: e.url}); await paintEdges(); } catch (x) {} }}, "Remove");
-    const body = e.error ? [h("p", {class: "bad"}, e.error)] : e.routes.map((s) => h("div", {}, h("p", {style: "margin:0"}, h("strong", {}, s.name), " · policy ", s.policy, " · ", String(s.active || 0), " active"),
-      h("p", {class: "legend", style: "margin:0"}, s.handshakes ? s.quantum_safe + " of " + s.handshakes + " handshakes quantum-safe" + (s.handshake_failed ? " · " + s.handshake_failed + " refused" : "") : "No handshakes yet")));
-    return h("div", {class: "edge"}, h("div", {class: "row", style: "justify-content:space-between"}, h("h3", {}, e.url), rm), ...body);
-  }));
+  panel.replaceChildren(h("h1", {}, "Check a connection"),
+    h("p", {class: "lede"}, "Connect to any address the way a client would, and see whether the key exchange and the certificate are quantum-safe."),
+    h("form", {class: "form", onsubmit: check}, ...field("c-target", "Address", target, "A host name, or host:port (443 if you leave the port out)."),
+      h("fieldset", {}, h("legend", {}, "Whom to trust"), h("div", {class: "choices"}, trustRadios)),
+      h("details", {style: "margin-top:16px", open: Boolean(pre.name)}, h("summary", {class: "mute"}, "More options"),
+        ...field("c-name", "Certificate name (if different from the address)", name), ...field("c-client", "Client certificate (for a partner API)", client)),
+      h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Check")), msg, out));
 }
 
-// ---- health
+// ---- settings
 
-async function healthView() {
+async function settingsView() {
   const panel = $("#panel");
-  const out = h("div", {id: "health-list"});
+  loading("Settings");
+  let svc, auth; try { svc = await call("services"); auth = await call("authority"); } catch (e) { return; }
+  const health = h("div", {id: "health-list"});
   const run = async () => {
     let d; try { d = await call("health"); } catch (e) { return; }
     const tone = {ok: "ok", warn: "warn", fail: "bad"}, label = {ok: "OK", warn: "Warning", fail: "Problem"};
-    const acts = d.checks.some((c) => c.action);
-    out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", ...(acts ? ["What to do"] : [])].map((c) => h("th", {}, c)))),
-      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, h("span", {class: "pill " + tone[c.level]}, label[c.level])), h("td", {}, ...acxText(c.message)), acts ? h("td", {}, ...acxText(c.action)) : ""))))));
+    health.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", "What to do"].map((c) => h("th", {}, c)))),
+      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {"data-label": "Result"}, h("span", {class: "pill " + tone[c.level]}, label[c.level])), h("td", {"data-label": "Check"}, c.message.charAt(0).toUpperCase() + c.message.slice(1)), h("td", {"data-label": "What to do"}, c.action || (c.level === "ok" ? "" : "See the manual"))))))));
   };
-  panel.replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run Acxelin QGuard, and whether your certificate authority is in good shape."), h("div", {class: "row", style: "margin-bottom:18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);
+  const url = h("input", {type: "text", id: "edge-url", placeholder: "http://10.0.0.7:9100", autocomplete: "off", "aria-describedby": "edge-url-hint"});
+  const otherMsg = alertBox();
+  const add = async (ev) => { ev.preventDefault(); try { await call("edges/add", {url: url.value}, otherMsg); url.value = ""; await paintOthers(); } catch (e) {} };
+  panel.replaceChildren(h("h1", {}, "Settings"),
+    h("h2", {}, "Where things are"),
+    h("dl", {class: "kv", style: "margin-top:8px"}, h("dt", {}, "QGuard's settings file"), h("dd", {class: "path"}, svc.settings),
+      h("dt", {}, "QGuard's log (when started here)"), h("dd", {class: "path"}, svc.log), h("dt", {}, "Console data"), h("dd", {class: "path"}, state.status.home || ""),
+      h("dt", {}, "Certificate authority"), h("dd", {class: "path"}, auth.folder || "")),
+    h("p", {class: "legend"}, "To use another settings file, such as /etc/acxelin-tls/edge.toml on a Linux server, start the console with --settings FILE."),
+    h("h2", {class: "section"}, "This computer"),
+    h("p", {class: "legend", style: "margin-top:0"}, "Whether this computer can run QGuard, and whether the certificate authority is in good shape."),
+    h("div", {class: "row", style: "margin:10px 0 14px"}, h("button", {class: "btn quiet", type: "button", id: "recheck", onclick: run}, "Check again")), health,
+    h("h2", {class: "section"}, "Other QGuard services"),
+    h("p", {class: "legend", style: "margin-top:0"}, "Watch QGuard running on other computers by its status address (the [metrics] listen setting in its settings file)."),
+    h("form", {class: "form", onsubmit: add}, ...field("edge-url", "Status address of another QGuard", url, "Such as http://10.0.0.7:9100."), h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet", type: "submit"}, "Watch it")), otherMsg),
+    h("div", {id: "edge-list", style: "margin-top:16px"}));
   await run();
+  await paintOthers();
+}
+async function paintOthers() {
+  const out = $("#edge-list");
+  if (!out) return;
+  let data; try { data = await call("edges"); } catch (e) { return; }
+  if (!data.edges.length) { out.replaceChildren(h("p", {class: "empty"}, "No other QGuard services watched.")); return; }
+  out.replaceChildren(...data.edges.map((e) => {
+    const rm = h("button", {class: "btn quiet small", type: "button", "aria-label": "Stop watching " + e.url, onclick: async () => { try { await call("edges/remove", {url: e.url}); await paintOthers(); } catch (x) {} }}, "Stop watching");
+    const body = e.error ? [h("p", {class: "bad"}, e.error)] : e.routes.map((s) => h("p", {style: "margin:4px 0"}, h("strong", {}, s.name), " · " + (s.shadow ? "watching" : "policy " + s.policy) + " · " + (s.handshakes ? s.quantum_safe + " of " + s.handshakes + " connections quantum-safe" : "no connections yet")));
+    return h("div", {class: "svc"}, h("div", {class: "row", style: "justify-content:space-between"}, h("h3", {class: "path"}, e.url), rm), ...body);
+  }));
 }
 
 async function load() {
   try { state.status = await call("status"); } catch (e) { return signedOut(); }
   if (!state.status.configured) return createCa();
   if (state.status.encrypted && !state.status.unlocked) return unlock();
+  try { state.services = await call("services"); } catch (e) { return; }
+  if (!state.services.services.length) state.tab = "services";
   shell();
 }
 acx.start().then((ok) => (ok ? load() : signedOut()));

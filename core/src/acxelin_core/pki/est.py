@@ -39,6 +39,24 @@ def _load_tokens(root):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
 
 
+def list_tokens(root):
+    """The enrollment tokens made for this CA, without the hash of their secret: name, kind, names, expiry and when used."""
+    return [{k: v for k, v in t.items() if k != "hash"} for t in _load_tokens(root)]
+
+
+def cancel_token(root, token_id, kind=None):
+    """Use up an unused token without enrolling, so it stops working. Returns the token's entry (without the hash), or None
+    when there is no such unused token. Taken under the lock the enrollment service spends tokens under."""
+    with locked(root):
+        tokens = _load_tokens(root)
+        t = next((t for t in tokens if t.get("id") == token_id and not t.get("used") and (kind is None or t.get("kind") == kind)), None)
+        if not t:
+            return None
+        t["used"] = t["cancelled"] = now().isoformat()
+        write(_tokens_path(root), json.dumps(tokens, indent=1).encode(), secret=True)
+    return {k: v for k, v in t.items() if k != "hash"}
+
+
 def create_token(ca, common_name, kind, names=(), hours=24):
     """A one-time enrollment token for exactly this name. Returns the only copy of the secret."""
     if kind not in USAGE:

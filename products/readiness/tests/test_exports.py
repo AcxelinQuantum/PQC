@@ -58,7 +58,10 @@ def test_the_console_exports_a_projects_findings_and_the_endpoint_grades_as_csv(
     while route("/api/projects/status", method="GET")["running"]:
         time.sleep(0.05)
     rows = list(csv.DictReader(io.StringIO(route("/api/projects/csv", {"project": 0})["csv"])))
-    assert rows[0]["Asset"] == "MD5" and rows[0]["Places"] == "k.py:2"
+    assert rows[0]["Asset"] == "MD5" and rows[0]["Places"] == "k.py:2" and rows[0]["Status"] == "To do", "the words the console shows"
+    md5 = route("/api/projects/status", method="GET")["last"]["assets"][0]
+    route("/api/projects/track", {"project": 0, "finding": md5["id"], "status": "in_progress", "owner": "", "due": ""})
+    assert next(csv.DictReader(io.StringIO(route("/api/projects/csv", {"project": 0})["csv"])))["Status"] == "In progress"
     with pytest.raises(ValueError):
         app.routes[("POST", "/api/endpoints/csv")]({})
     with patch("acxelin_readiness.console.endpoints.scan", return_value=[endpoint("C")]):

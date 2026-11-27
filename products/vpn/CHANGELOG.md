@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- Console, People: invitations not used yet are listed with when they were made, and **Cancel** makes one unusable (its one-time
+  token is spent in the CA's `tokens.json`, marked `cancelled`, so the enrollment service refuses it). The gateway field suggests
+  port 7444, the WireGuard gateway's, and says 7443 is the site-to-site port.
+- Console, Sites: **Revoke site** revokes a peer site's certificate with the console's CA (the same revocation as `ca revoke`), and a
+  revoked site shows **Revoked** even after its tunnel is gone. **Remove** and both revokes ask once more; an unconfirmed click
+  lapses after 6 seconds and says so.
+- Console, Health: advice for the administrator's machine only (no WireGuard, IPsec or desktop-app advice there), every problem says
+  what to do, and the CA folder is shown. `doctor` fits its advice to what it checks (a CA folder: the administrator's machine; a
+  configuration: a gateway), never suggests pip to a desktop-installer copy, and its summary counts every line it prints. Exit codes
+  are unchanged.
+- The command line keeps `./pki` as its default CA folder. When `./pki` is not there and the console has a CA, `ca` and `invite`
+  commands say where the console's CA is and to add `--dir`; `ca init` says when it makes a second CA.
+- The desktop app: its header says Acxelin QVPN; opened without a launch address it shows "Open Acxelin QVPN from its tray icon"
+  instead of a set-up screen; a file that is not an invitation gets a message that stays. A new device key's passphrase needs at
+  least 8 characters, in the app and in `join`, checked before the one-time invitation is used.
+- A revoked laptop stops asking the gateway and says to ask for a new invitation; "traffic stays blocked" is said only for a full
+  tunnel. Connection and enrollment failures name the address tried. `status` reports a window started with `app --no-apply`.
+- One statement of revocation timing everywhere: the gateway within 15 seconds (plus `crl_every` with `crl_url`); the person's app
+  and `status` at the next key renewal, within 2 minutes.
+- The systemd units run `/opt/acxelin-vpn/bin/acxelin-qvpn`; unit names and folders are unchanged. `ca issue --help` says a
+  `server` certificate is for the WireGuard gateway or the enrollment service.
+- Docs: build the gateway image yourself; the published image cannot be pulled yet.
+
 ## 1.3.0
 
 - Renamed: Acxelin VPN is now Acxelin QVPN. The command and package are `acxelin-qvpn`; `acxelin-vpn` still works through 1.x and says so on

@@ -50,7 +50,7 @@ class App:
         return found[-1] if found else None
 
     def state(self):
-        out = {"invitation": None, "enrolled": False, "needs_passphrase": False, "error": None, "apply": self.apply}
+        out = {"invitation": None, "enrolled": False, "needs_passphrase": False, "error": None, "apply": self.apply, "min_passphrase": join.MIN_PASSPHRASE}
         if self.invitation:
             try:
                 inv = join.read(self.invitation)
@@ -65,7 +65,7 @@ class App:
 
     def load(self, name, text):
         """Keep an invitation the person opened in the page next to the device folder it will create."""
-        inv = join.parse(text, "the chosen file")
+        inv = join.parse(text, Path(str(name)).name[:80] or "the chosen file")
         stem = re.sub(r"[^A-Za-z0-9_-]", "_", Path(str(name)).stem)[:60] or inv["name"]
         path = self.folder / f"{stem}.acxinvite"
         if self.client:
@@ -91,6 +91,7 @@ class App:
             if join.must_enroll(inv, device):
                 if not secret or repeat is None or passphrase != repeat:
                     raise ValueError("choose a passphrase for this device's key and type it twice; nothing was changed")
+                join.new_passphrase(passphrase)
                 join.enroll(inv, device, self.invitation, secret)
             elif encrypted(device / "key.pem"):
                 try:

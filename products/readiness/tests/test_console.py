@@ -121,7 +121,7 @@ def test_tracking_a_finding_is_saved_with_its_owner(app, repos):
     call(app, "POST", "/api/projects/track", {"project": 0, "finding": asset["id"], "owner": "payments team", "status": "in_progress", "due": "2030-01-01"})
     saved = call(app, "GET", "/api/projects/status")[1]["last"]["assets"][0]["tracking"]
     assert saved["owner"] == "payments team" and saved["status"] == "in_progress"
-    with pytest.raises(ValueError, match="Dates"):
+    with pytest.raises(ValueError, match="Due date"):
         app.routes[("POST", "/api/projects/track")]({"project": 0, "finding": asset["id"], "status": "open", "due": "soon"})
 
 

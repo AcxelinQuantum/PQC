@@ -3,13 +3,18 @@
 Runs on acxelin-core's console mechanism; this module is only the product's pages, routes and state. A CA passphrase is held in
 memory for the life of the console and is never written anywhere, so a restart locks an encrypted CA again.
 """
+import dataclasses
 import datetime as dt
 import functools
+import hashlib
 import io
 import json
 import os
 import re
 import secrets
+import subprocess
+import sys
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -23,17 +28,32 @@ from acxelin_core import console as core
 from acxelin_core import shell, tls
 from acxelin_core.files import append, write
 from acxelin_core.http import explain, hostport
-from acxelin_core.pki import CA, CAError, encrypted
+from acxelin_core.pki import CA, CAError, encrypted, est
 from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import NameOID
 
-from . import __version__, checks, policies
+from . import __version__, acme, checks, policies, shadow
+from .checks import browser_setup, expiry
+from .connection import KEYS, PQ_GROUPS, key_name, verdict, why_failed
+from .edge import Route, load_config, render_config
 
 NAME = re.compile(r"[A-Za-z0-9*._-]{1,253}")
+HOST = re.compile(r"(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*")
 MAX_EDGES = 50
+METRICS = "127.0.0.1:9100"  # where the QGuard service reports; the console reads it to show what each service sees
 NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-PQ_GROUPS = set(policies.PQC_GROUPS.split(":")) | {"MLKEM1024"}
-KEYS = {"1.2.840.10045.2.1": "ECDSA", "1.2.840.113549.1.1.1": "RSA", "1.3.101.112": "Ed25519", "1.3.101.113": "Ed448"}
+KINDS = {"website": "Public website", "app": "Internal app or API", "partner": "Partner API", "tcp": "Database or other service"}
+REASONS = {shadow.slug(t): t for p in ("strict", "cnsa2") for t in shadow.reasons(p, {"groups": [], "sigalgs": [], "suites": []})}
+
+
+def _kind(r):
+    """Which kind of service a route is, from its settings (the settings file has no field for it)."""
+    if r.require_client_cert:
+        return "partner"
+    if r.policy == "transition" or r.fallback_cert:
+        return "website"
+    return "app" if r.forwarded_headers else "tcp"
 
 
 def task(fn):
@@ -57,9 +77,11 @@ def _text(body, key, what, limit=253):
 
 
 class TLSConsole:
-    def __init__(self, home, ca_dir=None):
+    def __init__(self, home, ca_dir=None, settings=None):
         self.home = Path(home)
         self.ca_dir = Path(ca_dir) if ca_dir else self.home / "ca"
+        self.settings = Path(settings) if settings else self.home / "edge.toml"
+        self.guard = None  # QGuard started from this console (until it runs as a system service)
         self.passphrase = None
         self.lock = threading.Lock()
         given = os.environ.pop("ACXELIN_TLS_CA_PASSPHRASE", None)  # read once and removed: the browser this opens inherits the environment
@@ -249,6 +271,10 @@ class TLSConsole:
         ca = CA(self.ca_dir) if self._exists() else self._ca()
         r = self._record(ca, body)
         with_key = body.get("key") is True
+        fmt = body.get("format") or "zip"
+        if fmt not in ("zip", "pem"):
+            raise ValueError("The format must be zip (certificate, chain and CA in separate files) or pem (one file: the full chain, "
+                             "then the key if asked for). PFX is not offered: no tool can write an ML-DSA key into one yet")
         if not r.path:
             raise ValueError("this certificate was signed from a request (CSR, EST or ACME); the console has no files for it")
         current, folder = self._files(r)
@@ -258,6 +284,10 @@ class TLSConsole:
             raise ValueError("this certificate is revoked; its key is not handed out")
         if with_key and encrypted(folder / "key.pem"):
             raise ValueError("this key is encrypted with a passphrase; copy it from the CA machine")
+        if fmt == "pem":
+            data = (folder / "chain.pem").read_bytes() + ((folder / "key.pem").read_bytes() if with_key else b"")
+            self.audit("download", {"serial": r.serial, "common_name": r.common_name, "key": with_key, "format": "pem"})
+            return 200, core.Download(f"{r.common_name}-{r.serial[:8]}-fullchain{'-and-key' if with_key else ''}.pem", data, "application/x-pem-file")
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             for name in ("cert.pem", "chain.pem") + (("key.pem",) if with_key else ()):
@@ -398,6 +428,338 @@ class TLSConsole:
         finally:
             ctx.close()
 
+    # --- protected services: the settings file the QGuard service reads (the console writes it; the service applies it live)
+
+    def _settings(self):
+        return load_config(self.settings) if self.settings.exists() else ([], None)
+
+    def _save_settings(self, routes, metrics):
+        if not routes:
+            self.settings.unlink(missing_ok=True)
+            return
+        text = render_config(routes, metrics)
+        self.settings.parent.mkdir(parents=True, exist_ok=True)
+        trial = self.settings.with_name(self.settings.name + ".check")
+        trial.write_text(text, encoding="utf-8")
+        try:
+            load_config(trial)  # what the service would refuse is never written
+        finally:
+            trial.unlink(missing_ok=True)
+        write(self.settings, text.encode())
+
+    @staticmethod
+    def _live(metrics):
+        """The running QGuard service's /status, or None when nothing answers at the settings' metrics address."""
+        if not metrics:
+            return None
+        host, port = hostport(metrics, "127.0.0.1")
+        host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+        try:
+            with NO_PROXY.open(f"http://{'[' + host + ']' if ':' in host else host}:{port}/status", timeout=1) as r:  # Windows takes ~2 s to report a refused loopback port
+                data = json.loads(r.read(1 << 20))
+            return data if isinstance(data, dict) else None
+        except (OSError, ValueError):
+            return None
+
+    def _row(self, r, live):
+        problems = []
+        if r.mode == "terminate":
+            for what, path in (("certificate", r.cert), ("public certificate (fallback_cert)", r.fallback_cert)):
+                if path and not Path(path).exists():
+                    problems.append(f"the {what} file {path} is missing: the service cannot start")
+                elif path and (found := expiry(path, what)):
+                    problems.append(found[1])
+            if (found := browser_setup(r.policy, r.fallback_cert, r.shadow)) and found[0] == "warn":
+                problems.append("Visitors' browsers will show \"Your connection is not private\": browsers cannot check quantum-safe "
+                                "certificates yet. Add the site's ordinary public certificate (such as Let's Encrypt) with Edit; "
+                                "the connection stays quantum-safe.")
+        s, status = live.get(r.name), None
+        if isinstance(s, dict):
+            n = lambda k: s[k] if isinstance(s.get(k), int) else 0
+            groups = s.get("groups") if isinstance(s.get("groups"), dict) else {}
+            status = {"active": n("active"), "handshakes": n("handshakes"), "refused": n("handshake_failed"),
+                      "quantum_safe": sum(c for g, c in groups.items() if g in PQ_GROUPS and isinstance(c, int)),
+                      "distrusts": n("client_distrusts_certificate"), "would_refuse": n("shadow_would_refuse"),
+                      "bad_requests": n("forwarded_refused"), "upstream_failed": n("upstream_failed"),
+                      "reasons": {REASONS.get(k[20:], k[20:].replace("_", " ")): v for k, v in s.items()
+                                  if k.startswith("shadow_would_refuse_") and isinstance(v, int)}}
+        listen = hostport(r.listen, "127.0.0.1" if r.mode == "originate" else "0.0.0.0")
+        return {"name": r.name, "kind": _kind(r), "label": KINDS[_kind(r)], "managed": r.mode == "terminate" and len(r.sni) == 1,
+                "host": r.sni[0] if r.sni else "", "port": listen[1], "listen": r.listen, "target": r.target, "mode": r.mode,
+                "policy": r.policy, "shadow": r.shadow, "forwarded": r.forwarded_headers, "public_cert": r.fallback_cert,
+                "public_key": r.fallback_key, "cert": r.cert, "problems": problems, "status": status}
+
+    @task
+    def services(self, body):
+        routes, metrics = self._settings()
+        live = self._live(metrics)
+        return 200, {"settings": str(self.settings), "metrics": metrics, "running": live is not None, "started_here": self._guard_alive(),
+                     "log": str(self.home / "qguard-service.log"), "services": [self._row(r, live or {}) for r in routes]}
+
+    @task
+    def save_service(self, body):
+        kind = body.get("kind")
+        if kind not in KINDS:
+            raise ValueError("Choose what kind of service this is: a public website, an internal app or API, a partner API, or a database or other service")
+        host = _text(body, "host", "the name people use to reach the service, such as shop.example.com").lower()
+        if not HOST.fullmatch(host):
+            raise ValueError(f"{host!r} is not a valid host name: use letters, digits, dots and dashes, such as shop.example.com")
+        port = body.get("port", 443)
+        if type(port) is not int or not 1 <= port <= 65535:
+            raise ValueError("The port must be a whole number from 1 to 65535 (443 for a website)")
+        target = _text(body, "target", "where the service runs now, as host:port, such as 127.0.0.1:8080", 300)
+        try:
+            th, tp = hostport(target, "")
+        except ValueError:
+            th = tp = None
+        if not th or not tp:
+            raise ValueError("Where the service runs now must be host:port, such as 127.0.0.1:8080")
+        watch = body.get("watch", False)
+        if not isinstance(watch, bool):
+            raise ValueError("watch must be true or false")
+        if watch and kind == "website":
+            raise ValueError("A public website cannot start by watching: browsers need \"Quantum-safe, browsers welcome\" and a public certificate")
+        pub, pubkey = (body.get("public_cert") or "", body.get("public_key") or "")
+        if not (isinstance(pub, str) and isinstance(pubkey, str)) or bool(pub) != bool(pubkey):
+            raise ValueError("Give both the public certificate (full chain) and its key, or neither")
+        if pub and kind != "website":
+            raise ValueError("A public certificate is only for a public website: other services use your own certificate authority")
+        for p in (pub, pubkey):
+            if p and not Path(p).is_file():
+                raise ValueError(f"{p} does not exist on this computer: give the path of the file, such as /etc/letsencrypt/live/{host}/fullchain.pem")
+        original = body.get("original")
+        if original is not None and not isinstance(original, str):
+            raise ValueError("original must be the name of the service being edited")
+        routes, metrics = self._settings()
+        old = next((r for r in routes if r.name == original), None)
+        if original and not old:
+            raise ValueError(f"There is no service named {original}")
+        for r in routes:
+            if r is not old and r.mode == "terminate" and hostport(r.listen)[1] == port and host in (n.lower() for n in r.sni):
+                raise ValueError(f"{r.name} already protects {host} on port {port}: edit that one instead")
+            if r is not old and r.name == host:
+                raise ValueError(f"A service named {host} already exists: edit that one instead")
+        if old and old.sni == [host] and old.cert and Path(old.cert).exists():
+            cert, key = old.cert, old.key
+        else:
+            ca = self._ca()
+            folder = self.home / "issued" / f"{re.sub(r'[^a-z0-9.-]', '_', host)}-{secrets.token_hex(3)}"
+            _, rec = ca.issue(host, "server", [host], 397, out=folder)
+            self.audit("issue", {"serial": rec.serial, "common_name": host, "kind": "server"})
+            cert, key = str(folder / "chain.pem"), str(folder / "key.pem")
+        policy = "transition" if kind == "website" else old.policy if old and old.policy == "cnsa2" else "strict"
+        partner = kind == "partner"
+        changes = dict(name=host, mode="terminate", listen=f"0.0.0.0:{port}", target=target, policy=policy, cert=cert, key=key, sni=[host],
+                       forwarded_headers=kind != "tcp", shadow=watch and policy != "transition", fallback_cert=pub, fallback_key=pubkey,
+                       require_client_cert=partner, ca=str(self.ca_dir / "ca.crt") if partner else "",
+                       crl=str(self.ca_dir / "crl.pem") if partner else "", crl_url=old.crl_url if old and partner else "")
+        new = dataclasses.replace(old, **changes) if old else Route(**changes)
+        new.validate()
+        self._save_settings([new if r is old else r for r in routes] if old else routes + [new], metrics or METRICS)
+        self.audit("service", {"name": new.name, "kind": kind, "change": "edited" if old else "added"})
+        return self.services({})
+
+    def _service(self, body):
+        routes, metrics = self._settings()
+        name = _text(body, "name", "the service", 253)
+        r = next((r for r in routes if r.name == name), None)
+        if not r:
+            raise ValueError(f"There is no service named {name}")
+        return routes, metrics, r
+
+    def _replace(self, routes, metrics, old, new, action):
+        self._save_settings([new if r is old else r for r in routes], metrics)
+        self.audit("service", {"name": old.name, "change": action})
+        return self.services({})
+
+    @task
+    def enforce(self, body):
+        routes, metrics, r = self._service(body)
+        if not r.shadow:
+            raise ValueError(f"{r.name} is not in watch mode: it already refuses what its policy does not allow")
+        keep = r.policy == "transition"  # a public certificate only works under transition; under strict the service would not start
+        return self._replace(routes, metrics, r, dataclasses.replace(r, shadow=False, fallback_cert=r.fallback_cert if keep else "",
+                                                                     fallback_key=r.fallback_key if keep else ""), "enforced")
+
+    @task
+    def watch(self, body):
+        routes, metrics, r = self._service(body)
+        if r.policy == "transition" or r.mode != "terminate":
+            raise ValueError(f"{r.name} is a public website (or a tunnel): watch mode is for services that refuse classical clients")
+        return self._replace(routes, metrics, r, dataclasses.replace(r, shadow=True), "watching")
+
+    @task
+    def remove_service(self, body):
+        routes, metrics, r = self._service(body)
+        self._save_settings([x for x in routes if x is not r], metrics)
+        self.audit("service", {"name": r.name, "change": "removed"})
+        return self.services({})
+
+    # --- running QGuard on this computer (until it is set up as a system service)
+
+    def _guard_alive(self):
+        return self.guard is not None and self.guard.poll() is None
+
+    @task
+    def start_guard(self, body):
+        routes, metrics = self._settings()
+        if not routes:
+            raise ValueError("Protect a service first: QGuard has nothing to run yet")
+        if self._live(metrics) is not None:
+            raise ValueError("QGuard is already running (as a service, or from another console or terminal)")
+        log_file = self.home / "qguard-service.log"
+        with open(log_file, "ab") as log:
+            flags = (subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == "nt" else 0
+            self.guard = subprocess.Popen([sys.executable, "-m", "acxelin_tls", "edge", "--config", str(self.settings)], cwd=self.home,
+                                          stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, creationflags=flags,
+                                          start_new_session=os.name != "nt")
+        deadline = time.monotonic() + 20
+        while self._live(metrics) is None:
+            if self.guard.poll() is not None or time.monotonic() > deadline:
+                why = next((line for line in reversed(log_file.read_text(encoding="utf-8", errors="replace").splitlines())
+                            if line.startswith("error:") or " ERROR " in line), "")
+                self._stop()
+                raise ValueError(f"QGuard did not start{': ' + why if why else ''} (its log: {log_file})")
+            time.sleep(0.25)
+        self.audit("guard", {"change": "started here"})
+        return self.services({})
+
+    def _stop(self):
+        if self.guard is not None and self.guard.poll() is None:
+            self.guard.terminate()
+            try:
+                self.guard.wait(10)
+            except subprocess.TimeoutExpired:
+                self.guard.kill()
+        self.guard = None
+
+    @task
+    def stop_guard(self, body):
+        if not self._guard_alive():
+            raise ValueError("QGuard was not started from this console: stop it where it runs (its system service, or the terminal it runs in)")
+        self._stop()
+        self.audit("guard", {"change": "stopped here"})
+        return self.services({})
+
+    # --- check any connection: trusting the public authorities this computer trusts, or QCertificate
+
+    @task
+    def check(self, body):
+        target = _text(body, "target", "the address to check, such as www.example.com:443", 300)
+        if not re.search(r":\d+$", target):
+            target += ":443"
+        host, port = hostport(target, "")
+        if not host:
+            raise ValueError("Enter an address such as www.example.com or shop.example.com:8443")
+        trust = body.get("trust") or "public"
+        if trust not in ("public", "qcertificate"):
+            raise ValueError("Choose whom to trust: public authorities (like a browser) or your QCertificate authority")
+        name = body.get("server_name") or None
+        if name is not None and not isinstance(name, str):
+            raise ValueError("The certificate name must be text")
+        cert = key = r = None
+        if body.get("client"):
+            if not self._exists():
+                raise ValueError("There is no certificate authority yet: create one first")
+            r = self._record(CA(self.ca_dir), {"serial": body["client"]})
+            if r.kind == "server":
+                raise ValueError(f"{r.common_name} is a certificate for a service; choose one for a person, device or partner")
+            if not r.path:
+                raise ValueError("the console has no key for that certificate")
+            folder = self._files(r)[1]
+            if encrypted(folder / "key.pem"):
+                raise ValueError("that certificate's key is encrypted; check it from the command line with acxelin-qguard connect")
+            cert, key = str(folder / "chain.pem"), str(folder / "key.pem")
+        with tempfile.TemporaryDirectory() as tmp:
+            if trust == "public":
+                anchor = tls.public_roots(Path(tmp) / "public-roots.pem")
+            elif self._exists():
+                anchor = CA(self.ca_dir).anchor
+            else:
+                raise ValueError("There is no certificate authority yet: create one first, or check against public authorities")
+            ctx = tls.client_context(policies.policy("transition"), anchor, cert, key)
+        out = {"target": target, "trust": trust, "client": r.serial if r else None, "client_status": r.status if r else None}
+        started = time.monotonic()
+        try:
+            with tls.connect(host, port, ctx, name, 5.0) as conn:
+                info = conn.info()
+                out |= {"ok": True, **info, "peer_key": key_name(info.get("peer_key")), "verdict": verdict(info)}
+                if refused := self._accepted(conn):
+                    out |= {"ok": False, "refused_after_handshake": True, "error": refused}
+        except (tls.TLSError, OSError) as e:
+            out |= {"ok": False, "error": explain(e) if isinstance(e, OSError) else why_failed(host, port, name, "transition", e, trust == "public")}
+        finally:
+            ctx.close()
+        out["ms"] = round((time.monotonic() - started) * 1000)
+        out["quantum_safe"] = out.get("group") in PQ_GROUPS
+        self.audit("test", {"target": target, "ok": out["ok"], "client": out["client"]})
+        return 200, out
+
+    # --- enrollment: one-time EST tokens and ACME account keys, each shown once
+
+    @task
+    def enrollment(self, body):
+        if not self._exists():
+            return 200, {"tokens": [], "eab": []}
+        t = dt.datetime.now(dt.timezone.utc).isoformat()
+        tokens = [x | {"state": "used" if x.get("used") else "expired" if x["expires"] < t else "unused"} for x in est.list_tokens(self.ca_dir)]
+        eab = [{"kid": k, "note": v.get("note", ""), "created": v.get("created"), "used": bool(v.get("used"))} for k, v in acme.eab_keys(self.ca_dir).items()]
+        return 200, {"tokens": tokens[::-1], "eab": eab[::-1]}
+
+    @task
+    def create_token(self, body):
+        if not self._exists():
+            raise ValueError("There is no certificate authority yet: create one first")
+        kind = body.get("kind")
+        if kind not in ("server", "client"):
+            raise ValueError("Choose a service (server) or a person, device or partner (client)")
+        cn = _text(body, "common_name", "the name the certificate will be for", 64)
+        names = body.get("names") or []
+        names = [n.strip() for n in (re.split(r"[,\n]", names) if isinstance(names, str) else names) if isinstance(n, str) and n.strip()]
+        hours = body.get("hours", 24)
+        if type(hours) is not int or not 1 <= hours <= 720:
+            raise ValueError("A token lasts 1 to 720 hours")
+        token = est.create_token(CA(self.ca_dir), cn, kind, names, hours)
+        self.audit("token", {"common_name": cn, "kind": kind, "id": token.split(".")[0]})
+        return 200, {"token": token, "expires_hours": hours, "common_name": cn,
+                     "command": f"set ACXELIN_TLS_ENROLL_TOKEN to the token, then: acxelin-qguard ca enroll https://CA-ADDRESS:9443 --cn {cn} --out {cn} --ca ca.crt"}
+
+    @task
+    def create_eab(self, body):
+        if not self._exists():
+            raise ValueError("There is no certificate authority yet: create one first")
+        note = body.get("note") or ""
+        if not isinstance(note, str) or len(note) > 120:
+            raise ValueError("The note must be text of at most 120 characters")
+        kid, key = acme.create_eab(self.ca_dir, note)
+        self.audit("eab", {"kid": kid, "note": note})
+        return 200, {"kid": kid, "hmac": key, "command": f"certbot certonly --server https://ACME-ADDRESS/directory --eab-kid {kid} --eab-hmac-key {key} --csr request.der"}
+
+    # --- the authority itself
+
+    @task
+    def authority(self, body):
+        if not self._exists():
+            return 200, {"configured": False}
+        ca = CA(self.ca_dir)
+        enc = encrypted(self.ca_dir / "ca.key")
+        return 200, {"configured": True, "name": next((str(a.value) for a in ca.cert.subject if a.oid == NameOID.COMMON_NAME), ""),
+                     "algorithm": ca.algorithm, "fingerprint": hashlib.sha256(ca.cert.public_bytes(serialization.Encoding.DER)).hexdigest(),
+                     "not_before": ca.cert.not_valid_before_utc.isoformat(), "not_after": ca.cert.not_valid_after_utc.isoformat(),
+                     "folder": str(self.ca_dir), "encrypted": enc, "unlocked": bool(self.passphrase) or not enc, "crl": self._crl()}
+
+    @task
+    def download_ca(self, body):
+        if not self._exists():
+            raise ValueError("There is no certificate authority yet: create one first")
+        return 200, core.Download("ca.crt", CA(self.ca_dir).anchor.read_bytes(), "application/x-pem-file")
+
+    @task
+    def lock_ca(self, body):
+        with self.lock:
+            self.passphrase = None
+        return 200, {"locked": True}
+
     # --- health
 
     @task
@@ -421,19 +783,24 @@ def page():
     return shell.render((Path(__file__).parent / "console.html").read_text(encoding="utf-8"))
 
 
-def build(home, ca_dir=None):
-    t = TLSConsole(home, ca_dir)
+def build(home, ca_dir=None, settings=None):
+    t = TLSConsole(home, ca_dir, settings)
     routes = {("GET", "/api/status"): t.status, ("POST", "/api/ca/create"): t.create, ("POST", "/api/ca/unlock"): t.unlock,
               ("GET", "/api/certificates"): t.certificates, ("POST", "/api/certificates/issue"): t.issue, ("POST", "/api/certificates/revoke"): t.revoke,
               ("POST", "/api/crl/refresh"): t.refresh, ("POST", "/api/certificates/renew"): t.renew,
               ("POST", "/api/certificates/maintain"): t.maintain, ("POST", "/api/certificates/download"): t.download, ("GET", "/api/edges"): t.edges, ("POST", "/api/edges/add"): t.add_edge,
-              ("POST", "/api/edges/remove"): t.remove_edge, ("POST", "/api/edges/test"): t.test_edge, ("GET", "/api/health"): t.health}
+              ("POST", "/api/edges/remove"): t.remove_edge, ("POST", "/api/edges/test"): t.test_edge, ("GET", "/api/health"): t.health,
+              ("GET", "/api/services"): t.services, ("POST", "/api/services/save"): t.save_service, ("POST", "/api/services/remove"): t.remove_service,
+              ("POST", "/api/services/enforce"): t.enforce, ("POST", "/api/services/watch"): t.watch,
+              ("POST", "/api/guard/start"): t.start_guard, ("POST", "/api/guard/stop"): t.stop_guard, ("POST", "/api/check"): t.check,
+              ("GET", "/api/enrollment"): t.enrollment, ("POST", "/api/enrollment/token"): t.create_token, ("POST", "/api/enrollment/eab"): t.create_eab,
+              ("GET", "/api/authority"): t.authority, ("POST", "/api/ca/download"): t.download_ca, ("POST", "/api/ca/lock"): t.lock_ca}
     return core.App(page(), routes)
 
 
-def run(home, port=8900, open_browser=True, ca_dir=None, host="127.0.0.1"):
+def run(home, port=8900, open_browser=True, ca_dir=None, host="127.0.0.1", settings=None):
     """Start the console and sign this browser in: the launch address carries a single-use ticket in its fragment."""
-    app = build(home, ca_dir)
+    app = build(home, ca_dir, settings)
     server = core.start(app, home, port, host)
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/#{app.sessions.ticket()}"
@@ -460,7 +827,8 @@ def cmd_console(a):
         except (OSError, ValueError) as e:
             sys.exit(f"acxelin-qguard: no console is running on port {a.port} ({e}); start one with `acxelin-qguard console`")
         return 0
-    return run(home, a.port, open_browser=not a.no_browser and not a.container, ca_dir=a.ca, host="0.0.0.0" if a.container else "127.0.0.1")
+    return run(home, a.port, open_browser=not a.no_browser and not a.container, ca_dir=a.ca, host="0.0.0.0" if a.container else "127.0.0.1",
+               settings=a.settings)
 
 
 def add(sub):
@@ -470,5 +838,7 @@ def add(sub):
     p.add_argument("--port", type=int, default=8900)
     p.add_argument("--home", metavar="DIR", help="where the console keeps the CA, issued certificates and its token (default: ~/.acxelin-tls)")
     p.add_argument("--ca", metavar="DIR", help="manage this CA folder (default: HOME/ca)")
+    p.add_argument("--settings", metavar="FILE", help="the settings file the QGuard service reads, which the console edits "
+                                                      "(default: HOME/edge.toml; on a Linux server, /etc/acxelin-tls/edge.toml)")
     p.add_argument("--container", action="store_true", help="inside a container: listen on every interface so a published port reaches it (publish it to 127.0.0.1 only)")
     p.add_argument("--no-browser", action="store_true", help="do not open a browser; print the launch address instead")

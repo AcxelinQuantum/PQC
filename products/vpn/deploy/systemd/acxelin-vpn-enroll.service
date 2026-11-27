@@ -7,7 +7,7 @@ ConditionPathExists=/var/lib/acxelin-vpn/ca/ca.crt
 [Service]
 User=acxelin
 EnvironmentFile=-/etc/acxelin-vpn/ca.env
-ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn ca serve --dir /var/lib/acxelin-vpn/ca --cert /etc/acxelin-vpn/enroll/chain.pem --key /etc/acxelin-vpn/enroll/key.pem
+ExecStart=/opt/acxelin-vpn/bin/acxelin-qvpn ca serve --dir /var/lib/acxelin-vpn/ca --cert /etc/acxelin-vpn/enroll/chain.pem --key /etc/acxelin-vpn/enroll/key.pem
 Restart=always
 NoNewPrivileges=yes
 ProtectSystem=strict

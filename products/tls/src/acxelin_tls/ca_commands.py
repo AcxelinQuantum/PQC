@@ -13,7 +13,7 @@ from acxelin_core.config import env_passphrase
 from acxelin_core.http import PEM, hostport, serve_http
 from acxelin_core.pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
 
-from .common import CA_PASS_ENV, ca_passphrase
+from .common import CA_PASS_ENV, ca_passphrase, schedule_hint
 
 
 
@@ -90,7 +90,7 @@ def cmd_ca(a):
         write(Path(a.out), der)
         status = "revoked" if ca.find(format(cert.serial_number, "x")).status == "revoked" else "good"
         print(f"{cert.subject.rfc4514_string()} is {status}; the answer is valid for {a.hours:g} hours and is in {a.out}")
-        print(f"repeat this before it ends (daily from cron is enough for 24 hours) and point the edge at it with ocsp_staple = \"{a.out}\"")
+        print(f"repeat this before it ends (daily, from {schedule_hint()}, is enough for 24 hours) and point the edge at it with ocsp_staple = \"{a.out}\"")
     elif a.ca_cmd == "oidc":
         from acxelin_core.pki.oidc import configure
         s = configure(ca, a.issuer, a.audience, a.jwks_file, a.jwks_url, a.name_claim, a.domain, a.groups_claim, a.group)
@@ -196,7 +196,7 @@ def cmd_enroll(a):
         est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
     cert = est.enroll(a.url, token, a.common_name, a.san, a.out, ca, passphrase=key_passphrase, server_name=a.server_name, oidc=a.oidc)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
-    print(f"renew it daily from cron: acxelin-qguard ca enroll {a.url} --renew {a.out} --within-days 30")
+    print(f"renew it daily from {schedule_hint()}: acxelin-qguard ca enroll {a.url} --renew {a.out} --within-days 30")
     return 0
 
 def add(sub, common):

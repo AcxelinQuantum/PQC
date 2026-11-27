@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import re
+import shutil
 import tempfile
 import threading
 import time
@@ -17,12 +18,14 @@ from acxelin_core import shell
 from acxelin_core.files import write
 
 from . import cbom, compliance, endpoints, evidence, owners, pacing, pipeline, remote, workspace
+from .detectors import deps
 from .rank import Horizon
 
 MAX_TARGETS = 500
 WEIGHT = {"critical": 8, "high": 4, "medium": 2, "low": 1}
 IMPORTANCE = {"critical": 4, "high": 3, "medium": 2, "": 2, "low": 1}  # a service with no importance given counts as medium
 TOKEN = re.compile(r"[A-Za-z0-9_]{20,255}")
+STATUS = {"open": "To do", "planned": "Planned", "in_progress": "In progress", "fixed": "Fixed", "exception": "Accepted risk"}  # as the page shows them
 
 
 class Readiness:
@@ -37,11 +40,12 @@ class Readiness:
         self.folder = None
         self.projects = []
         self.cache = None
-        self.job = {"running": False, "stage": "", "error": None, "selected": 0, "last": None}
+        self.job = {"running": False, "stage": "", "error": None, "selected": 0, "last": None, "forgotten": False}
         self.all = {"running": False, "done": 0, "total": 0, "current": "", "failed": []}
         self.github_api = remote.API
         self.ep_history = self.home / "endpoints-history.json"
-        self.ep = {"running": False, "error": None, "last": None, "history": []}
+        self.ep_hosts = self.home / "endpoints-hosts.json"
+        self.ep = {"running": False, "error": None, "history": [], **read_hosts(self.ep_hosts)}
         try:
             saved = json.loads(self.ep_history.read_text()) if self.ep_history.exists() else []
             number = lambda v, top: type(v) in (int, float) and math.isfinite(v) and 0 <= v <= top
@@ -216,9 +220,34 @@ class Readiness:
             return i, p
         return i, self.approved(p.name)
 
+    def remove(self, body):
+        """Take a project off the list, with its saved results and tracking. A repository on this computer is never touched; a GitHub
+        download and an imported CBOM, which live in the console's own folder, are deleted."""
+        with self.lock:
+            if self.job["running"]:
+                raise ValueError("Wait for the running scan to finish, or stop it, before removing a project")
+        _, path = self.selected(body)
+        name = self.label(path)
+        self.forget(path)
+        return 200, {"removed": name}
+
+    def forget(self, path):
+        own = lambda folder: path.parent == folder and not path.is_symlink() and path.resolve().parent == folder.resolve()
+        if path.parent == self.remote_dir:
+            write(self.remote_file, json.dumps({k: v for k, v in self.remotes().items() if k != path.name}).encode(), secret=True)
+            if own(self.remote_dir):
+                shutil.rmtree(path, ignore_errors=True)
+        elif path.parent == self.import_dir:
+            write(self.import_file, json.dumps({k: v for k, v in self.imports().items() if k != path.name}).encode(), secret=True)
+            if own(self.import_dir):
+                path.unlink(missing_ok=True)
+        self.store.forget(path, None if path.parent in (self.remote_dir, self.import_dir) else self.folder)
+        with self.lock:
+            self.reload()
+
     def project_status(self, body):
         with self.lock:
-            state = dict(self.job)
+            state = dict(self.job) | {"count": len(self.projects)}
         if self.projects and state["last"]:
             try:
                 saved = self.store.assessment(self.projects[state["selected"]])
@@ -240,7 +269,11 @@ class Readiness:
 
         def work():
             try:
-                self.scan_one(path)
+                refused = self.scan_one(path)
+                if refused and path.parent == self.remote_dir and self.store.assessment(path) is None:  # a link that never worked is not kept
+                    self.forget(path)
+                    with self.lock:
+                        self.job.update(error=f"{refused} It was not added to your projects.", forgotten=True)
             finally:
                 with self.lock:
                     self.job["running"] = False
@@ -255,7 +288,7 @@ class Readiness:
                 from .crawler import ParseCache
                 self.cache = ParseCache()
             self.cancel.clear()
-            self.job.update(running=True, stage="Preparing project", error=None, selected=i)
+            self.job.update(running=True, stage="Preparing project", error=None, selected=i, forgotten=False)
 
     def scan_one(self, path):
         """Scan or re-read one project and save it; a failure is kept in job["error"], never raised."""
@@ -289,6 +322,7 @@ class Readiness:
         except (workspace.ScanStopped, remote.Refused, workspace.SettingsError) as error:
             with self.lock:
                 self.job["error"] = str(error)
+            return str(error) if isinstance(error, remote.Refused) else None
         except Exception:  # source-sensitive failures are never echoed or logged with their contents
             with self.lock:
                 self.job["error"] = "The project scan failed. Check the folder's permissions and the source's syntax, then try again; `acxelin-qreadiness scan` shows details."
@@ -346,10 +380,10 @@ class Readiness:
     def overview(self, body):
         """Every project's latest result side by side, findings by business service across them, and the scheduled scans."""
         with self.lock:
-            projects, scan_all = list(enumerate(self.projects)), dict(self.all)
+            projects, scan_all = list(enumerate(self.projects)), dict(self.all) | {"stage": self.job["stage"] if self.all["running"] else ""}
         saved, rows, services, libraries, actions = self.store.read()["projects"], [], {}, {}, {}
-        board = {"weakest": None, "projects": len(projects), "scanned": 0, "critical": 0, "high": 0, "recordable": 0, "deadline_findings": 0, "to_fix": 0, "done": 0,
-                 "effort": Counter(), "scores": [], "previous": [], "coverage": [], "pairs": []}
+        board = {"weakest": None, "projects": len(projects), "scanned": 0, "critical": 0, "high": 0, "fix_now": 0, "recordable": 0, "deadline_findings": 0,
+                 "to_fix": 0, "done": 0, "effort": Counter(), "coverage": [], "pairs": []}
         for i, path in projects:
             record = saved.get(self.store.key(path))
             if not record:
@@ -358,7 +392,7 @@ class Readiness:
             v = workspace.ProjectStore.view(record, graph=False)
             live = [a for a in v["assets"] if not a["test_only"]]
             cmp = v.get("comparison") or {}
-            rows.append({"id": i, "name": self.label(path), "scanned": True, "finished": v["finished"], "score": v["summary"].get("score"),
+            rows.append({"id": i, "name": self.label(path), "scanned": True, "finished": v["finished"], "fix_now": v["summary"]["headline"]["fix_now"],
                          "tiers": dict(Counter(a["tier"] for a in live)), "new": cmp.get("new") if cmp.get("baseline") else None,
                          "gone": cmp.get("not_observed") if cmp.get("baseline") else None})
             for a in live:
@@ -370,13 +404,15 @@ class Readiness:
                     s["importance"] = max(s["importance"], hint.get("importance", ""), key=lambda x: IMPORTANCE[x] if x else 0)
             self.tally(board, actions, v, live, self.label(path))
             for x in v.get("libraries", []):
-                lib = libraries.setdefault((x["ecosystem"], x["name"], x.get("version", "")), {**x, "projects": set()})
+                lib = libraries.setdefault((x["ecosystem"], x["name"], x.get("version", "")),
+                                           {**x, "pq_needed": deps.pq_needed(x["ecosystem"], x["name"]), "projects": set()})
                 lib["projects"].add(self.label(path))
         for s in services.values():
             s["risk"] = IMPORTANCE.get(s["importance"], 2) * sum(WEIGHT[k] * s[k] for k in WEIGHT)
         ranked = sorted(({**s, "projects": sorted(s["projects"])} for s in services.values()),
                         key=lambda s: (-s["risk"], -s["critical"], -s["high"], s["service"]))
-        libs = sorted(({**x, "projects": sorted(x["projects"])} for x in libraries.values()), key=lambda x: (x["pq"], -len(x["projects"]), x["name"]))
+        libs = sorted(({**x, "projects": sorted(x["projects"])} for x in libraries.values()),
+                      key=lambda x: (x["pq"] or not x["pq_needed"], -len(x["projects"]), x["name"]))
         choice = self.store.deadline_choice()
         default = ["us"], ["enterprise"]  # nothing chosen: NIST IR 8547, not NSA's national-security dates
         try:
@@ -406,14 +442,13 @@ class Readiness:
             if a.get("effort"):
                 board["effort"][a["effort"]["level"]] += 1
         s = v["summary"]
-        if s.get("score") is not None:
-            board["scores"].append(s["score"])
-            if board["weakest"] is None or s["score"] < board["weakest"]["score"]:
-                board["weakest"] = {"name": name, "score": s["score"]}
-            before = [h["summary"].get("score") for h in v.get("history", []) if h.get("finished", 0) < v["finished"] and h["summary"].get("score") is not None]
-            if before:
-                board["previous"].append(before[-1])
-                board["pairs"].append((s["score"], before[-1]))  # the trend compares the same projects, then and now
+        now = s["headline"]["fix_now"]
+        board["fix_now"] += now
+        if board["weakest"] is None or now > board["weakest"]["fix_now"]:
+            board["weakest"] = {"name": name, "fix_now": now}
+        before = [h["summary"]["headline"]["fix_now"] for h in v.get("history", []) if h.get("finished", 0) < v["finished"] and "headline" in h["summary"]]
+        if before:
+            board["pairs"].append((now, before[-1]))  # the trend compares the same projects, then and now
         board["coverage"].append(s.get("coverage"))
         for rank, x in enumerate(a for a in (v.get("outlook") or {}).get("actions", []) if a.get("targets")):  # not "nothing to change"
             act = actions.setdefault(x["text"], {"text": x["text"], "rank": rank, "projects": set(), "names": set()})
@@ -471,7 +506,8 @@ class Readiness:
         rows = [[a["name"], a["algorithm"], a["tier"], a["action"] or a["why"], "; ".join(f"{f}:{n}" for f, n in a["locations"][:50]),
                  ", ".join(a.get("seen", [])), a.get("confidence_level") or "", ", ".join(a.get("missing", [])),
                  a["tracking"]["owner"] or (f"{a['owner_hint']['owner']} ({a['owner_hint']['source']})" if a.get("owner_hint") else ""),
-                 (a.get("owner_hint") or {}).get("service", ""), a["tracking"]["status"], a["tracking"]["due"]] for a in last["assets"] if not a["test_only"]]
+                 (a.get("owner_hint") or {}).get("service", ""), STATUS.get(a["tracking"]["status"], a["tracking"]["status"]), a["tracking"]["due"]]
+                for a in last["assets"] if not a["test_only"]]
         return 200, {"csv": evidence.csv_text(["Asset", "Algorithm", "Priority", "What to do", "Places", "Seen as", "Confidence", "Not seen",
                                                "Owner", "Service", "Status", "Due"], rows)}
 
@@ -494,7 +530,38 @@ class Readiness:
 
     def endpoint_status(self, body):
         with self.lock:
-            return 200, dict(self.ep)
+            return 200, {"running": self.ep["running"], "error": self.ep["error"], "history": list(self.ep["history"]), "last": self.endpoint_view(),
+                         "hosts": {t: list(h["history"]) for t, h in self.ep["hosts"].items()}}
+
+    def endpoint_view(self):
+        """Every host's latest result, the last check's hosts first, with what changed for each against its own previous result."""
+        hosts, checked = self.ep["hosts"], self.ep["checked"] or {}
+        if not hosts:
+            return None
+        recent = [t for t in dict.fromkeys(checked.get("hosts", [])) if t in hosts]
+        order = recent + sorted((t for t in hosts if t not in recent), key=lambda t: -hosts[t]["history"][-1]["finished"])
+        rows = [hosts[t]["result"] | {"checked": hosts[t]["history"][-1]["finished"], "verification": endpoints.unverified(hosts[t]["result"])} for t in order]
+        grades = lambda t: [h["grade"] for h in hosts[t]["history"][-2:]]
+        changes = [{"target": t, "before": grades(t)[0], "after": grades(t)[1]} for t in recent if len(grades(t)) == 2 and len(set(grades(t))) == 2]
+        return {"finished": checked.get("finished") or rows[0]["checked"], "targets": checked.get("targets", []), "summary": endpoints.summary(rows),
+                "endpoints": rows, "changes": changes, "outlook": endpoints.outlook(rows)}
+
+    def save_hosts(self):
+        try:
+            write(self.ep_hosts, json.dumps({"hosts": self.ep["hosts"], "last": self.ep["checked"]}).encode(), secret=True)
+        except OSError:
+            pass  # this session still shows them
+
+    def endpoint_forget(self, body):
+        target = body.get("target")
+        with self.lock:
+            if self.ep["running"]:
+                raise ValueError("Wait for the running check to finish")
+            if not isinstance(target, str) or target not in self.ep["hosts"]:
+                raise ValueError("Choose a host from the list")
+            del self.ep["hosts"][target]
+            self.save_hosts()
+        return 200, {"forgotten": target}
 
     @staticmethod
     def pacing_of(body):
@@ -515,14 +582,18 @@ class Readiness:
         def work():
             try:
                 results = endpoints.scan(targets, **options)
+                now = time.time()
                 with self.lock:
-                    before = {e["target"]: e["grade"] for e in (self.ep["last"] or {}).get("endpoints", [])}
-                    changes = [{"target": r["target"], "before": before[r["target"]], "after": r["grade"]}
-                               for r in results if r["target"] in before and before[r["target"]] != r["grade"]]
-                    self.ep["last"] = {"finished": time.time(), "targets": targets, "summary": endpoints.summary(results), "endpoints": results, "changes": changes,
-                                       "outlook": endpoints.outlook(results)}
-                    s = self.ep["last"]["summary"]
-                    self.ep["history"] = self.ep["history"][-29:] + [{"finished": self.ep["last"]["finished"], "score": s["score"], "coverage": s["coverage"], "endpoints": s["endpoints"]}]
+                    hosts = self.ep["hosts"]
+                    for r in results:
+                        h = hosts.pop(r["target"], {"history": []})  # re-inserted last: the dict keeps the most recently checked at the end
+                        hosts[r["target"]] = {"result": r, "history": (h["history"] + [{"finished": now, "grade": r["grade"]}])[-30:]}
+                    for t in list(hosts)[:-MAX_TARGETS]:
+                        del hosts[t]  # at most MAX_TARGETS hosts; the longest unchecked go first
+                    self.ep["checked"] = {"targets": targets, "hosts": [r["target"] for r in results], "finished": now}
+                    self.save_hosts()
+                    s = self.endpoint_view()["summary"]
+                    self.ep["history"] = self.ep["history"][-29:] + [{"finished": now, "score": s["score"], "coverage": s["coverage"], "endpoints": s["endpoints"]}]
                     try:
                         write(self.ep_history, json.dumps(self.ep["history"]).encode(), secret=True)
                     except OSError:
@@ -538,7 +609,7 @@ class Readiness:
 
     def endpoint_csv(self, body):
         with self.lock:
-            last = self.ep["last"]
+            last = self.endpoint_view()
         if not last:
             raise ValueError("Check endpoints first")
         c = lambda r, k: (r.get("certificate") or {}).get(k, "")
@@ -556,19 +627,42 @@ class Readiness:
 
 def summary(board, actions, services, libraries):
     """One page for a board: the level and its trend, what is at risk, what to do first, and whether it rests on enough evidence."""
-    mean = lambda xs: round(sum(xs) / len(xs)) if xs else None
     known = [c for c in board.pop("coverage") if c is not None]
     gaps = [f"{board['scanned']} of {board['projects']} projects scanned"] if board["scanned"] < board["projects"] else []
     if known and min(known) < 80:
         gaps.append(f"coverage under 80% in {sum(c < 80 for c in known)} of them")
     top = sorted(actions.values(), key=lambda a: (a["rank"], -len(a["projects"]), a["text"]))[:5]
     pairs = board.pop("pairs")
-    change = (mean([n for n, _ in pairs]) - mean([b for _, b in pairs])) if pairs else None
-    return {**board, "score": mean(board.pop("scores")), "previous": mean(board["previous"]) if board["previous"] else None, "change": change,
+    previous = sum(b for _, b in pairs) if pairs else None
+    return {**board, "previous": previous, "change": sum(n for n, _ in pairs) - previous if pairs else None,
             "coverage": min(known) if known else None, "provisional": "; ".join(gaps), "effort": dict(board["effort"]),
             "agility": {"without_code": sum(n for k, n in board["effort"].items() if k in ("setting", "reissue", "upgrade")), "total": sum(board["effort"].values())},
             "actions": [{"text": a["text"], "names": sorted(a["names"])[:4], "projects": sorted(a["projects"])} for a in top],
-            "services": [s["service"] for s in services[:3]], "libraries_without_pq": sum(not x["pq"] for x in libraries)}
+            "services": [s["service"] for s in services[:3]], "libraries_without_pq": sum(x["pq_needed"] and not x["pq"] for x in libraries)}
+
+
+def read_hosts(path):
+    """Each endpoint's latest result and its dated grades, and which hosts the last check asked about. Anything damaged starts again:
+    the file holds no findings, only what the next check finds anew."""
+    number = lambda v: type(v) in (int, float) and math.isfinite(v) and 0 <= v <= 2**33
+
+    def sound(t, h):
+        try:
+            ok = (isinstance(h, dict) and isinstance(h.get("result"), dict) and h["result"].get("target") == t and h["result"].get("grade") in endpoints.GRADES
+                  and isinstance(h.get("history"), list) and 0 < len(h["history"]) <= 30
+                  and all(isinstance(x, dict) and number(x.get("finished")) and x.get("grade") in endpoints.GRADES for x in h["history"]))
+            return ok and bool(endpoints.outlook([h["result"]]) | endpoints.summary([h["result"]]))  # the views it feeds can read it
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return False
+    try:
+        saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        hosts = {t: h for t, h in list(saved.get("hosts", {}).items())[-MAX_TARGETS:] if isinstance(t, str) and sound(t, h)}
+        last = saved.get("last")
+        last = last if isinstance(last, dict) and number(last.get("finished")) and all(
+            isinstance(last.get(k), list) and all(isinstance(x, str) for x in last[k]) for k in ("targets", "hosts")) else None
+        return {"hosts": hosts, "checked": last}
+    except (OSError, ValueError, AttributeError):
+        return {"hosts": {}, "checked": None}
 
 
 def watch_runs(home):
@@ -588,8 +682,8 @@ def build(home):
     r = Readiness(home)
     routes = {("GET", "/api/status"): r.status, ("POST", "/api/setup"): r.setup,
               ("POST", "/api/projects/register"): r.register, ("POST", "/api/projects/github"): r.github, ("POST", "/api/projects/import"): r.import_cbom, ("POST", "/api/projects/owners"): r.owners, ("POST", "/api/settings/deadlines"): r.deadlines, ("POST", "/api/github/token"): r.token, ("GET", "/api/projects/status"): r.project_status,
-              ("POST", "/api/projects/select"): r.select, ("POST", "/api/projects/scan"): r.scan, ("POST", "/api/projects/cancel"): r.stop, ("POST", "/api/projects/track"): r.track,
-              ("GET", "/api/endpoints/status"): r.endpoint_status, ("POST", "/api/endpoints/scan"): r.endpoint_scan,
+              ("POST", "/api/projects/select"): r.select, ("POST", "/api/projects/remove"): r.remove, ("POST", "/api/projects/scan"): r.scan, ("POST", "/api/projects/cancel"): r.stop, ("POST", "/api/projects/track"): r.track,
+              ("GET", "/api/endpoints/status"): r.endpoint_status, ("POST", "/api/endpoints/scan"): r.endpoint_scan, ("POST", "/api/endpoints/forget"): r.endpoint_forget,
               ("POST", "/api/endpoints/cbom"): r.endpoint_cbom, ("POST", "/api/projects/csv"): r.project_csv,
               ("POST", "/api/projects/scan-all"): r.scan_all, ("POST", "/api/projects/github-org"): r.github_org, ("GET", "/api/overview"): r.overview, ("GET", "/api/coverage"): r.coverage, ("POST", "/api/endpoints/csv"): r.endpoint_csv}
     return core.App(page(), routes, limits={("POST", "/api/projects/import"): 16_000_000, ("POST", "/api/projects/owners"): 2_000_000})  # a CBOM can be large; read only after sign-in
