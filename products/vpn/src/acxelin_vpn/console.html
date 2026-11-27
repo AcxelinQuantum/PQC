@@ -213,11 +213,11 @@ async function healthView() {
     let d; try { d = await call("health"); } catch (e) { return; }
     const tone = {ok: "ok", warn: "warn", fail: "bad"}, label = {ok: "OK", warn: "Warning", fail: "Problem"};
     out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", "What to do"].map((c) => h("th", {}, c)))),
-      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, ...acxText(c.message)), h("td", {}, ...acxText(c.action))))))));
+      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, ...acxText(c.message.charAt(0).toUpperCase() + c.message.slice(1))), h("td", {}, ...acxText(c.action))))))));
   };
   $("#panel").replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run the console and its certificate authority, whether the certificate authority is in good shape, and whether every site and gateway answers."),
     h("p", {class: "legend", id: "ca-folder"}, ...acxText("Certificate authority folder: `" + state.status.ca_dir + "`. Command-line `ca` and `invite` commands use it with `--dir \"" + state.status.ca_dir + "\"`.")),
-    h("div", {class: "row", style: "margin-bottom:18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);
+    h("div", {class: "row", style: "margin:16px 0 18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);
   await run();
 }
 

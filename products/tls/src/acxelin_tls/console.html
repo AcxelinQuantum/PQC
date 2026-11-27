@@ -477,7 +477,7 @@ async function settingsView() {
     let d; try { d = await call("health"); } catch (e) { return; }
     const tone = {ok: "ok", warn: "warn", fail: "bad"}, label = {ok: "OK", warn: "Warning", fail: "Problem"};
     health.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", "What to do"].map((c) => h("th", {}, c)))),
-      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {"data-label": "Result"}, h("span", {class: "pill " + tone[c.level]}, label[c.level])), h("td", {"data-label": "Check"}, c.message), h("td", {"data-label": "What to do"}, c.action || (c.level === "ok" ? "" : "See the manual"))))))));
+      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {"data-label": "Result"}, h("span", {class: "pill " + tone[c.level]}, label[c.level])), h("td", {"data-label": "Check"}, c.message.charAt(0).toUpperCase() + c.message.slice(1)), h("td", {"data-label": "What to do"}, c.action || (c.level === "ok" ? "" : "See the manual"))))))));
   };
   const url = h("input", {type: "text", id: "edge-url", placeholder: "http://10.0.0.7:9100", autocomplete: "off", "aria-describedby": "edge-url-hint"});
   const otherMsg = alertBox();
