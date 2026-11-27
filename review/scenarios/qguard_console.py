@@ -1,5 +1,4 @@
 ﻿"""QGuard + QCertificate: website pages, then the console as a new customer, screenshotting every screen."""
-import json
 import shutil
 import sys
 import time
@@ -8,7 +7,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
-from harness import REPO, Console, run, shot  # noqa: E402
+from harness import REPO, Console, shot  # noqa: E402
 
 HOMES = Path(__file__).parent / "homes"
 home = HOMES / "qguard"

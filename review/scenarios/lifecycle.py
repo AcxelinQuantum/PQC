@@ -1,7 +1,6 @@
 """QCertificate beyond the console: EST enrollment, OCSP stapling, CRL publishing with crl_url, exports. Prints each command and result."""
 import subprocess
 import sys
-import time
 import urllib.request
 from pathlib import Path
 

@@ -2,7 +2,6 @@
 And which certificate does each kind of client receive?"""
 import base64
 import hashlib
-import json
 import socket
 import ssl
 import sys
