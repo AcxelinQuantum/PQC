@@ -203,6 +203,98 @@ def test_health_lists_each_check_with_what_to_do(app):
     assert any("CA VPN Root" in c["message"] or "CN=VPN Root" in c["message"] for c in d["checks"])
 
 
+def test_health_on_the_administrators_machine_gives_only_advice_that_applies(app, home, monkeypatch):
+    """V5: no WireGuard, desktop-app or pip advice on the machine the console runs on, and every problem says what to do."""
+    from acxelin_vpn import checks
+    monkeypatch.setattr(checks.shutil, "which", lambda name: None)
+    monkeypatch.setattr(checks, "_have", lambda module: False)
+    rows = app("health")[1]["checks"]
+    text = json.dumps(rows)
+    assert "pip install" not in text and "WireGuard" not in text and "desktop app" not in text and "IPsec" not in text, text
+    assert app("services/add", {"kind": "site", "name": "gone", "url": "http://127.0.0.1:1"})[0] == 200
+    (home / "ca" / "crl.pem").unlink(missing_ok=True)
+    rows = app("health")[1]["checks"]
+    fails = [r for r in rows if r["level"] == "fail"]
+    assert len(fails) >= 2 and all(r["action"].strip() for r in fails), fails
+    assert app("status")[1]["ca_dir"] == str(home / "ca"), "the console says which CA folder it uses"
+
+
+def test_people_lists_pending_invitations_and_cancels_one(app, home):
+    """V10: an invitation shows as pending until it is used, and the administrator can cancel it."""
+    from acxelin_core.pki.est import create_token
+    unlocked(app)
+    assert app("people/settings", {"enroll": "https://ca.example:9443", "gateway": "vpn.example:7444"})[0] == 200
+    code, data, _ = app("people/invite", {"name": "carol", "hours": 2}, raw=True)
+    assert code == 200
+    ca = CA(home / "ca", PASS.encode())
+    create_token(ca, "dave", "client", hours=-1)  # expired: not pending any more
+    create_token(ca, "enroll.example", "server")  # not a person's invitation
+    d = app("people")[1]
+    assert [p["name"] for p in d["pending"]] == ["carol"], d["pending"]
+    carol = d["pending"][0]
+    assert carol["invited"] and carol["expires"] and carol["id"]
+    assert join.parse(data)["token"].split(".", 1)[1] not in json.dumps(d), "the token's secret never goes back to the browser"
+    assert app("people/cancel", {"id": "nope"})[0] == 400
+    code, r = app("people/cancel", {"id": carol["id"]})
+    assert code == 200 and r["cancelled"] == "carol"
+    d = app("people")[1]
+    assert d["pending"] == [] and any(a["action"] == "cancel invitation" and a["name"] == "carol" for a in d["activity"])
+    assert app("people/cancel", {"id": carol["id"]})[0] == 400, "a cancelled invitation cannot be cancelled again"
+
+
+@pytest.mark.skipif(bool(REASON), reason=REASON or "")
+def test_an_enrollment_with_a_cancelled_invitation_is_refused(app, home, tmp_path):
+    """V10, the attack: someone holding a cancelled invitation tries to enroll with it anyway."""
+    from acxelin_core.pki import est
+    unlocked(app)
+    ca = CA(home / "ca", PASS.encode())
+    ca.issue("localhost", "server", out=tmp_path / "enroll")
+    srv = est.serve(home / "ca", "127.0.0.1:0", tmp_path / "enroll" / "chain.pem", tmp_path / "enroll" / "key.pem", PASS.encode())
+    srv.start()
+    try:
+        assert app("people/settings", {"enroll": f"https://localhost:{srv.port}", "gateway": "vpn.example:7444"})[0] == 200
+        data = app("people/invite", {"name": "carol"}, raw=True)[1]
+        (tmp_path / "carol.acxinvite").write_bytes(data)
+        assert app("people/cancel", {"id": app("people")[1]["pending"][0]["id"]})[0] == 200
+        inv = join.read(tmp_path / "carol.acxinvite")
+        with pytest.raises(ValueError, match="cancelled"):
+            join.enroll(inv, tmp_path / "carol", tmp_path / "carol.acxinvite", b"device passphrase")
+        assert not (tmp_path / "carol" / "cert.pem").exists()
+        assert not [r for r in CA(home / "ca").records() if r.common_name == "carol"], "nothing was signed"
+    finally:
+        srv.stop(1)
+
+
+def test_a_revoked_site_shows_as_revoked_and_the_console_revokes_sites(app, home):
+    """V7: revoking a site from the console is the CA revocation the command line does, and Sites then says revoked."""
+    from cryptography import x509
+    ca = CA(home / "ca", PASS.encode())
+    _, rec = ca.issue("branch.acme", "site", ["10.0.0.2"], out=home / "branch")
+    up = {"initiate": True, "keys_age_s": 3, "certificate": rec.serial,
+          "tunnel": {"peer": "branch.acme", "state": "ESTABLISHED", "key_exchange": "CURVE_25519 + ML_KEM_768", "ppk": True,
+                     "encryption": "AES_GCM_16_256", "established_s": 30, "children": [{"name": "net", "state": "INSTALLED"}]}}
+    state = {"branch.acme": up}
+    site = Status(lambda: state)
+    assert app("services/add", {"kind": "site", "name": "hq", "url": site.url})[0] == 200
+    t = app("sites")[1]["sites"][0]["tunnels"][0]
+    assert t["protected"] and not t["revoked"] and t["certificate"]["status"] == "valid"
+    code, e = app("sites/revoke", {"name": "branch.acme"})
+    assert code == 400 and "locked" in e["error"]
+    unlocked(app)
+    assert app("sites/revoke", {"name": "nobody.acme"})[0] == 400
+    code, r = app("sites/revoke", {"name": "branch.acme"})
+    assert code == 200 and r["revoked"] == 1
+    assert CA(home / "ca").find(rec.serial).status == "revoked"
+    crl = x509.load_pem_x509_crl((home / "ca" / "crl.pem").read_bytes())
+    assert crl.get_revoked_certificate_by_serial_number(int(rec.serial, 16)) is not None, "gateways see it in the CRL"
+    state["branch.acme"] = {"initiate": True, "keys_age_s": None, "tunnel": None}  # the site cut the tunnel; it no longer reports the certificate
+    t = app("sites")[1]["sites"][0]["tunnels"][0]
+    assert t["revoked"] and t["certificate"]["status"] == "revoked" and not t["protected"]
+    acts = [{k: v for k, v in a.items() if k != "time"} for a in app("people")[1]["activity"]]
+    assert {"action": "revoke", "name": "branch.acme", "kind": "site", "certificates": 1} in acts
+    assert app("sites/revoke", {"name": "branch.acme"})[0] == 400, "nothing valid is left to revoke"
+
+
 @pytest.mark.parametrize("headers,status", [
     ({"Authorization": ""}, 401), ({"Authorization": "Bearer wrong"}, 401),
     ({"Host": "evil.example"}, 421), ({"Origin": "http://evil.example"}, 403), ({"Sec-Fetch-Site": "cross-site"}, 403),

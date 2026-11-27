@@ -1,6 +1,6 @@
 """Who did what, in an owner-only `audit.jsonl`: invitations and revocations next to the certificate authority (from the command
 line or the console), kill-switch changes on each computer. `recent` merges in the enrollment service's own log. Callers pass
-names, serials and reasons only; never a token, key or passphrase."""
+names, serials, reasons and an invitation's public token id (kept out of `recent`); never a token's secret, a key or a passphrase."""
 import json
 import threading
 from collections import deque
@@ -43,6 +43,11 @@ def _when(x):
         return datetime.fromisoformat(str(x.get("time", "")).replace("Z", "+00:00")).astimezone(timezone.utc)
     except ValueError:
         return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def invitations(ca_dir, n=5000):
+    """The invitations recorded with their token id, so pending ones can say when they were made."""
+    return [e for e in _read(Path(ca_dir) / LOG, n) if e.get("action") == "invite" and e.get("token")]
 
 
 def recent(ca_dir, n=15):
