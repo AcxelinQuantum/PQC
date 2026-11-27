@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased
+
+- Changed: no more 0 to 100 readiness score. An average of priorities rose whenever harmless cryptography was added. The
+  terminal, the report, the console's projects, Overview and board summary now lead with the **things to fix now**: the
+  critical and high findings outside test code, with how many of each, and its trend over the last scans. Endpoints no longer
+  show a score either. Kept for tools that read them, with their meaning unchanged and no longer shown: `summary.score` in the
+  console's saved results and `assessment.json`, and `summary.score` in `grade --json` and the endpoint history file. New
+  alongside: `summary.headline` (`fix_now`, a count per priority, `findings`, `test_only`).
+- Changed: one word, *findings*, for what a scan finds. Findings only in test code are counted apart and listed under **Only in
+  tests** in the terminal, the report and the console, never mixed into the things to fix now. The terminal used to list them
+  among the others; `--fail-on` still counts them at their lowered priority, as before. A test compares the console's and the
+  terminal's counts and lists for the same scan.
+- Changed: the terminal's first line no longer shows the pipeline counts (`detectors ... raw -> verify ... -> rank`); `scan
+  --verbose` (new) shows them. The terminal no longer draws ■□ bars, which PowerShell 5.1 showed as boxes. The report's top
+  tiles show the things to fix now, the findings, those only in tests and what was read; "CRQC" and "Mosca" are gone from
+  results and help, replaced by "a quantum computer able to break today's public-key cryptography". `scan --help` describes
+  the command in plain words. A `--fail-on` failure says `finding(s)` instead of `asset(s)`.
+- Fixed: a TLS certificate this computer cannot verify no longer reads "a private CA, or a TLS-inspecting proxy". The result
+  says "This computer couldn't verify the certificate" with OpenSSL's reason (`certificate has expired`, `unable to get local
+  issuer certificate`, ...) and, for an expired certificate in a path whose server certificate is valid, that this computer's
+  trust store is the likely cause. Endpoint results carry the reason as `trust_error` and `trust_code`. A TLS-inspecting proxy
+  is named only when two or more hosts all answer with a certificate from one issuer this computer has no root for.
+- Breaking for scripts: `grade` exits 3 when any endpoint could not be reached or graded (it exited 0). Every result is still
+  printed and written first. `python -m acxelin_readiness` now exits with the command's status, as `acxelin-qreadiness` does.
+- Fixed: a missing input file is named in plain words (`hosts.txt does not exist`) instead of `[Errno 2] ...`.
+- Changed in the console's CSV: the Status column uses the words the page shows (`To do`, `In progress`, `Accepted risk`)
+  instead of `open`, `in_progress`, `exception`. The tracking API and the saved workspace keep the old values.
+- Fixed: bcrypt, Argon2 and other libraries with nothing quantum-vulnerable in them are marked "not needed" in the console's
+  library list and the report, and the board no longer asks their suppliers for post-quantum dates.
+- Console: a project can be removed (after confirming; its saved results and tracking go, the repository is not touched), the
+  repositories folder can be changed from the Projects page, and a GitHub link whose first download fails is not kept as a
+  project. Each endpoint keeps its own dated history (`endpoints-hosts.json` in the console's folder, new): a check no longer
+  replaces the hosts it did not check, "what changed" compares a host with its own last result, and a host can be forgotten.
+  Errors from a form appear next to the field, starting with that field's label (the tracking API's messages now do too).
+  "Scan every project" shows which project it is on and a progress bar at once. Times show in the viewer's time zone, with
+  UTC on hover. The page fits a 390 px screen without sideways scrolling, and long folder paths wrap. "See the change" is
+  now "Example fix", as the snippet is generic.
+- Docs: the manual no longer tells you to pull the container image, which is not public yet; build it from the source.
+
 ## 1.4.0
 
 - Renamed: Acxelin Readiness is now Acxelin QReadiness. The command and package are `acxelin-qreadiness`; `acxelin-readiness` still works through 1.x and says so on
