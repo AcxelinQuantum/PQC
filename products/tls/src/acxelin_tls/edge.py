@@ -22,6 +22,7 @@ from acxelin_core.http import JSON, METRICS, explain, file_stamp, hostport, serv
 from acxelin_core.server import Router, Server, Stats, is_loopback
 
 from . import policies, shadow
+from .forwarded import Forwarder, Refused
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class Route:
     sni: list = field(default_factory=list)   # server names this route serves when it shares its port with others (exact, or *.example.com)
     alpn: list = field(default_factory=list)  # application protocols this route serves (h2, http/1.1, mqtt, ...)
     ocsp_staple: str = ""  # a file holding a fresh OCSP answer for cert (`ca ocsp` writes it); stapled to clients that ask
+    forwarded_headers: bool = False  # HTTP/1.x services: tell the app the visitor's address, https and host (forwarded.py)
     shared: bool = False  # set from the configuration: this route is chosen per connection by sni and alpn on a port it shares
 
     def passphrase(self):
@@ -88,6 +90,8 @@ class Route:
             raise ValueError(f"{self.name}: a fallback certificate is for terminate routes with policy = \"transition\" (or shadow = true)")
         if self.crl_url and not (self.mode == "terminate" and self.crl and self.ca):
             raise ValueError(f"{self.name}: crl_url needs a terminate route with crl (where the copy is kept) and ca")
+        if self.forwarded_headers and self.mode != "terminate":
+            raise ValueError(f"{self.name}: forwarded_headers is for terminate routes in front of a web app: it tells the app who is visiting")
         if self.ocsp_staple and self.mode != "terminate":
             raise ValueError(f"{self.name}: ocsp_staple is for terminate routes: it is the answer about this edge's own certificate")
         if self.crl_every < 5:
@@ -104,10 +108,11 @@ class Route:
         policies.policy(self.policy)
 
 
-def pump(conn, raw, idle_timeout, first_data_timeout=None):
+def pump(conn, raw, idle_timeout, first_data_timeout=None, forward=None):
     """Copy bytes both ways between a TLS connection and a plain socket until either side closes or goes idle. A peer that
     stops reading for a while (a slow link, a paused phone) gets the idle timeout too, not the short handshake deadline. Until
-    either side sends something, the wait is `first_data_timeout`: a slot held by a connection that never speaks is freed soon."""
+    either side sends something, the wait is `first_data_timeout`: a slot held by a connection that never speaks is freed soon.
+    With `forward` (a forwarded.Forwarder), what the client sends passes through it; it raises Refused for a bad request."""
     raw.settimeout(idle_timeout)
     conn.timeout = idle_timeout
     wait = readable(conn.sock, raw)
@@ -121,6 +126,8 @@ def pump(conn, raw, idle_timeout, first_data_timeout=None):
             data = conn.recv(wait=False)
             if data == b"":
                 return
+            if data and forward:
+                data = forward.from_client(data)
             if data:
                 raw.sendall(data)
         if raw in ready:
@@ -128,6 +135,8 @@ def pump(conn, raw, idle_timeout, first_data_timeout=None):
             if not data:
                 return
             conn.sendall(data)
+            if forward and (released := forward.from_server(data)):
+                raw.sendall(released)
 
 
 def readable(*socks):
@@ -265,7 +274,13 @@ class Edge:
         with up:
             if r.proxy_protocol:
                 up.sendall(proxy_header(addr, conn.sock.getsockname()))
-            pump(conn, up, r.idle_timeout, r.first_data_timeout)
+            forward = Forwarder(addr[0][7:] if addr[0].startswith("::ffff:") and "." in addr[0] else addr[0]) if r.forwarded_headers else None
+            try:
+                pump(conn, up, r.idle_timeout, r.first_data_timeout, forward)
+            except Refused as e:
+                self.stats.add("forwarded_refused")
+                log.warning("%s: refused a request from %s: %s", r.name, addr[0], e)
+                conn.sendall(e.response)
 
     def client_context(self):
         """The originate context, rebuilt when its certificate, key or CA changed (renewals need no restart)."""
