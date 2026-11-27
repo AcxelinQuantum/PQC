@@ -350,6 +350,34 @@ class Edge:
             self.listener.close()
 
 
+def render_config(routes, metrics):
+    """The settings file for `routes` (and the [metrics] listen address), in the format load_config reads. Settings left at
+    their defaults are left out; comments in a file this replaces are not kept."""
+    from dataclasses import MISSING, fields
+
+    def value(v):
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, (int, float)):
+            return repr(v)
+        if isinstance(v, list):
+            return "[" + ", ".join(value(x) for x in v) + "]"
+        return json.dumps(str(v), ensure_ascii=False)  # a TOML basic string: the same escapes as JSON
+
+    out = ["# Acxelin QGuard settings: the protected services the QGuard service runs. The console writes this file;",
+           "# you can edit it too (comments are not kept when the console saves it). The running service applies changes."]
+    if metrics:
+        out += ["", "[metrics]", f"listen = {value(metrics)}"]
+    for r in routes:
+        out += ["", "[[edge]]"]
+        for f in fields(Route):
+            v = getattr(r, f.name)
+            default = f.default if f.default is not MISSING else f.default_factory() if f.default_factory is not MISSING else MISSING
+            if f.name != "shared" and (f.name in ("name", "mode", "listen", "target") or v != default):
+                out.append(f"{f.name} = {value(v)}")
+    return "\n".join(out) + "\n"
+
+
 def load_config(path):
     """Read and check [[edge]] routes from a TOML file."""
     doc = read_toml(path)

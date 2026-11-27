@@ -39,6 +39,11 @@ def _load_tokens(root):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
 
 
+def list_tokens(root):
+    """The enrollment tokens made for this CA, without the hash of their secret: name, kind, names, expiry and when used."""
+    return [{k: v for k, v in t.items() if k != "hash"} for t in _load_tokens(root)]
+
+
 def create_token(ca, common_name, kind, names=(), hours=24):
     """A one-time enrollment token for exactly this name. Returns the only copy of the secret."""
     if kind not in USAGE:
