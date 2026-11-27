@@ -126,7 +126,7 @@ Final runs on the branch, each product's suite on its own as CLAUDE.md says.
 | Windows 11 | QReadiness, website | 822 passed, 3 skipped, 3 failed: the symlink tests, because Windows Developer Mode is off on this machine (creating a symlink needs it) |
 | Windows 11 | QVPN | 306 passed, 21 skipped (tunnels need root or Linux) |
 | WSL Ubuntu 26.04 as root, OpenSSL 3.5.5 | core, QGuard, tools | 608 passed, 16 skipped, 0 failed |
-| GitHub Actions (Ubuntu, Windows, macOS; Python 3.11 and 3.14) | every workflow | 49 of 50 jobs passed; Windows 3.11 failed `test_http_guard.py::GuardTest::test_one_network_gets_its_share_and_no_more` because Windows reported the server's refusal as "aborted" (WinError 10053) rather than "reset". The test now counts both as refused; a connection left open still fails it |
+| GitHub Actions (Ubuntu, Windows, macOS; Python 3.11 and 3.14) | every workflow | 49 of 50 jobs passed; Windows 3.11 failed `test_http_guard.py::GuardTest::test_one_network_gets_its_share_and_no_more` because Windows reported the server's refusal as "aborted" (WinError 10053) rather than "reset". The test now counts both as refused; a connection left open still fails it. The rerun then failed Windows 3.14 on `test_short_lived_cli.py::test_issue_for_a_number_of_hours_and_say_how_often_to_renew`: a 24-hour certificate came out at 86399 s because issuing read the clock twice. Fixed in core, with `test_ca.py::CATest::test_a_lifetime_is_exact_even_when_the_clock_ticks_while_issuing` |
 
 ## What was not tested, and why
 
