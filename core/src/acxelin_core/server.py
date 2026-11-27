@@ -20,6 +20,8 @@ from .openssl import TLSError
 log = logging.getLogger(__name__)
 
 
+DISTRUST = ("alert certificate unknown", "alert unknown ca", "alert bad certificate", "alert unsupported certificate",
+            "alert certificate expired", "alert certificate revoked")  # alerts a client sends when it rejects our certificate
 HINTS = {  # OpenSSL's words for the two ways a client without post-quantum support is refused
     "no shared signature algorithms": " (the client does not offer compatible ML-DSA signatures: use policy transition with a "
                                       "fallback certificate)",
@@ -509,6 +511,11 @@ class Server:
                 if any(x in str(e) for x in ("Broken pipe", "Connection reset")):
                     self.stats.add("client_left")
                     log.info("%s: %s closed the connection during the handshake", self.name, peer)
+                    return
+                if any(x in str(e) for x in DISTRUST):  # the client's verdict on our certificate, not ours on the client
+                    self.stats.add("client_distrusts_certificate")
+                    self._warn(addr[0], "distrusts", f"{peer} does not trust this server's certificate ({e}): it does not trust the "
+                               "authority that issued it, or the certificate is expired or for another name")
                     return
                 self.stats.add("handshake_failed")
                 hint = next((h for k, h in HINTS.items() if k in str(e)), "")

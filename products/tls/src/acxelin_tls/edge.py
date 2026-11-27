@@ -211,6 +211,13 @@ class Edge:
             if r.shadow:
                 log.warning("%s: shadow mode: nothing is refused for policy %s; clients it would refuse are served and reported "
                             "(set shadow = false to enforce)", r.name, r.policy)
+            from .checks import browser_setup, expiry
+            for what, path in (("certificate", r.cert), ("public certificate (fallback_cert)", r.fallback_cert)):
+                found = expiry(path, what) if path else None
+                if found:
+                    log.warning("%s: %s", r.name, found[1])
+            if (found := browser_setup(r.policy, r.fallback_cert, r.shadow)) and found[0] == "warn":
+                log.warning("%s: %s", r.name, found[1])
         else:
             self.watch = [p for p in (r.ca, r.cert, r.key) if p]
             self.stamps = [file_stamp(p) for p in self.watch]

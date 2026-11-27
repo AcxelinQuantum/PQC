@@ -121,6 +121,17 @@ class TLSTest(unittest.TestCase):
         with self.assertRaisesRegex(tls.TLSError, "certificate rejected"):
             self.roundtrip(s.port, self.client(ca=self.stranger.root / "ca.crt"))
 
+    def test_a_client_that_distrusts_the_certificate_is_counted_apart_from_clients_the_server_refuses(self):
+        s = self.server()
+        with self.assertLogs("acxelin_core", "WARNING") as logs:
+            with self.assertRaises(tls.TLSError):
+                self.roundtrip(s.port, self.client(ca=self.stranger.root / "ca.crt"))
+            wait(lambda: "client_distrusts_certificate" in s.stats.snapshot())
+        snap = s.stats.snapshot()
+        self.assertEqual(snap.get("client_distrusts_certificate"), 1)
+        self.assertNotIn("handshake_failed", snap)
+        self.assertIn("does not trust this server's certificate", logs.output[0])
+
     def test_mutual_tls(self):
         s = self.server(mtls=True)
         info, reply = self.roundtrip(s.port, self.client(self.alice))
