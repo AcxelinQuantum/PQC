@@ -11,6 +11,10 @@ from acxelin_core.pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, en
 from . import audit
 
 CA_PASS_ENV = "ACXELIN_VPN_CA_PASSPHRASE"
+# One statement of how long a revocation takes, for the CLI and the console (the README and manual say the same).
+REVOCATION = ("A gateway that reads this crl.pem cuts the site's tunnel or the person's WireGuard peer within 15 seconds; one that "
+              "fetches it with crl_url needs up to crl_every (60 s by default) more, and others need a copy. A revoked person's app "
+              "shows it at its next key renewal, within 2 minutes.")
 
 
 def ca_passphrase(root, new=False):
@@ -29,12 +33,33 @@ def ca_passphrase(root, new=False):
     return p1
 
 
+def console_home():
+    return Path(os.environ.get("ACXELIN_VPN_HOME") or Path.home() / ".acxelin-vpn" / "console")
+
+
+def consoles_ca(a):
+    """The console's CA folder when this command uses the default `./pki`, which is not here, and the console has a CA; else None.
+    The default stays `pki` (decision 8): this only says where the other one is."""
+    there = console_home() / "ca"
+    return there if a.dir == "pki" and not Path("pki/ca.crt").exists() and (there / "ca.crt").exists() else None
+
+
+def require_ca(a):
+    there = consoles_ca(a)
+    if there:
+        raise ValueError(f"there is no certificate authority in ./pki; the console's is in {there}: add --dir \"{there}\" to use it")
+
+
 def cmd_ca(a):
     if a.ca_cmd == "init":
+        there = consoles_ca(a)
         ca = CA.init(a.dir, a.name, a.algorithm, a.days, None if a.no_encrypt else ca_passphrase(a.dir, new=True))
         print(f"created {ca.algorithm} root '{a.name}' in {a.dir}; gateways and people trust {ca.anchor}, gateways check {Path(a.dir) / 'crl.pem'}\n"
               f"next: acxelin-qvpn ca issue site GATEWAY-NAME --san ADDRESS --dir {a.dir}")
+        if there:
+            print(f"note: this is a second CA; the console's is in {there}. To issue from that one instead, use --dir \"{there}\".")
         return 0
+    require_ca(a)
     ca = CA(a.dir, None if a.ca_cmd == "list" else ca_passphrase(a.dir))
     if a.ca_cmd == "issue":
         out, r = ca.issue(a.common_name, a.kind, a.san, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
@@ -44,8 +69,7 @@ def cmd_ca(a):
         ca.revoke(a.serial, a.reason)
         r = ca.find(a.serial)
         audit.record(a.dir, "revoke", name=r.common_name, serial=r.serial, reason=a.reason)
-        print(f"revoked {r.serial}; {Path(a.dir) / 'crl.pem'} updated. Gateways following it with crl_url cut the "
-              f"tunnel within a minute; copy it to any others")
+        print(f"revoked {r.serial}; {Path(a.dir) / 'crl.pem'} updated. {REVOCATION}")
     elif a.ca_cmd == "crl":
         ca.crl(a.days)
         print(f"wrote {Path(a.dir) / 'crl.pem'}")
@@ -84,7 +108,9 @@ def add(sub, common):
                    help=f"leave the CA key unencrypted (by default it is encrypted, passphrase from {CA_PASS_ENV} or a prompt)")
     p = ca.add_parser("issue", parents=[common], help="issue a key and certificate for a gateway, a site or a person",
                       epilog="example: acxelin-qvpn ca issue site hq.example --san 198.51.100.1 --dir pki --out hq")
-    p.add_argument("kind", choices=["site", "server", "client"], help="site: an IPsec gateway (both ends); server: the WireGuard gateway; client: a person")
+    p.add_argument("kind", choices=["site", "server", "client"],
+                   help="site: an IPsec gateway (both ends); server: a service people's computers connect to, the WireGuard gateway or "
+                        "the enrollment service (ca serve); client: a person")
     p.add_argument("common_name", help="the gateway, site or person it certifies")
     p.add_argument("--san", action="append", default=[], help="DNS name or IP (repeatable)")
     p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")

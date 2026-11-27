@@ -81,24 +81,55 @@ def axe(page):
     return page.evaluate(AXE.read_text() + ";axe.run().then(r=>r.violations.map(v=>v.id+': '+v.help))")
 
 
+def closed(page, why=None):
+    """V9: without a working launch link the window shows a short page that says where to open it, and no set-up screen."""
+    expect(page.get_by_role("heading", name="Open Acxelin QVPN from its tray icon")).to_be_visible()
+    expect(page.locator("#closed")).to_contain_text("acxelin-qvpn app")
+    if why:
+        expect(page.locator("#closed")).to_contain_text(why)
+    for hidden in ("#word", "#setup", "#form", "#invite"):
+        expect(page.locator(hidden)).to_be_hidden()
+
+
 def test_without_a_valid_one_time_address_the_window_shows_no_state(browser, window):
     w, base = window
     page = browser.new_page()
     page.goto(base)
-    expect(page.locator("#error")).to_contain_text("tray icon, or the address printed by acxelin-qvpn app")
+    closed(page)
+    assert axe(page) == []
     page.goto("about:blank")
     page.goto(base + "#wrong")
-    expect(page.locator("#error")).to_contain_text("already used or has expired")
+    closed(page, "already used or has expired")
     page.goto("about:blank")
     once = base + "#" + w.ticket()
     page.goto(once)
     expect(page.locator("#word")).to_have_text("Not set up")
+    expect(page.locator("header .tag")).to_have_text("Acxelin QVPN")
     other = browser.new_page()
     other.goto(once)
-    expect(other.locator("#error")).to_contain_text("already used")
+    closed(other, "already used")
     assert axe(page) == []
     page.close()
     other.close()
+
+
+def test_a_wrong_file_says_what_happened_and_what_to_do_and_it_stays_said(browser, window, tmp_path):
+    """V4: the page keeps polling; the error must not vanish with the next poll."""
+    w, base = window
+    wrong = tmp_path / "holiday.png"
+    wrong.write_bytes(b"\x89PNG\r\n\x1a\n not an invitation")
+    page = browser.new_page()
+    page.goto(base + "#" + w.ticket())
+    expect(page.locator("#word")).to_have_text("Not set up")
+    page.set_input_files("#invite", str(wrong))
+    error = page.locator("#error")
+    expect(error).to_contain_text("holiday.png is not an Acxelin QVPN invitation")
+    expect(error).to_contain_text("administrator")
+    page.wait_for_timeout(4500)  # two polls later
+    expect(error).to_contain_text("holiday.png is not an Acxelin QVPN invitation")
+    expect(page.locator("#setup")).to_be_visible()
+    assert axe(page) == []
+    page.close()
 
 
 def test_open_an_invitation_enroll_connect_disconnect(browser, window, invitation):
@@ -116,6 +147,13 @@ def test_open_an_invitation_enroll_connect_disconnect(browser, window, invitatio
             expect(page.locator("#word")).to_have_text("Not set up")
             page.set_input_files("#invite", str(invitation))
             expect(page.locator("#inv-name")).to_have_text("laptop.acxinvite")
+            expect(page.locator("#form")).to_contain_text(f"At least {join.MIN_PASSPHRASE} characters")
+            page.fill("#pass", "short")
+            page.fill("#repeat", "short")
+            page.click("#connect")
+            expect(page.locator("#error")).to_contain_text(f"at least {join.MIN_PASSPHRASE} characters")
+            kept = invitation.parent / "vpn" / "laptop.acxinvite"
+            assert "token" in kept.read_text() and not list(kept.parent.glob("*/key.pem")), "the invitation is still unused"
             page.fill("#pass", "device pass")
             page.fill("#repeat", "something else")
             page.click("#connect")
@@ -170,6 +208,7 @@ def test_the_window_tour(browser, window):
     page.goto(base + "#" + w.ticket())
     card = page.locator(".tour-card")
     expect(card).to_contain_text("Step 1 of 6")
+    expect(card).not_to_contain_text(re.compile(r"\b(Two|Three|Four|Five|Seven|Eight) short steps"))
     assert page.evaluate(AXE.read_text() + ";axe.run('.tour-card').then(r=>r.violations.map(v=>v.id))") == []
     page.click(".tour-card .go")
     expect(card).to_contain_text("Step 2 of 6")

@@ -8,11 +8,23 @@ import shutil
 from pathlib import Path
 
 from acxelin_core.files import write
-from acxelin_core.http import hostport
+from acxelin_core.http import explain, hostport
 from . import platforms
 
 FIELDS = ("acxelin_invite", "name", "enroll", "ca_fingerprint", "gateway", "server_name", "expires", "keep_minutes")
 MAX_KEEP = 1440  # a day: the longest a laptop may stay on its last key while renewal fails
+MIN_PASSPHRASE = 8  # a new device key's passphrase; keys enrolled earlier still open with theirs
+
+
+def new_passphrase(passphrase):
+    """Refuse a passphrase too short for a new device key, before the invitation's one-time token is used."""
+    if len(passphrase or b"") < MIN_PASSPHRASE:
+        raise ValueError(f"choose a passphrase of at least {MIN_PASSPHRASE} characters for this computer's key; nothing was changed")
+
+
+def token_id(data):
+    """The public half of an invitation's token, which the CA's tokens.json and the audit log know it by (never the secret)."""
+    return json.loads(data)["token"].partition(".")[0]
 
 
 def parse(text, where="this file"):
@@ -22,7 +34,7 @@ def parse(text, where="this file"):
         inv = None
     if not isinstance(inv, dict) or inv.get("acxelin_invite") != 1 or not all(isinstance(inv.get(k), str) for k in ("name", "enroll", "ca_fingerprint", "gateway")) \
             or not inv["enroll"].startswith("https://") or not re.fullmatch(r"[0-9a-f]{64}", inv["ca_fingerprint"]):
-        raise ValueError(f"{where} is not an Acxelin QVPN invitation; ask your administrator for the .acxinvite file from `acxelin-qvpn invite`")
+        raise ValueError(f"{where} is not an Acxelin QVPN invitation: choose the .acxinvite file your administrator sent, or ask them for a new one")
     hostport(inv["gateway"])
     keep = inv.get("keep_minutes")
     if keep is not None and (type(keep) is not int or not 0 <= keep <= MAX_KEEP):
@@ -101,11 +113,19 @@ def make(ca, name, enroll, gateway, server_name=None, hours=24, keep=None):
 
 def enroll(inv, device, invitation, passphrase):
     """Pin the CA by the invitation's fingerprint, enroll with its one-time token, then remove the used token from the file."""
-    from acxelin_core.pki import est
+    from acxelin_core.pki import CAError, est
     device = Path(device)
-    device.mkdir(parents=True, exist_ok=True)
-    est.fetch_ca(inv["enroll"], inv["ca_fingerprint"], device / "ca.crt")
-    cert = est.enroll(inv["enroll"], inv["token"], inv["name"], (), device, device / "ca.crt", passphrase=passphrase)
+    try:
+        est.fetch_ca(inv["enroll"], inv["ca_fingerprint"], device / "ca.crt")
+        cert = est.enroll(inv["enroll"], inv["token"], inv["name"], (), device, device / "ca.crt", passphrase=passphrase)
+    except OSError as e:
+        raise ValueError(f"could not reach the enrollment service at {inv['enroll']} ({explain(e)}); check this computer's network, "
+                         "or ask your administrator whether it is running") from None
+    except CAError as e:
+        if "said 401" in str(e):
+            raise ValueError("the enrollment service refused this invitation: it was already used, has expired or was cancelled by your "
+                             "administrator; ask them for a new one") from None
+        raise
     write(device / "enroll.url", inv["enroll"].encode())  # where the certificate is renewed before it runs out
     write(Path(invitation), json.dumps({k: inv[k] for k in FIELDS if k in inv}, indent=1).encode(), secret=True)
     give_back(invitation, device)

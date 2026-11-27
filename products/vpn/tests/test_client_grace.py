@@ -111,6 +111,54 @@ def test_a_revoked_laptop_is_always_cut_off_never_degraded(make, reason):
     assert ("revoked" in s["error"]) if reason == "revoked" else ("revocation list" in s["error"])
 
 
+def test_a_revoked_laptop_stops_asking_and_says_what_to_do(make):
+    """V11: a revoked certificate stays revoked, so the laptop stops asking the gateway every minute; the words fit its tunnel."""
+    from acxelin_vpn.cli import describe_vpn
+    asked = []
+
+    def agree():
+        asked.append(1)
+        raise w.Refused("revoked")
+    c, t = make()
+    c.agree = agree
+    for _ in range(3):
+        c.due = 0.0
+        c.step()
+    assert len(asked) == 1 and t.calls == ["down"]
+    s = c.status()
+    assert s["state"] == "not_protected" and "revoked" in s["error"] and s["full_tunnel"] is False
+    text = describe_vpn(s)
+    assert "new invitation" in text and "blocked" not in text and "Retrying" not in text, text
+    c, t = make()
+    c.agree = agree
+    full(c).step()
+    assert "acxelin-qvpn disconnect" in describe_vpn(c.status()), "a full tunnel's kill switch stays on until the person disconnects"
+
+
+def test_a_gateway_that_cannot_read_its_crl_is_still_retried(make):
+    asked = []
+
+    def agree():
+        asked.append(1)
+        raise w.Refused("crl")
+    c, t = make()
+    c.agree = agree
+    for _ in range(2):
+        c.due = 0.0
+        c.step()
+    assert len(asked) == 2
+
+
+def test_a_split_tunnel_that_cannot_reach_the_gateway_names_it_and_does_not_claim_a_block(make):
+    from acxelin_vpn.cli import describe_vpn
+    c, t = make(error=ConnectionRefusedError("refused"), keep_minutes=0)
+    c.step()
+    s = c.status()
+    assert s["state"] == "not_protected" and "gw.example:7443" in s["error"], s["error"]
+    text = describe_vpn(s)
+    assert "Retrying" in text and "blocked" not in text, text
+
+
 def test_renewal_working_again_ends_degraded(make, caplog):
     c, t = make(keep_minutes=15)
     c.step()
