@@ -1,0 +1,67 @@
+[
+ {
+  "check": "first run goes from the CA straight to protecting a service",
+  "ok": true,
+  "seen": ""
+ },
+ {
+  "check": "a website without a public certificate says what browsers will show",
+  "ok": true,
+  "seen": ""
+ },
+ {
+  "check": "QGuard starts from the console",
+  "ok": true,
+  "seen": ""
+ },
+ {
+  "check": "the app receives X-Forwarded-For/Proto/Host and never the client's own",
+  "ok": true,
+  "seen": "X-Forwarded-For: 127.0.0.1 | X-Forwarded-Host: echo.audit.test:63219 | X-Forwarded-Proto: https"
+ },
+ {
+  "check": "WordPress redirects to https, not http (Stage 1: http and ERR_CONNECTION_RESET)",
+  "ok": true,
+  "seen": "302 https://wp.audit.test:63219/wp-admin/install.php"
+ },
+ {
+  "check": "WordPress opens in Chrome through QGuard",
+  "ok": true,
+  "seen": "https://wp.audit.test:63219/wp-admin/install.php 'WordPress \u203a Installation'"
+ },
+ {
+  "check": "a request-smuggling shape gets 400",
+  "ok": true,
+  "seen": "400"
+ },
+ {
+  "check": "watch mode shows who would be refused and why (Stage 1: counted as refused)",
+  "ok": true,
+  "seen": ""
+ },
+ {
+  "check": "enforcement turns on from the console: classical refused, the service stays up",
+  "ok": true,
+  "seen": "classical refused=True, pq=200"
+ },
+ {
+  "check": "a public site is checked like a browser (Stage 1: could not)",
+  "ok": true,
+  "seen": "Connected: quantum-safe key exchange, classical certificate (ECDSA)."
+ },
+ {
+  "check": "connect checks a public site without --ca and names the key",
+  "ok": true,
+  "seen": "       verdict  quantum-safe key exchange, classical certificate (ECDSA)"
+ },
+ {
+  "check": "strict on a public site explains why",
+  "ok": true,
+  "seen": "error: www.google.com offers a post-quantum key exchange (X25519MLKEM768) but a classical certificate (ECDSA); policy strict needs an ML-DSA certificate, which public websites do not have yet. To see "
+ },
+ {
+  "check": "try ends at the console and prints no log lines",
+  "ok": true,
+  "seen": ""
+ }
+]

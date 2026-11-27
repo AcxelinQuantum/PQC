@@ -11,10 +11,13 @@ import urllib.request
 from pathlib import Path
 
 LOCAL = Path(os.environ["LOCALAPPDATA"]) / "Acxelin"
-EXE = {"qguard": LOCAL / "tls/Scripts/acxelin-qguard.exe", "qvpn": LOCAL / "vpn/Scripts/acxelin-qvpn.exe",
-       "qreadiness": LOCAL / "readiness/Scripts/acxelin-qreadiness.exe"}
 REPO = Path(__file__).resolve().parents[2]
-SHOTS = REPO / "review/screenshots/stage1"
+# Stage 1 ran the installed release; Stage 3 runs this checkout: ACXELIN_AUDIT_CHECKOUT=1 uses the repository's .venv
+CHECKOUT = bool(os.environ.get("ACXELIN_AUDIT_CHECKOUT"))
+_bin = {"qguard": "acxelin-qguard", "qvpn": "acxelin-qvpn", "qreadiness": "acxelin-qreadiness"}
+_installed = {"qguard": "tls", "qvpn": "vpn", "qreadiness": "readiness"}
+EXE = {p: (REPO / ".venv/Scripts" if CHECKOUT else LOCAL / _installed[p] / "Scripts") / f"{c}.exe" for p, c in _bin.items()}
+SHOTS = REPO / ("review/screenshots/stage3" if CHECKOUT else "review/screenshots/stage1")
 ENV = os.environ | {"ACXELIN_OPENSSL": os.environ.get("ACXELIN_OPENSSL", r"C:\Program Files\OpenSSL-Win64\bin"), "PYTHONUTF8": "1"}
 DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
