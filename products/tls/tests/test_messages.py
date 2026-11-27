@@ -2,7 +2,6 @@
 import contextlib
 import datetime as dt
 import io
-import os
 import socket
 import tempfile
 import unittest
