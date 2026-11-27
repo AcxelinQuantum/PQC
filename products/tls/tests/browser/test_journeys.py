@@ -262,6 +262,7 @@ def test_a_device_enrolment_token_is_shown_once_and_listed_without_it(page, cons
     assert token not in page.content() and page.get_by_role("cell", name="Unused").is_visible()
 
 
+@needs_openssl
 def test_check_a_connection_explains_a_refusal(page, console):
     open_console(page, console)
     create_ca(page)
