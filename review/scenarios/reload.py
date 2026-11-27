@@ -10,6 +10,7 @@ sc = Path(__file__).parent / "homes/qguard/sc"
 cfg = sc / "edges.toml"
 original = cfg.read_text()
 ctx = ssl.create_default_context(cafile=str(sc.parent / "ca/ca.crt"))
+ctx.minimum_version = ssl.TLSVersion.TLSv1_2
 ctx.check_hostname = False
 result = {}
 

@@ -31,7 +31,7 @@ class H(SimpleHTTPRequestHandler):
             return self.reply(200, {"slept": q.get("s", ["60"])[0]})
         if u.path == "/redirect":  # what a typical app does: an absolute URL built from Host and its own idea of the scheme
             scheme = "https" if self.headers.get("X-Forwarded-Proto") == "https" else "http"
-            return self.reply(302, b"", "text/plain", {"Location": f"{scheme}://{self.headers.get('Host')}/landing"})
+            return self.reply(302, b"", "text/plain", {"Location": f"{scheme}://{(self.headers.get('Host') or '').replace(chr(13), '').replace(chr(10), '')}/landing"})
         if u.path == "/landing":
             return self.reply(200, {"landed": True})
         return super().do_GET()

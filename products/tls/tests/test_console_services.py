@@ -182,7 +182,7 @@ def test_check_a_connection_with_qcertificate_or_public_trust(app, home):
     from acxelin_core.server import Server
     from acxelin_tls import policies
     cert = call(app, "POST", "/api/certificates/issue", {"kind": "server", "common_name": "localhost", "names": ["127.0.0.1"], "days": 30})
-    srv = Server(("127.0.0.1", 0), lambda: tls.server_context(policies.policy("strict"), cert["chain"], cert["key"]), lambda c, a: c.recv(timeout=3))
+    srv = Server(("127.0.0.1", 0), lambda: tls.server_context(policies.policy("strict"), cert["chain"], cert["key"]), lambda c, a: c.recv(timeout=15))  # longer than any client here waits
     srv.start()
     try:
         ok = call(app, "POST", "/api/check", {"target": f"127.0.0.1:{srv.port}", "server_name": "localhost", "trust": "qcertificate"})

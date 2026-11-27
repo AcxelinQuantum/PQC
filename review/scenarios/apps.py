@@ -60,6 +60,7 @@ with sync_playwright() as pw:
 ca = Path(__file__).parent / "homes/qguard/ca/ca.crt"
 for wait in (25, 40):
     c = ssl.create_default_context(cafile=str(ca))
+    c.minimum_version = ssl.TLSVersion.TLSv1_2
     c.check_hostname = False
     s = c.wrap_socket(socket.create_connection(("127.0.0.1", 8443), 5), server_hostname="static.audit.test")
     time.sleep(wait)

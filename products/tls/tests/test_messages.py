@@ -3,6 +3,7 @@ import contextlib
 import datetime as dt
 import io
 import socket
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -119,7 +120,7 @@ class TourTest(Base):
 @unittest.skipIf(REASON, REASON)
 class ConnectTest(Base):
     def site(self, policy_name, cert, key):
-        s = Server(("127.0.0.1", 0), lambda: tls.server_context(policies.policy(policy_name), cert, key), lambda c, a: c.recv(timeout=3))
+        s = Server(("127.0.0.1", 0), lambda: tls.server_context(policies.policy(policy_name), cert, key), lambda c, a: c.recv(timeout=15))  # longer than any client here waits
         s.start()
         self.addCleanup(s.stop, 1)
         return s.port
@@ -152,3 +153,18 @@ class ConnectTest(Base):
     def test_this_computers_public_authorities_can_be_read(self):
         path = tls.public_roots(self.d / "roots.pem")
         self.assertGreater(Path(path).read_text().count("BEGIN CERTIFICATE"), 10)
+
+    def test_public_authorities_kept_as_a_folder_are_read_too(self):
+        """Ubuntu keeps them as one file per authority in /etc/ssl/certs, which Python's ssl does not list."""
+        import ssl
+        folder = self.d / "certs"
+        folder.mkdir()
+        for i in range(3):
+            (self.d / f"s{i}").mkdir()
+            (folder / f"root{i}.pem").write_bytes((classical_site(self.d / f"s{i}") / "ca.crt").read_bytes())
+        (folder / "README").write_text("not a certificate")
+        paths = ssl.DefaultVerifyPaths(None, str(folder), "", "", "", "")
+        with mock.patch("ssl.SSLContext.get_ca_certs", return_value=[]), mock.patch("ssl.get_default_verify_paths", return_value=paths), \
+                mock.patch.dict(sys.modules, {"certifi": None}):
+            path = tls.public_roots(self.d / "roots.pem")
+        self.assertEqual(Path(path).read_text().count("BEGIN CERTIFICATE"), 3)

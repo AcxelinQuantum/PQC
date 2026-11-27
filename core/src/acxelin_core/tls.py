@@ -1,4 +1,5 @@
 """TLS 1.3 contexts and a client helper on top of the OpenSSL bridge. What a peer may negotiate is a `Policy` the caller passes in."""
+import re
 import socket
 from dataclasses import dataclass
 from pathlib import Path
@@ -63,6 +64,20 @@ def public_roots(path):
     import ssl
     ctx = ssl.create_default_context()
     ders = ctx.get_ca_certs(binary_form=True)
+    if not ders:  # roots kept as one file per authority (Ubuntu's /etc/ssl/certs) are not listed by Python's ssl: read them
+        paths = ssl.get_default_verify_paths()
+        files = [Path(f) for f in (paths.cafile, paths.openssl_cafile) if f and Path(f).is_file()]
+        for d in (paths.capath, paths.openssl_capath):
+            if d and Path(d).is_dir():
+                files += sorted(p for p in Path(d).iterdir() if p.is_file())
+        for f in files:
+            try:
+                text = f.read_bytes()
+            except OSError:
+                continue
+            ders += [ssl.PEM_cert_to_DER_cert(m.decode()) for m in
+                     re.findall(rb"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", text, re.S)]
+        ders = list(dict.fromkeys(ders))
     if not ders:
         try:  # where the system store cannot be listed, the usual Python bundle, if it is installed
             import certifi

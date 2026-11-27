@@ -21,6 +21,7 @@ spki = base64.b64encode(hashlib.sha256(leaf.public_key().public_bytes(serializat
 # 1. a classical-only client (Python's ssl, its own OpenSSL, no ML-KEM groups offered): which certificate does it get?
 for port in (8444, 8447, 8443):
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
     try:
         ctx.set_ecdh_curves("X25519:P-256") if hasattr(ctx, "set_ecdh_curves") else None

@@ -25,6 +25,7 @@ for label, mk in [("direct http 127.0.0.1:18080", lambda: http.client.HTTPConnec
 
 def _ctx():
     c = ssl.create_default_context(cafile=str(ca))
+    c.minimum_version = ssl.TLSVersion.TLSv1_2
     c.check_hostname = False
     return c
 

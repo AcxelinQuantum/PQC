@@ -106,6 +106,7 @@ def test_v4_a_wrong_invitation_file_says_what_happened_and_what_to_do(tmp_path):
     assert list(tmp_path.glob("*.acxinvite")) == []
 
 
+@pytest.mark.skipif(__import__("acxelin_core.openssl", fromlist=["available"]).available() is not None, reason="needs OpenSSL 3.5+ (set ACXELIN_OPENSSL)")
 def test_v11_a_failed_enrollment_names_the_address_it_tried(tmp_path):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
