@@ -1,8 +1,8 @@
 # Acxelin QVPN
 
 Post-quantum site-to-site IPsec and WireGuard remote access, with a desktop app. Each tunnel's keys are agreed over TLS 1.3 with
-hybrid ML-KEM and ML-DSA certificates from your own certificate authority, and rotated; a revoked site or person is cut off
-within 15 seconds.
+hybrid ML-KEM and ML-DSA certificates from your own certificate authority, and rotated; a gateway cuts off a revoked site or
+person within 15 seconds of having the new revocation list.
 
 - **Sites:** strongSwan between Linux gateways, hybrid ML-KEM in IKE plus a post-quantum PPK.
 - **People:** a WireGuard gateway, an invitation file per person, and the desktop app for Windows, macOS and Linux.
@@ -18,7 +18,8 @@ internet access, on Linux (x86-64, ARM), Windows (x64) and Apple-silicon Macs:
 3. Unpack it: `tar xzf acxelin-qvpn-1.3.0-wheelhouse.tar.gz`, then `cd acxelin-qvpn-1.3.0-wheelhouse`.
 4. Install: `sh install.sh`, which puts `acxelin-qvpn` on your PATH. On Windows, `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1`.
 
-Gateways use the gateway image or systemd, and people use the desktop app; the manual covers both.
+Gateways use the gateway image, which you build from this repository (`deploy/Dockerfile`), or systemd; people use the desktop
+app. The manual covers all three.
 
 ## First steps
 
@@ -41,6 +42,7 @@ The manual (`docs/manual.md`) covers two sites and a laptop in fifteen minutes, 
 - **macOS: the tray cannot start the VPN service from the Applications folder**, because any administrator account can replace an
   app there. Start it with `sudo acxelin-qvpn app` in Terminal (manual, section 12).
 - A revoked site or person keeps access until their gateway has the new CRL: up to 15 seconds, plus `crl_every` when it is fetched.
+  The revoked person's app learns it at its next key renewal, within 2 minutes, and until then can still say Protected.
 - Tested in Linux network namespaces and on GitHub's Windows and macOS runners, not on your network.
 
 | In this folder | |

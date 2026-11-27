@@ -92,13 +92,16 @@ If OpenSSL 3.5 is in a folder of its own, run `ACXELIN_OPENSSL=/path/to/openssl-
 
 ### A gateway
 
-**With Docker (recommended):** each release publishes a gateway image with strongSwan 6.1, OpenSSL 3.5 and WireGuard's tools. IPsec and WireGuard live in the host's kernel, so the container shares the host's network:
+**With Docker (recommended):** the gateway image has strongSwan 6.1, OpenSSL 3.5 and WireGuard's tools. IPsec and WireGuard live in the host's kernel, so the container shares the host's network. Build the image yourself from the repository at the release's tag, on Linux or macOS (or in WSL), from the repository's root folder:
 
 ```
-docker pull ghcr.io/acxelinquantum/acxelin-qvpn:1.3.0
-docker tag ghcr.io/acxelinquantum/acxelin-qvpn:1.3.0 acxelin-qvpn
+git clone --branch qvpn-v1.3.0 https://github.com/AcxelinQuantum/PQC.git
+cd PQC
+docker build -f products/vpn/deploy/Dockerfile --tag=acxelin-qvpn .
 docker run --rm acxelin-qvpn doctor
 ```
+
+The published copy of the image cannot be pulled yet; build it as above until it can.
 
 **On the host, with systemd:** install strongSwan 6.0.2+ built against OpenSSL 3.5 into `/opt/strongswan` (the gateway image's Dockerfile, `deploy/Dockerfile`, shows the build), then install Acxelin QVPN with its gateway option from the release folder:
 
@@ -216,7 +219,7 @@ The file holds the enrollment address, the CA fingerprint the laptop will trust,
 
 ### Step 6: Alice connects
 
-Alice installs the desktop app (section 3), opens it, chooses **Choose the invitation file**, picks `alice.acxinvite`, chooses a passphrase for this computer's key, and presses **Connect**. Alice's computer asks once for administrator approval, because the VPN changes the computer's network. The window then says **Protected**, and the tray shield turns green.
+Alice installs the desktop app (section 3), opens it, chooses **Choose the invitation file**, picks `alice.acxinvite`, chooses a passphrase for this computer's key (at least 8 characters), and presses **Connect**. Alice's computer asks once for administrator approval, because the VPN changes the computer's network. The window then says **Protected**, and the tray shield turns green.
 
 Without the app, in an administrator terminal: `acxelin-qvpn join alice.acxinvite`. It enrolls (the key is made on the laptop, never leaves it, and is stored encrypted) and connects.
 
@@ -225,8 +228,9 @@ Without the app, in an administrator terminal: `acxelin-qvpn join alice.acxinvit
 | Task | Command |
 |---|---|
 | Open the console | `acxelin-qvpn console` |
-| Invite a person | `acxelin-qvpn invite NAME --dir pki --enroll URL --gateway HOST:PORT` |
-| Revoke a person or a site | `acxelin-qvpn ca revoke SERIAL --dir pki` (serials from `ca list`) |
+| Invite a person | The console's People tab, or `acxelin-qvpn invite NAME --dir pki --enroll URL --gateway HOST:PORT` |
+| See or cancel invitations not used yet | The console's People tab |
+| Revoke a person or a site | The console (People, Sites), or `acxelin-qvpn ca revoke SERIAL --dir pki` (serials from `ca list`) |
 | List what the CA issued | `acxelin-qvpn ca list --dir pki` |
 | Renew what expires soon and refresh the CRL | `acxelin-qvpn ca maintain --dir pki` (daily) |
 | See a site's tunnels | `acxelin-qvpn status --config site.toml` (add `--json`) |
@@ -238,13 +242,21 @@ Without the app, in an administrator terminal: `acxelin-qvpn join alice.acxinvit
 
 Passphrases come from `ACXELIN_VPN_CA_PASSPHRASE` or a prompt, never from the command line.
 
+**Which CA folder.** The commands above use `./pki` unless you give `--dir`. The console keeps its own CA in `~/.acxelin-vpn/console/ca` (its Health tab shows the folder). When there is no `./pki` but the console has a CA, a command says where the console's CA is instead of failing; add `--dir` with that folder to use it. `ca init` still makes `./pki`, and says that this is a second CA.
+
 ### Revoke someone
 
 ```
 acxelin-qvpn ca revoke 763320879c3df003 --dir pki
 ```
 
-The CA re-signs `pki/crl.pem`. A gateway that reads that file cuts the revoked site's tunnel, or removes the revoked person from WireGuard, within 15 seconds. A gateway on another machine needs the new CRL: set `crl_url` in its configuration, and it fetches the list every `crl_every` seconds (60 by default).
+Or, in the console, **Revoke** next to a person (People) or **Revoke site** under a site's tunnel (Sites); both ask once more before they change anything. Either way the CA re-signs `pki/crl.pem`, and then:
+
+| Who notices | How long |
+|---|---|
+| A gateway that reads that `crl.pem` | It cuts the revoked site's tunnel, or removes the revoked person from WireGuard, within 15 seconds (it checks every 15 seconds; measured: 14 s for a person, within 20 s until a site's tunnel closed). |
+| A gateway on another machine | It needs the new CRL: set `crl_url` in its configuration, and it fetches the list every `crl_every` seconds (60 by default), so add up to that. |
+| The revoked person's app, tray and `acxelin-qvpn status` | At the computer's next key renewal, within 2 minutes (`rotate_minutes`; measured: about 68 s). Until then they can still say **Protected**, although the gateway no longer passes the computer's traffic: the computer only learns of the revocation when it next asks for a key. It then says **Not protected**, revoked, and stops asking. |
 
 ### Limit what a person can reach
 
@@ -330,9 +342,9 @@ Your browser opens, already signed in. If there is no certificate authority yet,
 
 | Tab | What you do there |
 |---|---|
-| **Sites** | Add each site gateway by its status address (`metrics` in its `[site]`) to see its tunnels: state, key exchange, encryption, whether the PPK is in use, the last key rotation, traffic and the peer's certificate. |
-| **People** | The first time, say where invitations point: the enrollment service and the gateway. Then invite a person and download their invitation file. Add the WireGuard gateway by its status address to see who is connected now and since when, their traffic, when their key was last renewed, and the gateway's uptime. Revoke a person in two clicks; their session ends at the gateway's next check. |
-| **Health** | Whether this computer can run Acxelin QVPN, whether the CA, its CRL and its certificates are in good shape, and whether every site and gateway answers, each with what to do. |
+| **Sites** | Add each site gateway by its status address (`metrics` in its `[site]`) to see its tunnels: state, key exchange, encryption, whether the PPK is in use, the last key rotation, traffic and the peer's certificate. **Revoke site** revokes a peer site's certificate with the console's CA, as `ca revoke` does; the site then shows **Revoked**. **Remove** only stops the console reading a site. Both ask once more; an unconfirmed click lapses after 6 seconds and says so. |
+| **People** | The first time, say where invitations point: the enrollment service and the WireGuard gateway's key agreement address (port 7444 by default; 7443 is the site-to-site port). Then invite a person and download their invitation file. Invitations not used yet are listed with when they were made; **Cancel** makes one unusable (the enrollment service refuses it). Add the WireGuard gateway by its status address to see who is connected now and since when, their traffic, when their key was last renewed, and the gateway's uptime. Revoke a person in two clicks; the gateway cuts them off within 15 seconds (section 5). |
+| **Health** | Whether this computer can run the console and its CA, whether the CA, its CRL and its certificates are in good shape, and whether every site and gateway answers. Every problem says what to do. It also shows the CA folder, for the command line's `--dir`. |
 
 Invitations and revocations, from the console or the command line, are written to `audit.jsonl` in the CA folder, which only you can read. The People tab shows the latest of them together with enrollments, refused enrollments and renewals from the enrollment service's log beside it. Each gateway keeps its own access history in `audit.jsonl` next to its address leases (connected, new device, refused and why, cut off after a revocation, stopped renewing; not the renewals every few minutes), and the People tab merges it in. No token, key or passphrase is written. Each laptop keeps its own `audit.jsonl` of kill-switch changes in its tunnel folder; the app's connection details and `acxelin-qvpn status --details` show the last one.
 
@@ -348,7 +360,7 @@ Run the second command in that SSH session, then open the address it prints on y
 ## 7. The desktop app
 
 1. A shield appears in the system tray (the Windows taskbar corner, the macOS menu bar, the Linux panel). Green with a tick is **Protected**, amber is **Connecting**, dark amber with an exclamation mark is **Degraded**, red is **Not protected**, grey is disconnected or not set up. Hover over it for the words.
-2. The Acxelin QVPN window opens. The first time, open the invitation file, choose a passphrase for this computer, and press **Connect**. Next time, enter only the passphrase.
+2. The Acxelin QVPN window opens. The first time, open the invitation file, choose a passphrase for this computer (at least 8 characters), and press **Connect**. Next time, enter only the passphrase. A file that is not an invitation is refused with a message, and the invitation stays unused. The window opens only from the tray (or the address `acxelin-qvpn app` prints); opened any other way, it says so.
 3. The tray menu has **Open Acxelin QVPN**, **Disconnect**, **Start at login** and **Quit and disconnect**. Closing the window leaves the VPN connected.
 
 | The window says | Meaning |
@@ -356,7 +368,7 @@ Run the second command in that SSH session, then open the address it prints on y
 | **Protected** | The tunnel has completed a handshake with a key from the latest post-quantum key agreement. The next line names the key exchange, the gateway's certificate algorithm and how often the key is renewed. |
 | **Connecting** | Keys are agreed; the tunnel has not completed its first handshake yet. |
 | **Degraded** | Key renewal is failing, but the tunnel still works, so it stays on its last key for at most the minutes shown (15 by default), then stops. A revoked computer is never degraded: it is cut off at once. |
-| **Not protected** | The gateway could not be reached or refused this computer; the reason follows. It retries on its own; with a full tunnel, internet traffic stays blocked meanwhile. |
+| **Not protected** | The gateway could not be reached or refused this computer; the reason follows, with the gateway's address. It retries on its own; with a full tunnel, internet traffic stays blocked meanwhile. A revoked computer stops retrying and says so: disconnect, then open the new invitation your administrator sends. |
 
 Connection details say when the key was last renewed. If renewals stop, the window says so in words: when the key is more than twice its renewal period old ("has not been renewed for 62 min"), and, when the gateway cannot be reached, how many tries in a row have failed and when the last good key was agreed. `acxelin-qvpn status --details` prints the same.
 
@@ -518,7 +530,7 @@ Juniper, Fortinet or Palo Alto gateway.
 
 **Can I keep my existing strongSwan?** Yes, if it is 6.0.2 or newer and built against OpenSSL 3.5. `acxelin-qvpn check` says whether it offers ML-KEM.
 
-**How fast does a revocation take effect?** Within 15 seconds on a gateway that reads the CRL file, for sites and people alike, plus up to `crl_every` seconds (60 by default) where the gateway fetches the CRL with `crl_url`.
+**How fast does a revocation take effect?** At the gateway, within 15 seconds when it reads the CRL file, for sites and people alike, plus up to `crl_every` seconds (60 by default) where it fetches the CRL with `crl_url`. The person's own app and `status` say so at the computer's next key renewal, within 2 minutes. Section 5 has the measured times.
 
 **Does it contact the internet?** Only the addresses you configure: peers, gateways, the enrollment service and a `crl_url`. It never contacts Acxelin Quantum.
 
@@ -538,5 +550,5 @@ Juniper, Fortinet or Palo Alto gateway.
   Terminal with `sudo acxelin-qvpn app`, which serves the same window in your browser (section 7). A proper fix needs a separately
   installed, root-owned helper, which is not built yet.
 - The outage grace (section 8) keeps people and sites connected on their last keys for up to the time you set, at most 24 hours. It never outlasts the CRL, and a certificate revoked while the new CRL cannot reach the gateway stays connected until the CRL arrives or the cap ends. For remote access, the computer's own software still takes its tunnel down when its own key agreement fails.
-- A revoked site or person keeps access until their gateway has the new CRL: up to 15 seconds, plus `crl_every` when it is fetched.
+- A revoked site or person keeps access until their gateway has the new CRL: up to 15 seconds, plus `crl_every` when it is fetched. The revoked computer itself can still say **Protected** for up to one key renewal (2 minutes) after the gateway cut it off.
 - The tunnels have been tested in Linux network namespaces and on GitHub's Windows and macOS runners, not on your network. Test on your own laptops and gateways before a wide rollout.
