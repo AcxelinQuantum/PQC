@@ -455,7 +455,7 @@ class TLSConsole:
         host, port = hostport(metrics, "127.0.0.1")
         host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
         try:
-            with NO_PROXY.open(f"http://{'[' + host + ']' if ':' in host else host}:{port}/status", timeout=2) as r:
+            with NO_PROXY.open(f"http://{'[' + host + ']' if ':' in host else host}:{port}/status", timeout=1) as r:  # Windows takes ~2 s to report a refused loopback port
                 data = json.loads(r.read(1 << 20))
             return data if isinstance(data, dict) else None
         except (OSError, ValueError):
@@ -470,7 +470,9 @@ class TLSConsole:
                 elif path and (found := expiry(path, what)):
                     problems.append(found[1])
             if (found := browser_setup(r.policy, r.fallback_cert, r.shadow)) and found[0] == "warn":
-                problems.append(found[1])
+                problems.append("Visitors' browsers will show \"Your connection is not private\": browsers cannot check quantum-safe "
+                                "certificates yet. Add the site's ordinary public certificate (such as Let's Encrypt) with Edit; "
+                                "the connection stays quantum-safe.")
         s, status = live.get(r.name), None
         if isinstance(s, dict):
             n = lambda k: s[k] if isinstance(s.get(k), int) else 0

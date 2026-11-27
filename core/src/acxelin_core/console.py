@@ -264,6 +264,8 @@ def serve(app, listen=("127.0.0.1", 0)):
                 return self.reply(status, answer)
             except ValueError as e:
                 return self.reply(400, {"error": str(e)})
+            except ConnectionError:  # the browser moved on (another tab, a reload) before the answer: nothing went wrong
+                log.debug("%s %s: the browser closed the connection before the answer", method, path)
             except Exception as e:  # noqa: BLE001 - the message may hold paths or data: log and answer with the type only
                 log.error("%s %s failed: %s", method, path, type(e).__name__)
                 return self.reply(500, {"error": "the console hit an unexpected error; try again, and check its terminal if it repeats"})
