@@ -38,7 +38,8 @@ def test_certificates_that_expire_soon_or_already_did_come_first():
 def test_old_tls_untrusted_certificates_and_unreachable_hosts_each_say_so():
     o = endpoints.outlook([ep("l:443", "A", key="ML-DSA-65", legacy=["TLSv1.0"]), ep("p:443", "C", trusted=False), ep("x:443", "F", error="refused")])
     risks = " ".join(r["text"] for r in o["risks"])
-    assert "TLS 1.0 and 1.1" in risks and "proxy" in risks and "could not be graded" in risks
+    assert "TLS 1.0 and 1.1" in risks and "couldn't verify the certificate" in risks and "could not be graded" in risks
+    assert "proxy" not in risks, "one certificate this computer can't verify is no evidence of interception (R1)"
     assert ["x:443"] in [a["targets"] for a in o["actions"]]
 
 
