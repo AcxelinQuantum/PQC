@@ -18,7 +18,8 @@ overclaiming.
   (`tools/capture_screens.py`), checked against the source.
 - `products/vpn/` (acxelin-qvpn): QVPN: site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
   CA subset, console and CBOM export, the gateway image and systemd units.
-- `documents/`: the customer guide to verifying a release (shipped as VERIFY.md), the product film script and its voice-over lines.
+- `documents/`: the customer guide to verifying a release (shipped as VERIFY.md), the product film script and its voice-over lines,
+  and the knowledge-transfer guide to all three products (`knowledge-transfer.md`).
 - `video/`: the three product films, one command each (`python video/build.py <film>`): real console recordings, the stage
   compositor, ElevenLabs narration and score (`video/eleven.py`, key in the ignored `.env`), review checks. Renders stay out of git.
 - `tools/`: the site build, release gate, wheelhouse, browser test kit, and the repository checks in `tools/tests`.

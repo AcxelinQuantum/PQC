@@ -8,7 +8,7 @@ ConditionPathExists=/etc/acxelin-vpn/gateway.toml
 ExecStart=/opt/acxelin-vpn/bin/acxelin-qvpn gateway --config /etc/acxelin-vpn/gateway.toml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
-StateDirectory=acxelin-qvpn
+StateDirectory=acxelin-vpn
 NoNewPrivileges=yes
 # Sandboxing: systemd-analyze security scores this unit; it keeps only what the service needs.
 PrivateTmp=yes

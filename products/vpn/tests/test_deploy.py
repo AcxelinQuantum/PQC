@@ -71,3 +71,10 @@ def test_doctor_reports_the_machine_as_json_for_the_package_check(capsys):
         cli.main(["doctor", "--json"])
     report = __import__("json").loads(capsys.readouterr().out)
     assert report["version"] == __version__ and report["checks"][0]["product"] == "key agreement"
+
+
+def test_the_gateway_unit_makes_the_state_folder_the_example_settings_write_to():
+    import tomllib
+    state = Path(tomllib.loads((ROOT / "config/gateway.toml").read_text())["wireguard"]["state"])
+    folder = unit(ROOT / "deploy/systemd/acxelin-vpn-wireguard.service")["Service"]["StateDirectory"]
+    assert state.parent == Path("/var/lib") / folder
