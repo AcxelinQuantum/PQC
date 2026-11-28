@@ -39,7 +39,7 @@ LAYOUT = r"""<!doctype html>
 <title>{title}</title>
 <meta name="description" content="{description}">
 <link rel="icon" href="{root}assets/acxelin-quantum.svg" type="image/svg+xml">
-<link rel="stylesheet" href="{root}assets/site.css">
+<link rel="stylesheet" href="{root}assets/site.css?v={css}">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -111,6 +111,7 @@ def main():
         print(f"note: could not clear {OUT} (a file in it is held open); building over it")
     shutil.copytree(SRC / "assets", OUT / "assets", dirs_exist_ok=True)
     mark = logo()
+    css = hashlib.sha256((SRC / "assets/site.css").read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:10]  # a new stylesheet gets a new address
     for src in sorted(SRC.rglob("*.html")):
         rel = src.relative_to(SRC)
         text = src.read_text(encoding="utf-8")
@@ -123,7 +124,7 @@ def main():
         footer = "© 2026 Acxelin Quantum, all rights reserved."
         values = {"title": meta.group(1), "description": meta.group(2), "root": root, "logo": mark, "footer": footer,
                   "body": text[meta.end():].replace("{root}", root).replace("{contact}", CONTACT).replace("{email}", EMAIL),
-                  "nav": nav(section), "nav_label": name, "contact": CONTACT, "email": EMAIL}
+                  "nav": nav(section), "nav_label": name, "contact": CONTACT, "email": EMAIL, "css": css}
         page = LAYOUT
         for key, value in values.items():
             page = page.replace("{" + key + "}", value)
