@@ -12,12 +12,15 @@ overclaiming.
   No product names, policies or commands.
 - `products/readiness/` (acxelin-qreadiness): QReadiness + CBOM: scan, grade, report, merge, doctor, console.
 - `products/tls/` (acxelin-qguard): QGuard, the TLS/mTLS edge; QCertificate, its CA commands, ACME, console, Docker, systemd.
-- `website/`: a short showcase, served from GitHub Pages at `/PQC/` (`tools/build_site.py`): a home page that routes each
-  problem to its product, and one page per product (`qreadiness/`, `qguard/`, `qvpn/`). No install or manual content; that
-  ships in each release folder. Screenshots are real product output (`tools/capture_screens.py`), checked against the source.
+- `website/`: a short showcase, served from GitHub Pages at `/PQC/` (`tools/build_site.py`): a home page, and one page per
+  product (`qreadiness/`, `qguard/`, `qvpn/`) with its film (720p, `video/web.py`); every route ends at the contact form.
+  No install or manual content; that ships in each release folder. Screenshots are real product output
+  (`tools/capture_screens.py`), checked against the source.
 - `products/vpn/` (acxelin-qvpn): QVPN: site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
   CA subset, console and CBOM export, the gateway image and systemd units.
-- `documents/`: the customer guide to verifying a release (shipped as VERIFY.md) and the product film script.
+- `documents/`: the customer guide to verifying a release (shipped as VERIFY.md), the product film script and its voice-over lines.
+- `video/`: the three product films, one command each (`python video/build.py <film>`): real console recordings, the stage
+  compositor, ElevenLabs narration and score (`video/eleven.py`, key in the ignored `.env`), review checks. Renders stay out of git.
 - `tools/`: the site build, release gate, wheelhouse, browser test kit, and the repository checks in `tools/tests`.
 
 ## Rules

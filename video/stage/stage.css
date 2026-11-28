@@ -1,0 +1,80 @@
+@font-face { font-family: "Host Grotesk"; font-weight: 400 600; src: url("../../website/assets/fonts/host-grotesk.woff2") format("woff2"); }
+@font-face { font-family: "Roboto Mono"; font-weight: 400 500; src: url("../../website/assets/fonts/roboto-mono.woff2") format("woff2"); }
+:root {
+  --paper: #f4f6f7; --pane: #ffffff; --sunken: #eaeef1; --ink: #111c26; --body: #2c3a46; --muted: #56636f; --rule: #d3dbe1;
+  --amber: #ffbf00; --exposed: #8a5600; --ok: #17704a; --bad: #ad3218; --night: #0c141b;
+  --display: "Host Grotesk", "Segoe UI", sans-serif; --mono: "Roboto Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+#frame { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: var(--display); -webkit-font-smoothing: antialiased; }
+.layer { position: absolute; inset: 0; visibility: hidden; }
+.dark { background: radial-gradient(120% 90% at 50% 40%, #16232e 0%, var(--ink) 55%, var(--night) 100%); color: var(--paper); }
+.paper { background: var(--paper); color: var(--ink); }
+
+/* Kinetic type */
+.title { position: absolute; left: 180px; right: 180px; top: 50%; transform: translateY(-50%); }
+.title .line { display: block; font-weight: 500; letter-spacing: -0.025em; line-height: 1.08; margin: 0 0 18px; white-space: nowrap; }
+.title .w { display: inline-block; position: relative; }
+.title .rule { position: absolute; left: 0; bottom: -10px; height: 6px; background: var(--amber); transform-origin: left center; width: 100%; }
+.title .small { font-size: 34px; font-weight: 400; color: #b9c4ce; letter-spacing: 0; margin-top: 28px; }
+
+/* Diagrams on paper */
+.box { position: absolute; background: var(--pane); border: 2px solid var(--rule); border-radius: 14px; padding: 22px 26px; color: var(--ink);
+  font-size: 32px; font-weight: 500; box-shadow: 0 10px 30px rgba(17, 28, 38, .07); }
+.box small { display: block; font: 400 22px/1.4 var(--mono); color: var(--muted); margin-top: 6px; }
+.box.edge { border: 3px solid var(--ink); }
+.tag { position: absolute; font: 500 21px/1 var(--mono); color: var(--exposed); background: #fff3d1; border: 1.5px solid #e9c25a; border-radius: 6px; padding: 8px 12px; white-space: nowrap; }
+.quote { position: absolute; font-size: 64px; font-weight: 500; letter-spacing: -0.02em; color: var(--ink); line-height: 1.15; }
+.quote::before { content: ""; position: absolute; left: -40px; top: 10px; bottom: 10px; width: 6px; background: var(--amber); border-radius: 3px; }
+.note { position: absolute; font: 400 24px/1.4 var(--mono); color: var(--muted); }
+svg.lines { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; }
+
+/* Section card */
+.index { position: absolute; left: 180px; top: 430px; font: 500 30px var(--mono); color: var(--amber); letter-spacing: .08em; }
+.stitle { position: absolute; left: 180px; top: 480px; font-size: 110px; font-weight: 500; letter-spacing: -0.03em; }
+
+/* The product window */
+.cam { position: absolute; inset: 0; transform-origin: 0 0; }
+.win { position: absolute; border-radius: 14px; overflow: hidden; background: var(--pane);
+  box-shadow: 0 50px 120px rgba(0, 0, 0, .55), 0 12px 30px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .06); }
+.bar { height: 40px; background: var(--sunken); border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: center;
+  font: 500 17px var(--display); color: var(--muted); position: relative; }
+.bar i { position: absolute; left: 18px; top: 15px; width: 11px; height: 11px; border-radius: 50%; background: #c9d2d9; box-shadow: 18px 0 #c9d2d9, 36px 0 #c9d2d9; }
+.content { position: relative; overflow: hidden; }
+.content img { display: block; width: 100%; height: 100%; }
+.cursor { position: absolute; width: 30px; height: 30px; left: 0; top: 0; pointer-events: none; }
+.ring { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid var(--amber); left: -32px; top: -32px; }
+.term { background: #0b1117; color: #dbe4ea; font: 400 22px/1.55 var(--mono); padding: 22px 26px; white-space: pre-wrap; word-break: break-all; }
+.term .cmd { color: #ffffff; }
+.term .cmd::before { content: "$ "; color: var(--amber); }
+.term .ok { color: #5fd197; }
+.term .bad { color: #ff8c74; }
+.term .dim { color: #8b98a3; }
+.caret { display: inline-block; width: 12px; height: 26px; background: var(--amber); vertical-align: -5px; }
+.mark { position: absolute; right: 44px; top: 34px; opacity: .55; width: 190px; }
+.mark svg { width: 100%; height: auto; color: var(--paper); }
+
+/* Lower third */
+.lower { position: absolute; left: 96px; bottom: 60px; background: rgba(12, 20, 27, .92); color: var(--paper); border-radius: 10px;
+  padding: 16px 26px 16px 24px; font-size: 30px; font-weight: 500; letter-spacing: -0.01em; border-left: 6px solid var(--amber);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .4); }
+
+/* Trust and close */
+.trust { position: absolute; left: 180px; top: 50%; transform: translateY(-50%); }
+.trust .t { font-size: 60px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 22px; }
+.trust .m { font: 400 30px var(--mono); color: #b9c4ce; margin-top: 30px; }
+.trust .last { font-size: 46px; color: var(--paper); margin-top: 46px; }
+.close { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; }
+.close .logo svg { width: 520px; height: auto; color: var(--paper); }
+.close .name { font-size: 92px; font-weight: 500; letter-spacing: -0.03em; margin-top: 54px; }
+.close .sig { font-size: 40px; color: #c8d1d9; margin-top: 14px; }
+.close .url { font: 400 28px var(--mono); color: var(--amber); margin-top: 40px; }
+.close .crule { width: 160px; height: 4px; background: var(--amber); margin: 34px auto 0; transform-origin: left center; }
+.marker { position: absolute; right: 96px; bottom: 60px; font: 500 30px var(--mono); color: var(--paper); background: rgba(12, 20, 27, .9);
+  padding: 12px 18px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .14); }
+.marker b { color: var(--amber); font-weight: 500; }
+.black { position: absolute; inset: 0; background: #000; }
+.draft { position: absolute; left: 36px; top: 26px; font: 500 26px var(--mono); color: #ff8c74; letter-spacing: .2em; border: 2px solid #ff8c74; padding: 6px 12px; border-radius: 6px; }
+.close .name, .close .sig, .close .url { width: fit-content; margin-left: auto; margin-right: auto; }
+.ondark { color: var(--paper); }
