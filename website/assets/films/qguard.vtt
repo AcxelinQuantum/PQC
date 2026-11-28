@@ -1,0 +1,158 @@
+WEBVTT
+
+1
+00:00:00.350 --> 00:00:03.140
+Here's something nobody
+prints on the label.
+
+2
+00:00:03.180 --> 00:00:04.981
+Encryption has a shelf life.
+
+3
+00:00:07.350 --> 00:00:11.046
+Connections recorded today can be opened
+later, once a quantum computer is big
+
+4
+00:00:11.086 --> 00:00:12.586
+enough.
+
+5
+00:00:15.350 --> 00:00:18.895
+You know your services need
+quantum-safe encryption.
+
+6
+00:00:18.935 --> 00:00:21.141
+The plan looks great on a slide.
+
+7
+00:00:25.350 --> 00:00:29.663
+Then reality. The website,
+the APIs, the database:
+
+8
+00:00:29.703 --> 00:00:32.489
+they can't be rewritten in time.
+
+9
+00:00:35.350 --> 00:00:39.767
+And that one system nobody dares
+to touch? Nobody's touching it.
+
+10
+00:00:45.350 --> 00:00:50.628
+Meet Acxelin QGuard. A product you
+install and run yourself, not a service.
+
+11
+00:00:50.668 --> 00:00:56.229
+It sits in front of the services you
+already have, and makes the connections to
+
+12
+00:00:56.269 --> 00:01:00.310
+them quantum-safe. The services
+stay exactly as they are.
+
+13
+00:01:05.350 --> 00:01:08.039
+Open the console and protect a service.
+
+14
+00:01:08.079 --> 00:01:11.788
+Say what it is, its address,
+and where it runs today.
+
+15
+00:01:20.350 --> 00:01:24.270
+QGuard issues its certificate, writes its
+own settings, and starts in front of the
+
+16
+00:01:24.310 --> 00:01:25.810
+app.
+
+17
+00:01:45.350 --> 00:01:48.734
+Not sure who's still on old
+software? Start in watch mode.
+
+18
+00:01:48.774 --> 00:01:53.456
+Everyone is served as usual, and QGuard
+tells you how many would be refused, and
+
+19
+00:01:53.496 --> 00:01:54.996
+why.
+
+20
+00:02:05.350 --> 00:02:08.571
+When that list is empty,
+turn on enforcement.
+
+21
+00:02:08.611 --> 00:02:12.670
+Old clients are turned away.
+Quantum-safe ones carry on.
+
+22
+00:02:20.350 --> 00:02:23.403
+Every door needs a list
+of who's allowed in.
+
+23
+00:02:23.443 --> 00:02:27.802
+That's QCertificate: your own
+certificate authority, built in.
+
+24
+00:02:30.350 --> 00:02:35.242
+Issue a certificate for a partner, and
+only that partner gets into your API.
+
+25
+00:02:45.350 --> 00:02:50.012
+Partnership over? Revoke it, and
+QGuard turns them away within a minute.
+
+26
+00:03:00.350 --> 00:03:03.067
+Want to know how a
+connection really behaves?
+
+27
+00:03:03.107 --> 00:03:06.231
+Type an address, and get
+the answer in plain words.
+
+28
+00:03:20.350 --> 00:03:24.438
+It runs on your servers, and
+nothing is sent to Acxelin Quantum.
+
+29
+00:03:24.478 --> 00:03:29.122
+Key exchange and certificates both
+follow NIST's post-quantum standards.
+
+30
+00:03:35.050 --> 00:03:36.510
+One honest limit:
+
+31
+00:03:36.550 --> 00:03:42.418
+browsers can't yet check quantum-safe
+certificates, so public sites keep a regular
+
+32
+00:03:42.458 --> 00:03:45.411
+one. The key exchange stays quantum-safe.
+
+33
+00:03:45.711 --> 00:03:49.465
+Acxelin QGuard. Protect
+what you can't rewrite.
+

@@ -1,5 +1,5 @@
 """The website in a real browser: a short showcase. From the home page to each product and to a conversation; each product page
-names only its product and shows real, current screenshots of it; no install or manual content; working links; every earlier
+names only its product and shows its film and real, current screenshots of it; no install or manual content; working links; every earlier
 address lands on the product; accessibility on every page in light, dark and mobile."""
 import functools
 import http.server
@@ -18,7 +18,7 @@ import build_site  # noqa: E402
 
 PAGES = ["index.html"] + [f"{s}/index.html" for s in build_site.SECTIONS]
 OLD = re.compile(r"Wolf ?Pack|wolfpack", re.I)
-CONTACT = "https://acxelinquantum.com/"
+CONTACT = build_site.CONTACT
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +54,22 @@ def test_home_to_the_product_and_to_a_conversation(browser, site, section):
     assert page.url.endswith(f"/{section}/")
     assert page.locator("figure.shot img").count() >= 1
     assert "Nothing is sent to Acxelin Quantum" in page.inner_text("main")
-    assert page.get_by_role("link", name="Talk to Acxelin Quantum").first.get_attribute("href") == CONTACT
+    assert page.get_by_role("link", name="Talk to an Expert").first.get_attribute("href") == CONTACT
+    page.close()
+
+
+@pytest.mark.parametrize("section", build_site.SECTIONS)
+def test_each_product_page_shows_its_film_with_a_poster_and_captions(browser, site, section):
+    """The film plays from this site (720p, its poster first) and has English captions."""
+    base, out = site
+    page = browser.new_page()
+    page.goto(f"{base}/{section}/")
+    video = page.locator("#film video")
+    assert video.get_attribute("preload") == "none" and video.get_attribute("controls") is not None
+    for attr in (video.get_attribute("poster"), page.locator("#film source").get_attribute("src"), page.locator("#film track").get_attribute("src")):
+        assert (out / section / attr).resolve().is_file(), attr
+    assert page.locator("#film track").get_attribute("kind") == "captions"
+    assert (out / "assets/films" / f"{section}.vtt").read_text(encoding="utf-8").startswith("WEBVTT")
     page.close()
 
 

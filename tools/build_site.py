@@ -16,10 +16,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "website", ROOT / "build" / "site"
-SECTIONS = {"qguard": "Acxelin QGuard", "qvpn": "Acxelin QVPN", "qreadiness": "Acxelin QReadiness"}
+SECTIONS = {"qreadiness": "Acxelin QReadiness", "qguard": "Acxelin QGuard", "qvpn": "Acxelin QVPN"}
 MOVED = {"edge": "qguard", "vpn": "qvpn", "readiness": "qreadiness"}  # earlier addresses, kept as redirects
 REMOVED = ["how-it-works.html", "set-up.html", "manual.html", "demo.html", "security.html", "assets.html", "sample.html", "sample-report.html"]
 SHELL = "core/src/acxelin_core/assets/shell.css"
+CONTACT = ("https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZF"
+           "V0JLWEFDMzdJMTM1MzYxSEVORy4u")  # the company's own contact form, the same one acxelinquantum.com uses
+EMAIL = "info@acxelinquantum.com"
+FILMS = {s: f"assets/films/{s}" for s in ("qguard", "qvpn", "qreadiness")}  # .mp4 (720p), .jpg (poster), .vtt (captions)
 SCREENS = {  # each screenshot and the files that decide what it shows
     "qguard-console.png": [SHELL, "products/tls/src/acxelin_tls/console.html"],
     "qvpn-console.png": [SHELL, "products/vpn/src/acxelin_vpn/console.html"],
@@ -42,11 +46,12 @@ LAYOUT = r"""<!doctype html>
 <header class="top"><div class="wrap bar">
 <a href="{root}index.html" aria-label="Acxelin Quantum, all products">{logo}</a>
 <nav aria-label="{nav_label}">{nav}</nav>
+<a class="btn primary small talk" href="{contact}">Talk to an Expert</a>
 </div></header>
-<main id="main"><div class="wrap">
+<main id="main">
 {body}
-</div></main>
-<footer><div class="wrap"><span>{footer}</span><nav aria-label="Company"><a href="https://acxelinquantum.com/">Talk to Acxelin Quantum</a><a href="{root}index.html">All products</a></nav></div></footer>
+</main>
+<footer><div class="wrap"><span>{footer}</span><nav aria-label="Company"><a href="{contact}">Talk to an Expert</a><a href="mailto:{email}">{email}</a><a href="https://acxelinquantum.com/">acxelinquantum.com</a><a href="{root}index.html">All products</a></nav></div></footer>
 </body>
 </html>
 """
@@ -115,10 +120,10 @@ def main():
         section = rel.parts[0] if len(rel.parts) > 1 else None
         root = "../" if section else ""
         name = SECTIONS[section] if section else "Acxelin Quantum"
-        footer = f"{name} is made by Acxelin Quantum. © 2026 Acxelin Quantum. All rights reserved." if section else \
-            "Post-quantum security products that run on your own machines. © 2026 Acxelin Quantum. All rights reserved."
+        footer = "© 2026 Acxelin Quantum, all rights reserved."
         values = {"title": meta.group(1), "description": meta.group(2), "root": root, "logo": mark, "footer": footer,
-                  "body": text[meta.end():].replace("{root}", root), "nav": nav(section), "nav_label": name}
+                  "body": text[meta.end():].replace("{root}", root).replace("{contact}", CONTACT).replace("{email}", EMAIL),
+                  "nav": nav(section), "nav_label": name, "contact": CONTACT, "email": EMAIL}
         page = LAYOUT
         for key, value in values.items():
             page = page.replace("{" + key + "}", value)

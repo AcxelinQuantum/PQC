@@ -45,3 +45,4 @@ video/audio/
 *.webm
 *.wav
 *.m4a
+!website/assets/films/*.mp4
