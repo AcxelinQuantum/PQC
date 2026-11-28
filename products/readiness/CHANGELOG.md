@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.5.0
 
+- Fixed: an open finding with long source paths or example code no longer pushes the findings table past its area on a laptop screen. Paths break after a slash and example code wraps, so **Assign an owner** stays in view.
 - Changed: no more 0 to 100 readiness score. An average of priorities rose whenever harmless cryptography was added. The
   terminal, the report, the console's projects, Overview and board summary now lead with the **things to fix now**: the
   critical and high findings outside test code, with how many of each, and its trend over the last scans. Endpoints no longer

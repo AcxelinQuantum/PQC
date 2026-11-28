@@ -25,9 +25,9 @@ It never changes the files it scans and never sends them anywhere.
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, build the Docker image (below).
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qreadiness-v1.4.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qreadiness-v1.5.0) and save them in one folder:
 
-- `acxelin-qreadiness-1.4.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access, including the code crawler that follows values through JavaScript, TypeScript, Java and Go
+- `acxelin-qreadiness-1.5.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access, including the code crawler that follows values through JavaScript, TypeScript, Java and Go
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 Then open a terminal in that folder. On Windows, use PowerShell.
@@ -45,24 +45,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-qreadiness-1.4.0-wheelhouse.tar.gz
+shasum -a 256 acxelin-qreadiness-1.5.0-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-qreadiness-1.4.0-wheelhouse.tar.gz
+Get-FileHash .\acxelin-qreadiness-1.5.0-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-qreadiness-1.4.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-qreadiness-1.5.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-qreadiness-1.4.0-wheelhouse.tar.gz
-cd acxelin-qreadiness-1.4.0-wheelhouse
+tar xzf acxelin-qreadiness-1.5.0-wheelhouse.tar.gz
+cd acxelin-qreadiness-1.5.0-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -95,7 +95,7 @@ acxelin-qreadiness scan path/to/your/project
 The terminal leads with the things to fix now, then lists every finding, most urgent first (shortened here):
 
 ```
-acxelin-qreadiness 1.4.0  payments-api
+acxelin-qreadiness 1.5.0  payments-api
 public-key findings already quantum-safe: 1 of 6   hybrid post-quantum key exchange seen: yes
 coverage: 6 of 6 source and configuration files analysed (100%)
 

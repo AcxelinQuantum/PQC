@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
 - **The console protects services.** It is rebuilt around five places: Overview, Services, QCertificate, Check a connection
   and Settings. First run creates QCertificate, then protects the first service. A service is chosen by kind (public website,

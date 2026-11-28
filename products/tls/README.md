@@ -14,9 +14,9 @@ It gives one command, `acxelin-qguard`, and three parts:
 
 You need Python 3.11 to 3.14 and OpenSSL 3.5 or newer. Debian 13 and macOS with `brew install openssl@3` have it; on Windows, run `choco install openssl -y`. QGuard installs for your user only, without internet access, on Linux (x86-64, ARM), Windows (x64) and Apple-silicon Macs:
 
-1. Download `acxelin-qguard-1.3.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qguard-v1.3.0).
+1. Download `acxelin-qguard-1.4.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qguard-v1.4.0).
 2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on Windows, compare `Get-FileHash` with the file; the manual shows how).
-3. Unpack it, `tar xzf acxelin-qguard-1.3.0-wheelhouse.tar.gz`, and open a terminal in the folder.
+3. Unpack it, `tar xzf acxelin-qguard-1.4.0-wheelhouse.tar.gz`, and open a terminal in the folder.
 4. Install: `sh install.sh`. On Windows: `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1`.
 
 The installer checks your Python and OpenSSL, puts `acxelin-qguard` on your PATH and runs `acxelin-qguard doctor`. `sh install.sh --uninstall` (or `-Uninstall`) removes it.

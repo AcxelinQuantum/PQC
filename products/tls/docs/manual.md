@@ -26,9 +26,9 @@ A connection that cannot meet your policy ends. Nothing falls back silently to a
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qguard-v1.3.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qguard-v1.4.0) and save them in one folder:
 
-- `acxelin-qguard-1.3.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
+- `acxelin-qguard-1.4.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 Then open a terminal in that folder. On Windows, use PowerShell.
@@ -46,24 +46,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-qguard-1.3.0-wheelhouse.tar.gz
+shasum -a 256 acxelin-qguard-1.4.0-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-qguard-1.3.0-wheelhouse.tar.gz
+Get-FileHash .\acxelin-qguard-1.4.0-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-qguard-1.3.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-qguard-1.4.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-qguard-1.3.0-wheelhouse.tar.gz
-cd acxelin-qguard-1.3.0-wheelhouse
+tar xzf acxelin-qguard-1.4.0-wheelhouse.tar.gz
+cd acxelin-qguard-1.4.0-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -78,7 +78,7 @@ On Windows, the first command tells Windows you trust this downloaded script, an
 The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-qguard` on your PATH and runs a health check. A ready machine prints:
 
 ```
-acxelin-qguard 1.3.0, Python 3.11.15
+acxelin-qguard 1.4.0, Python 3.11.15
 ok    cryptography 50.0.2 issues ML-DSA certificates
 ok    OpenSSL 3.5.4 30 Sep 2025 can do post-quantum TLS 1.3
 ```
@@ -90,7 +90,7 @@ To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). You
 **With Docker instead:** build the image, which includes OpenSSL 3.5, from the repository at the release's tag, and give it the short name the rest of this manual uses. (A published image is planned; it cannot be pulled yet.)
 
 ```
-git clone --branch qguard-v1.3.0 https://github.com/AcxelinQuantum/PQC && cd PQC
+git clone --branch qguard-v1.4.0 https://github.com/AcxelinQuantum/PQC && cd PQC
 docker build -f products/tls/deploy/Dockerfile -t acxelin-qguard .
 docker run --rm acxelin-qguard doctor
 ```

@@ -25,12 +25,12 @@ def test_the_tag_must_match_the_packaged_version_and_the_changelog():
 
 
 def test_a_product_needs_a_released_core_in_its_range():
-    assert check("qguard", VERSION["qguard"], tags=["core-v1.3.0"]) == "acxelin-core 1.3.0"
-    assert check("qvpn", VERSION["qvpn"], tags=["core-v1.3.0"]) == "acxelin-core 1.3.0"
-    with pytest.raises(ValueError, match="no released acxelin-core"):  # evidence bundles need core 1.3.0
-        check("qguard", VERSION["qguard"], tags=["core-v1.0.0", "core-v1.1.0", "core-v1.2.0"])
+    assert check("qguard", VERSION["qguard"], tags=["core-v1.3.0", "core-v1.4.0"]) == "acxelin-core 1.4.0"
+    assert check("qvpn", VERSION["qvpn"], tags=["core-v1.3.0", "core-v1.4.0"]) == "acxelin-core 1.4.0"
+    with pytest.raises(ValueError, match="no released acxelin-core"):  # public roots and token listing need core 1.4.0: core first
+        check("qguard", VERSION["qguard"], tags=["core-v1.0.0", "core-v1.2.0", "core-v1.3.0"])
     with pytest.raises(ValueError, match="no released acxelin-core"):
-        check("qvpn", VERSION["qvpn"], tags=["core-v1.0.0", "core-v1.1.0", "core-v1.2.0"])
+        check("qvpn", VERSION["qvpn"], tags=["core-v1.0.0", "core-v1.2.0", "core-v1.3.0"])
     with pytest.raises(ValueError, match="no released acxelin-core"):
         check("qguard", VERSION["qguard"], tags=[])
     with pytest.raises(ValueError, match="no released acxelin-core"):

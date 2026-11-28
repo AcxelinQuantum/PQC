@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
+- Fixed: with someone connected, the People table no longer runs past its area, which hid the **Revoke** button. "Since" now sits under the Connected pill, and traffic shows ↓ and ↑ on two lines.
 - Console, People: invitations not used yet are listed with when they were made, and **Cancel** makes one unusable (its one-time
   token is spent in the CA's `tokens.json`, marked `cancelled`, so the enrollment service refuses it). The gateway field suggests
   port 7444, the WireGuard gateway's, and says 7443 is the site-to-site port.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
 - Fixed: a certificate's lifetime is exact. Issuing read the clock twice, so a 24-hour certificate could come out a second short.
 - For the product rework:

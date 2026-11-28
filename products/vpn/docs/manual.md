@@ -29,9 +29,9 @@ A key agreement that cannot meet the VPN's policy (TLS 1.3, hybrid ML-KEM, ML-DS
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qvpn-v1.3.0) and save them in one folder:
+Get two files from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qvpn-v1.4.0) and save them in one folder:
 
-- `acxelin-qvpn-1.3.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
+- `acxelin-qvpn-1.4.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 The desktop installers for people's computers are on the same page; section "The desktop app, for people" below covers them.
@@ -51,24 +51,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-qvpn-1.3.0-wheelhouse.tar.gz
+shasum -a 256 acxelin-qvpn-1.4.0-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-qvpn-1.3.0-wheelhouse.tar.gz
+Get-FileHash .\acxelin-qvpn-1.4.0-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-qvpn-1.3.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-qvpn-1.4.0-wheelhouse.tar.gz --owner AcxelinQuantum` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-qvpn-1.3.0-wheelhouse.tar.gz
-cd acxelin-qvpn-1.3.0-wheelhouse
+tar xzf acxelin-qvpn-1.4.0-wheelhouse.tar.gz
+cd acxelin-qvpn-1.4.0-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -83,7 +83,7 @@ On Windows, the first command tells Windows you trust this downloaded script, an
 The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-qvpn` on your PATH and runs a health check. A laptop prints:
 
 ```
-acxelin-qvpn 1.3.0, Python 3.11.15
+acxelin-qvpn 1.4.0, Python 3.11.15
 ok    OpenSSL 3.5.9 29 Sep 2026 can agree keys over post-quantum mutual TLS
 WARN  This machine is not set up as an IPsec gateway (fine for a laptop)
 ```
@@ -95,7 +95,7 @@ If OpenSSL 3.5 is in a folder of its own, run `ACXELIN_OPENSSL=/path/to/openssl-
 **With Docker (recommended):** the gateway image has strongSwan 6.1, OpenSSL 3.5 and WireGuard's tools. IPsec and WireGuard live in the host's kernel, so the container shares the host's network. Build the image yourself from the repository at the release's tag, on Linux or macOS (or in WSL), from the repository's root folder:
 
 ```
-git clone --branch qvpn-v1.3.0 https://github.com/AcxelinQuantum/PQC.git
+git clone --branch qvpn-v1.4.0 https://github.com/AcxelinQuantum/PQC.git
 cd PQC
 docker build -f products/vpn/deploy/Dockerfile --tag=acxelin-qvpn .
 docker run --rm acxelin-qvpn doctor
@@ -117,9 +117,9 @@ Section 8 says which unit runs what.
 
 | System | File | How to install |
 |---|---|---|
-| Windows 10/11 (x64) | `Acxelin-QVPN-1.3.0-Setup.exe` | Run it and follow the steps. Leave **Show Acxelin QVPN in the tray when I log in** ticked to start it at login. Install [WireGuard for Windows](https://www.wireguard.com/install/) too; the installer reminds you if it is missing. |
-| macOS (Apple silicon) | `Acxelin-QVPN-1.3.0.dmg` | Open it and drag the app to Applications. Install WireGuard's tools with `brew install wireguard-tools`. |
-| Ubuntu, Debian (x64) | `acxelin-vpn_1.3.0_amd64.deb` | `sudo apt install ./acxelin-vpn_1.3.0_amd64.deb`, which also installs WireGuard's tools. |
+| Windows 10/11 (x64) | `Acxelin-QVPN-1.4.0-Setup.exe` | Run it and follow the steps. Leave **Show Acxelin QVPN in the tray when I log in** ticked to start it at login. Install [WireGuard for Windows](https://www.wireguard.com/install/) too; the installer reminds you if it is missing. |
+| macOS (Apple silicon) | `Acxelin-QVPN-1.4.0.dmg` | Open it and drag the app to Applications. Install WireGuard's tools with `brew install wireguard-tools`. |
+| Ubuntu, Debian (x64) | `acxelin-vpn_1.4.0_amd64.deb` | `sudo apt install ./acxelin-vpn_1.4.0_amd64.deb`, which also installs WireGuard's tools. |
 
 The installers are not code-signed yet, so the first launch shows a warning. Check the installer first, the same way as in Step 1 above, with its own file name. On Windows, SmartScreen says "Windows protected your PC": choose **More info**, then **Run anyway**. On macOS, open **System Settings > Privacy & Security** and choose **Open Anyway**.
 

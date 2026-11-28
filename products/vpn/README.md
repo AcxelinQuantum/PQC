@@ -13,9 +13,9 @@ person within 15 seconds of having the new revocation list.
 The administrator's command line needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. It installs for your user only, without
 internet access, on Linux (x86-64, ARM), Windows (x64) and Apple-silicon Macs:
 
-1. Download `acxelin-qvpn-1.3.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qvpn-v1.3.0).
+1. Download `acxelin-qvpn-1.4.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/AcxelinQuantum/PQC/releases/tag/qvpn-v1.4.0).
 2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on macOS and Windows, compare the fingerprint by hand; the manual shows how).
-3. Unpack it: `tar xzf acxelin-qvpn-1.3.0-wheelhouse.tar.gz`, then `cd acxelin-qvpn-1.3.0-wheelhouse`.
+3. Unpack it: `tar xzf acxelin-qvpn-1.4.0-wheelhouse.tar.gz`, then `cd acxelin-qvpn-1.4.0-wheelhouse`.
 4. Install: `sh install.sh`, which puts `acxelin-qvpn` on your PATH. On Windows, `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1`.
 
 Gateways use the gateway image, which you build from this repository (`deploy/Dockerfile`), or systemd; people use the desktop
