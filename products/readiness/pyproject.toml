@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acxelin-qreadiness"
-version = "1.4.0"
+version = "1.5.0"
 description = "Acxelin QReadiness: find the cryptography in code, configs, keys, binaries and live endpoints, write a CycloneDX 1.6 CBOM, and rank what to migrate first for post-quantum"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,7 +14,7 @@ license = {file = "LICENSE"}
 classifiers = ["License :: Other/Proprietary License", "Private :: Do Not Upload"]
 
 [project.optional-dependencies]
-crawler = ["tree-sitter>=0.25,<0.26", "tree-sitter-javascript>=0.23,<0.26", "tree-sitter-typescript>=0.23,<0.24", "tree-sitter-java>=0.23,<0.24",
+crawler = ["tree-sitter>=0.25,<0.27", "tree-sitter-javascript>=0.23,<0.26", "tree-sitter-typescript>=0.23,<0.24", "tree-sitter-java>=0.23,<0.24",
            "tree-sitter-go>=0.23,<0.26"]
 aws = ["boto3>=1.35"]
 test = ["pytest>=9", "jsonschema>=4.18", "referencing>=0.30"]
