@@ -102,6 +102,27 @@ def test_add_scan_see_priorities_and_assign_an_owner(page, console, repos):
     assert "key_size=2048" not in page.content()
 
 
+def test_an_open_finding_with_long_paths_and_its_example_fix_keeps_the_owner_column_in_view(page, console, tmp_path):
+    """Deep source paths and example code wrap inside their cells, so the findings table fits its area on a laptop screen and
+    'Assign an owner' never sits past the edge."""
+    deep = tmp_path / "repos/vault/src/main/java/com/example/payments"
+    deep.mkdir(parents=True)
+    (deep / "CardVault.java").write_text('import javax.crypto.Cipher;\nclass CardVault {\n  Cipher c() throws Exception {\n'
+                                         '    return Cipher.getInstance("AES/ECB/PKCS5Padding");\n  }\n}\n')
+    open_console(page, console)
+    fill_setup(page, tmp_path / "repos")
+    page.get_by_label("Add a repository").select_option("vault")
+    page.get_by_role("button", name="Add and scan").click()
+    page.get_by_text("AES-ECB").first.wait_for(timeout=30000)
+    page.get_by_text("AES-ECB").first.click()
+    page.get_by_text("Example fix in Java").first.click()
+    region = page.get_by_role("region", name="Findings, scrolls sideways")
+    assert region.evaluate("r => r.querySelector('table').scrollWidth <= r.clientWidth"), "the findings table is wider than its area"
+    owner = page.get_by_text("Assign an owner").first.bounding_box()
+    box = region.bounding_box()
+    assert owner["x"] + owner["width"] <= box["x"] + box["width"]
+
+
 def test_an_open_list_of_places_and_a_half_typed_owner_survive_a_running_scan(page, console, repos):
     open_console(page, console)
     fill_setup(page, repos)

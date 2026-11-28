@@ -174,9 +174,9 @@ async function paintPeople() {
   if (!out) return;
   let d; try { d = await call("people"); } catch (e) { return; }
   const rows = d.people.map((p) => h("tr", {}, h("td", {}, p.name),
-    h("td", {}, p.connected ? pill("ok", "Connected") : p.agreed ? pill("warn", "Keys agreed, no handshake") : pill("mute", "Not connected")),
-    h("td", {class: "num"}, p.connected ? when(p.since) : ""),
-    h("td", {class: "num"}, p.agreed ? "↓ " + bytes(p.bytes_in) + " ↑ " + bytes(p.bytes_out) : ""),
+    h("td", {}, p.connected ? pill("ok", "Connected") : p.agreed ? pill("warn", "Keys agreed, no handshake") : pill("mute", "Not connected"),
+      p.connected && p.since ? h("div", {class: "legend"}, "since " + when(p.since)) : ""),
+    h("td", {class: "num"}, p.agreed ? ["↓ " + bytes(p.bytes_in), h("br"), "↑ " + bytes(p.bytes_out)] : ""),
     h("td", {class: "num", title: p.handshake_age_s == null ? "" : "last WireGuard handshake " + span(p.handshake_age_s) + " ago"}, p.key_age_s == null ? "" : span(p.key_age_s) + " ago"),
     h("td", {}, p.address || ""),
     h("td", {}, p.certificate === "valid" ? pill("ok", "Valid") : p.certificate === "revoked" ? pill("bad", "Revoked") : pill("mute", "Unknown")),
@@ -190,7 +190,7 @@ async function paintPeople() {
       }}, "Cancel"))))) : "";
   out.replaceChildren(noteLine("peopleNote"), pending, d.gateways.length ? h("p", {class: "legend", style: "margin:0 0 12px"}, d.gateways.map((g) => g.error ? g.name + ": not answering. " : g.name + (g.up_s == null ? "" : ": up " + span(g.up_s)) + ". "))
       : h("p", {class: "legend", style: "margin:0 0 12px"}, "Who is connected now shows once you add a gateway."),
-    d.people.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "People, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Person", "Now", "Since", "Traffic", "Key renewed", "Address", "Certificate", "Action"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
+    d.people.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "People, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Person", "Now", "Traffic", "Key renewed", "Address", "Certificate", "Action"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
       : h("p", {class: "empty"}, "Nobody yet. Use Invite someone to add the first person."),
     h("h2", {style: "margin-top:26px"}, "Recent activity"),
     d.activity.length ? h("ul", {class: "acts"}, d.activity.map((a) => h("li", {}, h("span", {class: "mute"}, (a.time || "").replace("T", " ").replace("Z", " UTC")), " ",

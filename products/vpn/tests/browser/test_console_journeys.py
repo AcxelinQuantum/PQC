@@ -138,6 +138,45 @@ def test_an_administrator_invites_someone_downloads_the_file_and_revokes_alice_i
     c.close()
 
 
+def test_a_connected_person_s_row_fits_with_its_revoke_button_in_view(browser, console):
+    """With someone connected (traffic, key age, address), the People table still fits its area on a laptop screen, so the Revoke
+    button, armed or not, is never past the edge."""
+    import time
+    now = time.time()
+    status = {"_gateway": {"started": now - 3600, "history": []},
+              "alice": {"latest_handshake": now - 20, "since": now - 1800, "address": "10.99.0.2", "rx_bytes": 1234567, "tx_bytes": 98765, "keys_age_s": 16}}
+
+    class Gateway(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = json.dumps(status).encode()
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+    gw = ThreadingHTTPServer(("127.0.0.1", 0), Gateway)
+    threading.Thread(target=gw.serve_forever, daemon=True).start()
+    try:
+        c, page = opened(browser, console)
+        page.get_by_role("tab", name="People").click()
+        page.get_by_label("Name", exact=True).fill("Remote access")
+        page.get_by_label("Status address").fill(f"http://127.0.0.1:{gw.server_address[1]}")
+        page.get_by_role("button", name="Add a gateway").click()
+        page.get_by_text("Connected", exact=True).first.wait_for()
+        region = page.get_by_role("region", name="People, scrolls sideways")
+        for armed in (False, True):
+            if armed:
+                page.get_by_role("button", name="Revoke alice").click()
+            button = page.get_by_role("button", name="Confirm revoke alice" if armed else "Revoke alice")
+            assert region.evaluate("r => r.querySelector('table').scrollWidth <= r.clientWidth"), "the People table is wider than its area"
+            b, r = button.bounding_box(), region.bounding_box()
+            assert b["x"] + b["width"] <= r["x"] + r["width"]
+        c.close()
+    finally:
+        gw.shutdown()
+
+
 def test_health_lists_checks_with_what_to_do(browser, console):
     c, page = opened(browser, console)
     page.get_by_role("tab", name="Health").click()

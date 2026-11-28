@@ -9,7 +9,7 @@
 .split{grid-template-columns:minmax(0,230px) minmax(0,1fr)}
 @media (max-width:780px){.split{grid-template-columns:minmax(0,1fr)}#pj-main{order:-1}}
 .kinds{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;list-style:none;padding:0;margin:0}.kinds li{display:grid;gap:6px;align-content:start;padding:12px 14px;border:1px solid var(--rule);border-top:3px solid var(--amber);border-radius:8px;background:var(--bg)}.kinds h3{margin:0;font-size:15px}.kinds p{margin:0;font-size:13.5px}.cov-group h3{margin:22px 0 6px;font-size:15px}#cov h2{margin-top:34px}#cov h2:first-child{margin-top:8px}.seg.chip{display:inline-block;padding:1px 8px;border:1px solid transparent;border-radius:4px;font-size:12.5px;white-space:nowrap}
-td.asset{font-family:var(--mono);font-size:13px}
+td.asset{font-family:var(--mono);font-size:13px;overflow-wrap:anywhere}td pre{white-space:pre-wrap;overflow-wrap:anywhere}
 details.where summary::after,details.more summary::after{content:"";display:inline-block;width:5px;height:5px;margin:0 2px 2px 8px;
 border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);vertical-align:middle}
 details.where[open] summary::after,details.more[open] summary::after{transform:rotate(45deg);margin-bottom:4px}
@@ -418,10 +418,12 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault(); $("#find").focus();
 });
 const placesOf = (a) => String(a.locations.length) + (!a.test_only && a.test_places ? " (" + a.test_places + " in tests)" : "");
+// A long path may break after a slash (a <wbr>, so copying it still gives the path unchanged).
+const breakable = (s) => s.split(/(?<=[\/\\])/).flatMap((part, i) => (i ? [h("wbr"), part] : [part]));
 function where(a) {
   const shown = a.locations.slice(0, 50);
   return h("details", {class: "where"}, h("summary", {}, a.name),
-    h("ul", {}, shown.map(([f, l]) => h("li", {}, f + ":" + l))),
+    h("ul", {}, shown.map(([f, l]) => h("li", {}, ...breakable(f + ":" + l)))),
     a.locations.length > shown.length ? h("p", {}, "and " + (a.locations.length - shown.length) + " more places") : "",
     (a.missing || []).length ? h("p", {}, "Not seen: " + a.missing.join(", ") + ".") : "", a.why ? h("p", {}, a.why) : "", a.uncertainty ? h("p", {}, a.uncertainty) : "");
 }
