@@ -109,7 +109,8 @@ def test_installing_the_boot_service_refuses_user_writable_code_and_writes_and_r
 
 def test_the_interpreter_the_service_will_run_is_checked_even_when_it_is_not_this_one():
     flag = lambda paths, **k: next((f"{p} is writable" for p in paths if "unsafe" in str(p)), None)
-    with mock.patch.object(platforms, "protected_location", flag), mock.patch.object(sys, "frozen", False, create=True):
+    with mock.patch.object(platforms, "protected_location", flag), mock.patch.object(sys, "frozen", False, create=True), \
+            mock.patch.dict("os.environ", {"ACXELIN_OPENSSL": "/admin/openssl"}):  # on Windows an unset one is refused first, by design
         assert "unsafe/python" in platforms.elevation_problem("/unsafe/python")
         assert platforms.elevation_problem("/usr/bin/python3") is None
 
