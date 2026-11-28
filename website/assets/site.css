@@ -42,6 +42,11 @@ header.top { border-bottom: 1px solid var(--rule); }
 .bar nav a { color: var(--muted); text-decoration: none; font-size: .98rem; padding: 8px 0; }
 .bar nav a:hover, .bar nav a[aria-current="page"] { color: var(--ink); }
 .bar .talk { flex: none; }
+@media (max-width: 640px) {
+  .bar .talk { margin-left: auto; }
+  .bar nav { order: 3; width: 100%; margin-left: 0; gap: 4px 18px; }
+  .bar .logo { width: 148px; }
+}
 
 .btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border-radius: 8px; font: 500 1rem/1 var(--font); text-decoration: none; border: 1.5px solid transparent; }
 .btn.primary { background: var(--amber); color: var(--on-amber); }

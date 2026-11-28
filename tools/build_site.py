@@ -93,7 +93,7 @@ def logo():
 def nav(section):
     if not section:
         return "".join(f'<a href="{key}/index.html">{name}</a>' for key, name in SECTIONS.items())
-    return f'<a class="product" href="index.html" aria-current="page">{SECTIONS[section]}</a>'
+    return f'<a href="index.html" aria-current="page">{SECTIONS[section]}</a>'
 
 
 def redirect(to):

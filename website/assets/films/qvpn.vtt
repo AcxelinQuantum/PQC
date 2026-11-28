@@ -24,118 +24,118 @@ Offices. Laptops. People working
 from anywhere. All joined by tunnels.
 
 6
-00:00:25.350 --> 00:00:30.168
+00:00:24.450 --> 00:00:29.268
 Most agree their keys with maths a big
 enough quantum computer will break.
 
 7
-00:00:30.208 --> 00:00:33.425
+00:00:29.308 --> 00:00:32.525
 Some of that traffic must
 stay private for years.
 
 8
-00:00:35.350 --> 00:00:39.924
+00:00:34.450 --> 00:00:39.024
 Oh, and when someone leaves, their
 access should leave with them. Quickly.
 
 9
-00:00:45.350 --> 00:00:46.810
+00:00:42.317 --> 00:00:43.777
 Meet Acxelin QVPN.
 
 10
-00:00:46.850 --> 00:00:51.178
+00:00:43.817 --> 00:00:48.144
 It links your offices to each other
 and your people to your network.
 
 11
-00:00:51.218 --> 00:00:56.059
+00:00:48.184 --> 00:00:53.026
 Every tunnel's keys are agreed over
 quantum-safe connections, using your own
 
 12
-00:00:56.099 --> 00:00:57.599
+00:00:53.066 --> 00:00:54.566
 certificates.
 
 13
-00:01:05.350 --> 00:01:06.835
+00:00:57.983 --> 00:00:59.469
 Start with the offices.
 
 14
-00:01:06.875 --> 00:01:12.115
+00:00:59.509 --> 00:01:04.748
 The console shows every site, and whether
 its tunnel is protected, at a glance.
 
 15
-00:01:25.350 --> 00:01:31.526
+00:01:08.483 --> 00:01:14.659
 Now, people. Invite someone by name, and
 they get a single file. It works once.
 
 16
-00:01:45.350 --> 00:01:47.993
+00:01:18.450 --> 00:01:21.093
 Until it's used, it waits right here.
 
 17
-00:01:48.033 --> 00:01:50.137
+00:01:21.133 --> 00:01:23.237
 Changed your mind? Cancel it.
 
 18
-00:01:55.350 --> 00:01:59.677
+00:01:26.517 --> 00:01:30.843
 On their laptop, the Acxelin
 QVPN app opens the invitation.
 
 19
-00:01:59.717 --> 00:02:04.824
+00:01:30.883 --> 00:01:35.990
 A passphrase locks this computer's
 key, and that key never leaves it.
 
 20
-00:02:15.350 --> 00:02:17.180
+00:01:39.583 --> 00:01:41.413
 Connect. Protected.
 
 21
-00:02:25.350 --> 00:02:28.483
+00:01:44.850 --> 00:01:47.983
 Back in the console,
 there they are. Connected.
 
 22
-00:02:40.350 --> 00:02:42.227
+00:01:51.617 --> 00:01:53.494
 And when they leave, revoke them.
 
 23
-00:02:42.267 --> 00:02:44.707
+00:01:53.534 --> 00:01:55.974
 The gateway cuts them off within a minute.
 
 24
-00:02:55.350 --> 00:03:00.486
+00:02:03.117 --> 00:02:08.253
 Their app tells them at its next key
 renewal, within two minutes, and says to ask
 
 25
-00:03:00.526 --> 00:03:02.699
+00:02:08.293 --> 00:02:10.466
 for a new invitation. No guessing.
 
 26
-00:03:10.350 --> 00:03:14.806
+00:02:18.117 --> 00:02:22.572
 And if anything needs attention, Health
 says what's wrong and what to do next.
 
 27
-00:03:20.350 --> 00:03:25.661
+00:02:25.850 --> 00:02:31.161
 It runs on your own gateways and computers,
 and nothing is sent to Acxelin Quantum.
 
 28
-00:03:25.701 --> 00:03:28.989
+00:02:31.201 --> 00:02:34.489
 Keys are agreed with NIST's
 post-quantum standards.
 
 29
-00:03:35.350 --> 00:03:40.743
+00:02:40.850 --> 00:02:46.243
 Two honest limits: there's no phone
 app yet, and gateways run on Linux.
 
 30
-00:03:45.350 --> 00:03:50.177
+00:02:50.850 --> 00:02:55.677
 Acxelin QVPN. Private
 today. Private later.
 

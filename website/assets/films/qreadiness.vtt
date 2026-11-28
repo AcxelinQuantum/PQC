@@ -24,134 +24,134 @@ When do we switch to
 quantum-safe cryptography?
 
 6
-00:00:25.350 --> 00:00:28.407
+00:00:24.050 --> 00:00:27.107
 And the honest answer
 begins with an awkward one.
 
 7
-00:00:28.447 --> 00:00:30.659
+00:00:27.147 --> 00:00:29.359
 We don't actually know where it is.
 
 8
-00:00:35.350 --> 00:00:37.693
+00:00:32.617 --> 00:00:34.960
 It's in code. In configuration.
 
 9
-00:00:37.733 --> 00:00:42.116
+00:00:35.000 --> 00:00:39.383
 In certificates. In a server
 nobody has touched in years.
 
 10
-00:00:45.350 --> 00:00:46.957
+00:00:42.617 --> 00:00:44.223
 Meet Acxelin QReadiness.
 
 11
-00:00:46.997 --> 00:00:52.514
+00:00:44.263 --> 00:00:49.781
 It finds the cryptography you depend on,
 tells you what a quantum computer, or an
 
 12
-00:00:52.554 --> 00:00:56.630
+00:00:49.821 --> 00:00:53.897
 attacker today, could break,
 and ranks what to change first.
 
 13
-00:00:56.670 --> 00:00:59.483
+00:00:53.937 --> 00:00:56.750
 For security and engineering teams alike.
 
 14
-00:01:05.350 --> 00:01:07.006
+00:01:00.050 --> 00:01:01.706
 Start with a repository.
 
 15
-00:01:07.046 --> 00:01:12.276
+00:01:01.746 --> 00:01:06.976
 Pick it, press scan, and it gets to
 work, right here on your own computer.
 
 16
-00:01:20.350 --> 00:01:24.057
+00:01:10.417 --> 00:01:14.123
 Moments later, one number
 leads: the things to fix now.
 
 17
-00:01:24.097 --> 00:01:29.370
+00:01:14.163 --> 00:01:19.437
 Open any of them, and you see where it
 is, why it matters, and exactly what to
 
 18
-00:01:29.410 --> 00:01:30.910
+00:01:19.477 --> 00:01:20.977
 change.
 
 19
-00:01:50.350 --> 00:01:53.064
+00:01:30.050 --> 00:01:32.764
 Next, the servers you actually run.
 
 20
-00:01:53.104 --> 00:01:57.511
+00:01:32.804 --> 00:01:37.211
 Type their addresses, and
 each one gets a grade, A to F.
 
 21
-00:02:05.350 --> 00:02:08.593
+00:01:40.617 --> 00:01:43.860
 An A means quantum-safe key exchange only.
 
 22
-00:02:08.633 --> 00:02:13.793
+00:01:43.900 --> 00:01:49.059
 A C means today's traffic could
 be read later. Good to know first.
 
 23
-00:02:20.350 --> 00:02:22.085
+00:01:52.417 --> 00:01:54.152
 Now make it someone's job.
 
 24
-00:02:22.125 --> 00:02:26.563
+00:01:54.192 --> 00:01:58.630
 Give each fix an owner and a date,
 and follow it through to done.
 
 25
-00:02:40.350 --> 00:02:43.969
+00:02:02.417 --> 00:02:06.035
 And the overview keeps the
 riskiest services right at the top.
 
 26
-00:02:50.350 --> 00:02:52.345
+00:02:09.383 --> 00:02:11.378
 And when the auditors call, you're ready:
 
 27
-00:02:52.385 --> 00:02:56.415
+00:02:11.418 --> 00:02:15.449
 a standard bill of materials for your
 cryptography, and a one-page summary for the
 
 28
-00:02:56.455 --> 00:02:57.955
+00:02:15.489 --> 00:02:16.989
 board.
 
 29
-00:03:10.350 --> 00:03:13.513
+00:02:20.683 --> 00:02:23.847
 Curious what it looks for?
 It shows you that too.
 
 30
-00:03:20.350 --> 00:03:24.769
+00:02:27.217 --> 00:02:31.635
 It runs on your own machines.
 Nothing is sent to Acxelin Quantum.
 
 31
-00:03:24.809 --> 00:03:28.444
+00:02:31.675 --> 00:02:35.311
 And its advice follows NIST's
 post-quantum standards.
 
 32
-00:03:35.350 --> 00:03:41.301
+00:02:42.217 --> 00:02:48.168
 One honest note: cryptography a program
 assembles while it runs can slip past.
 
 33
-00:03:41.341 --> 00:03:43.261
+00:02:48.208 --> 00:02:50.128
 We'd rather tell you now.
 
 34
-00:03:45.350 --> 00:03:48.713
+00:02:52.217 --> 00:02:55.579
 Acxelin QReadiness. Know where you stand.
 

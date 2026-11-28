@@ -185,3 +185,7 @@ The films never use "unbreakable", "military-grade" or "100% secure", or any spe
 - **Revocation shots (QGuard 2:45, QVPN 2:55):** these show the real elapsed time on screen rather than hiding the wait. The edit can shorten the wait, but the marker keeps the true time.
 - **QGuard terminals:** these use curl with OpenSSL 3.5 in a container, because Windows' own curl can't do quantum-safe key exchange.
 - **Breathers:** keep them. They are the gaps that stop the films feeling crowded.
+
+## The 3:00 edit
+
+The films were made at 4:00 from this script. The delivered versions are a 3:00 edit of those renders (`video/cut.py`): the minute comes only out of quiet holds after each line, the music-only breathers and the long hold on the close. Every scene, every spoken line, the section numbers and the real-time revocation markers stay. Joins are 0.3 s dissolves, the score crossfades at the same points, and the narration and captions are placed again on the new timeline. The 4:00 versions are kept beside them.
