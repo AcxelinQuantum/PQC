@@ -5,9 +5,9 @@ For an outside auditor or penetration tester. One file per component:
 | File | Covers |
 |---|---|
 | [core.md](core.md) | The shared mechanisms: files, console, OpenSSL binding, TLS contexts, CA, CRLs, signers, EST |
-| [tls.md](tls.md) | Acxelin TLS: the edge, the CA commands, ACME, console |
-| [vpn.md](vpn.md) | Acxelin VPN: key agreement, IPsec and WireGuard control planes, the desktop app |
-| [readiness.md](readiness.md) | Acxelin Readiness: scanners, endpoint probes, remote repositories, console |
+| [tls.md](tls.md) | Acxelin QGuard (formerly TLS): the edge, QCertificate's CA commands, ACME, console |
+| [vpn.md](vpn.md) | Acxelin QVPN (formerly VPN): key agreement, IPsec and WireGuard control planes, the desktop app |
+| [readiness.md](readiness.md) | Acxelin QReadiness (formerly Readiness): scanners, endpoint probes, remote repositories, console |
 | [standards.md](standards.md) | What was checked against official sources and what could not be |
 
 Evidence for a decision or a stage, one file each:
@@ -23,6 +23,9 @@ Evidence for a decision or a stage, one file each:
 | [customer-test.md](customer-test.md) | A first-time and a difficult customer's test of all three products, what it found and what could not run here |
 | [vpn-client-grace-design.md](vpn-client-grace-design.md) | Built: a VPN client keeping its last key, shown as degraded, while the control plane is away |
 | [vpn-classical-fallback.md](vpn-classical-fallback.md) | Built: a per-peer classical fallback for IKEv2 peers, labelled not quantum safe |
+| [product-rework-audit.md](product-rework-audit.md) | Stage 1: each product judged as a customer would meet it, with the one-sentence answer to what it is |
+| [product-rework-stage2.md](product-rework-stage2.md) | Stage 2: the approved rework, decision by decision |
+| [product-rework-results.md](product-rework-results.md) | Stage 3: every finding before and after, with the scenario or test that shows it, in the scenarios and screenshots folders |
 
 The held-out evaluation of Readiness is in [products/readiness/heldout](../products/readiness/heldout/README.md).
 
@@ -61,13 +64,13 @@ skipped and the run still passes, which proves nothing about the line customers 
 
 ## Where anything runs with administrator rights
 
-Audited in stage 1b across core and the three products. Only the VPN starts anything with elevated rights itself.
+Audited in stage 1b across core and the three products. Only QVPN starts anything with elevated rights itself.
 
 | Where | What runs elevated | Code location it needs | Guard |
 |---|---|---|---|
-| VPN tray (`desktop.start_service`) | `acxelin-vpn app` through pkexec, osascript or UAC | Interpreter and every import folder writable only by administrators; a packaged app only its own program | `platforms.require_protected_code`, before any prompt; the process starts with `-I`; `test_elevation` |
+| QVPN tray (`desktop.start_service`) | `acxelin-vpn app` through pkexec, osascript or UAC | Interpreter and every import folder writable only by administrators; a packaged app only its own program | `platforms.require_protected_code`, before any prompt; the process starts with `-I`; `test_elevation` |
 | `acxelin-vpn install` (`platforms.install`) | A systemd, launchd or SYSTEM scheduled-task service running `connect` at boot | The same | The same guard, before the unit is written; `test_elevation` |
 | VPN systemd units (`deploy/systemd`) | `up`, `gateway` and strongSwan as root; `ca serve` and `ca maintain` as `acxelin` | Under `/opt/acxelin-vpn` and `/opt/strongswan`, which an administrator creates (manual section 3) | `test_elevation::test_the_boot_units_that_run_as_root_start_programs_under_opt`. A check on the machine itself is not made: an administrator who points a unit at a per-user install defeats it |
 | `sudo acxelin-vpn ...` typed by an administrator | Whatever that install contains | Not checked: it is the administrator's own act | Documented in the VPN threat model |
-| TLS and Readiness | Nothing: their systemd units run as `acxelin`, the Docker images as `acxelin` and `scanner` | | |
+| QGuard and QReadiness | Nothing: their systemd units run as `acxelin`, the Docker images as `acxelin` and `scanner` | | |
 | VPN Docker image | The gateway as root in the container, from the system Python | Root-owned | |

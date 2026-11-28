@@ -17,7 +17,7 @@ overclaiming.
   ships in each release folder. Screenshots are real product output (`tools/capture_screens.py`), checked against the source.
 - `products/vpn/` (acxelin-qvpn): QVPN: site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
   CA subset, console and CBOM export, the gateway image and systemd units.
-- `documents/`: plain-language "How It Works" guides per product, Markdown plus PDF, exported from the owner's docs.
+- `documents/`: the customer guide to verifying a release (shipped as VERIFY.md) and the product film script.
 - `tools/`: the site build, release gate, wheelhouse, browser test kit, and the repository checks in `tools/tests`.
 
 ## Rules

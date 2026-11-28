@@ -8,8 +8,8 @@ web
 
 ## Users
 
-- Security leaders at regulated enterprises, banks first (a CISO or head of security architecture), deciding which post-quantum vendor to pilot. They read the overview, how-it-works and security pages and need to trust the vendor before a meeting.
-- The engineers who will install and run it (system, network and platform administrators). They read set-up, the manual and the demo, and judge the vendor by whether the commands are safe and work the first time.
+- Security leaders at regulated enterprises, banks first (a CISO or head of security architecture), deciding which post-quantum vendor to pilot. They see the showcase and the product films, and need to trust the vendor before a meeting.
+- The engineers who will install and run it (system, network and platform administrators). They read the release folder's README and manual, and judge the vendor by whether the commands are safe and work the first time.
 - Compliance and risk teams who need evidence for auditors (NIST IR 8547, CNSA 2.0, a CycloneDX CBOM).
 
 ## Product Purpose
@@ -20,12 +20,12 @@ Acxelin Quantum sells post-quantum security products, each standalone, so a cust
 - Acxelin QGuard: post-quantum TLS 1.3 and mutual TLS in front of services that do not change, with QCertificate, its own ML-DSA certificate authority.
 - Acxelin QVPN: post-quantum site-to-site IPsec and WireGuard remote access with a desktop app.
 
-The website's job: let a visitor see, within a minute, which product answers their problem, that it really works, and how to start safely.
+The website's job: a short showcase that lets a visitor see, within a minute, which product answers their problem and that it really works. Installation and the manual ship in each release folder, not on the site.
 
 ## Positioning
 
 - It protects traffic and data against "harvest now, decrypt later" today, with standardised algorithms (ML-KEM, ML-DSA), not research prototypes.
-- Everything shown is real: demo output and the sample report are generated from the products at build time, and the site build fails rather than show invented output.
+- Everything shown is real: the screenshots are made from the consoles in this repository (`tools/capture_screens.py`), and the website tests fail when one no longer matches its source.
 - Honest about limits: every product states what it does not claim (for example browsers cannot verify ML-DSA yet; HSM signing is not yet tested against real hardware).
 - Runs on the customer's own machines, offline from a release folder; it never contacts Acxelin Quantum.
 
@@ -35,7 +35,7 @@ Visitors evaluate it at work, often on a laptop between meetings, sometimes on a
 
 ## Capabilities and Constraints
 
-- The site is static HTML built by `tools/build_site.py` from `website/` and each product's `docs/manual.md`, deployed to GitHub Pages; no external scripts or trackers.
+- The site is static HTML built by `tools/build_site.py` from `website/`: a home page and one page per product, deployed to GitHub Pages; no external scripts or trackers.
 - Each product's pages name only that product; the home page routes between products.
 - Contact route: the company site, acxelinquantum.com.
 
@@ -48,7 +48,7 @@ Visitors evaluate it at work, often on a laptop between meetings, sometimes on a
 
 ## Evidence on Hand
 
-- Real artifacts: `acxelin-qguard try` output, the QReadiness sample report and CBOM (generated at build time), console screenshots (`website/assets/*.png`).
+- Real artifacts: console screenshots (`website/assets/screens/*.png`), and the product films scripted in `documents/video-script.md`.
 - Standards the products implement: ML-KEM (FIPS 203), ML-DSA (FIPS 204), CycloneDX 1.6, EST (RFC 7030), ACME (RFC 8555), NIST IR 8547 and CNSA 2.0 checks, IKEv2 hybrid key exchange (RFC 9370), post-quantum PPK (RFC 8784).
 - No public customers, testimonials, case studies, benchmarks or prices exist: none may be shown or implied.
 

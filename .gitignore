@@ -35,3 +35,13 @@ playwright-report/
 Thumbs.db
 
 .impeccable/
+
+# product films: renders, raw recordings and audio live in C:\Users\<you>\AcxelinVideos, not here
+video/out/
+video/raw/
+video/audio/
+*.mp4
+*.mov
+*.webm
+*.wav
+*.m4a

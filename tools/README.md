@@ -4,8 +4,8 @@ Scripts for the repository, not shipped with any product.
 
 | Tool | What it does | Run by |
 |---|---|---|
-| `build_site.py` | Builds the website from `website/` and real product output into `build/site` | the website and pages workflows |
-| `site_screenshots.py` | Regenerates the website's product screenshots from the running products (needs Playwright) | by hand, after `build_site.py` |
+| `build_site.py` | Builds the showcase website from `website/` into `build/site` | the website and pages workflows |
+| `capture_screens.py` | Remakes the website's screenshots from the real consoles in this checkout (needs Playwright, and OpenSSL 3.5 for QGuard) | by hand, when a console changes; the website tests say when |
 | `wheelhouse.py` | Builds a product's offline install folder | the release workflow |
 | `release_check.py` | Refuses a release tag whose version, changelog or core range does not match | the release workflow |
 | `sbom.py` | Writes the CycloneDX SBOM of a release folder | the release workflow |

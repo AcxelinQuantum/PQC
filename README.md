@@ -22,7 +22,7 @@ core/                 acxelin-core: shared mechanisms only (config, safe files, 
 products/readiness/   Acxelin QReadiness + CBOM: src, tests, docs, examples, deploy (Docker), action.yml, installers
 products/tls/         Acxelin QGuard and QCertificate (its CA): src, tests, docs, config, deploy (Docker, systemd), installers
 products/vpn/         Acxelin QVPN: src, tests, docs, config, deploy (gateway image, systemd), packaging (desktop installers), installers
-documents/            plain-language guides to each product: how it works, in Markdown and PDF
+documents/            the release-verification guide and the product film script
 website/              the shared home page and one section per product, built by tools/build_site.py
 tools/                repository tooling: the site build, release gate, wheelhouse, browser test kit
 ```
