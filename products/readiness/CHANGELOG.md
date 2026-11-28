@@ -2,6 +2,7 @@
 
 ## 1.5.0
 
+- Docs: `docs/upgrade.md` covers the rename from Acxelin Readiness to QReadiness and uses today's command.
 - Fixed: an open finding with long source paths or example code no longer pushes the findings table past its area on a laptop screen. Paths break after a slash and example code wraps, so **Assign an owner** stays in view.
 - Changed: no more 0 to 100 readiness score. An average of priorities rose whenever harmless cryptography was added. The
   terminal, the report, the console's projects, Overview and board summary now lead with the **things to fix now**: the

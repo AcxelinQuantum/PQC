@@ -2,6 +2,9 @@
 
 ## 1.4.0
 
+- Fixed: `setup` writes the remote-access gateway on 7444 with its status on 9102, as the manual, the example settings and the
+  console say; it used 7443 and 9101, the site-to-site ports, so it clashed on a machine that also runs a site. Gateways set up
+  earlier keep their settings. The gateway's systemd unit makes `/var/lib/acxelin-vpn` again, the folder its settings write to.
 - Fixed: with someone connected, the People table no longer runs past its area, which hid the **Revoke** button. "Since" now sits under the Connected pill, and traffic shows ↓ and ↑ on two lines.
 - Console, People: invitations not used yet are listed with when they were made, and **Cancel** makes one unusable (its one-time
   token is spent in the CA's `tokens.json`, marked `cancelled`, so the enrollment service refuses it). The gateway field suggests

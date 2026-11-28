@@ -39,6 +39,16 @@ class SetupTest(unittest.TestCase):
         reply, _ = Client(f"127.0.0.1:{gw.server.port}", self.d / "alice", server_name="localhost", apply=False).agree()
         self.assertEqual(reply["routes"], ["10.99.0.0/24", "192.168.10.0/24"])
 
+    def test_the_gateway_uses_the_remote_access_ports_so_it_can_share_a_machine_with_a_site(self):
+        r = self.run_cli()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        cfg = load_gateway(self.d / "gateway.toml")
+        self.assertEqual((cfg.keyring_listen, cfg.metrics), ("0.0.0.0:7444", "127.0.0.1:9102"))
+        self.assertIn("--gateway localhost:7444", r.stdout)
+        self.assertIn("TCP 7444 and 9443", r.stdout)
+        self.assertIn("http://127.0.0.1:9102", r.stdout)
+        self.assertNotIn("7443", r.stdout)
+
     def test_running_it_again_keeps_everything_unless_forced_and_never_replaces_the_ca(self):
         self.assertEqual(self.run_cli().returncode, 0)
         root = (self.d / "pki" / "ca.crt").read_bytes()

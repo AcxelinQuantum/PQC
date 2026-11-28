@@ -48,7 +48,8 @@ overclaiming.
 ## Commands
 
 ```
-pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,test]" ruff==0.14.0
+pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,desktop,test]" ruff==0.14.0 playwright==1.56.0
+npm ci --prefix tools/browser
 ruff check .
 python -m pytest -q core/tests products/tls/tests tools/tests
 python -m pytest -q products/readiness/tests website/tests

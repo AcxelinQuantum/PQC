@@ -96,7 +96,7 @@ def expiry(path, what="certificate"):
                         "until then; check this machine's clock")
     if end <= t:
         return ("fail", f"the {what} {path} expired on {end:%Y-%m-%d}: every client will refuse it; renew it "
-                        "(console: Certificates, Renew; or `acxelin-qguard ca renew`)")
+                        "(console: QCertificate, Renew; or `acxelin-qguard ca renew`)")
     days = math.ceil((end - t) / dt.timedelta(days=1))
     if days <= 14:
         return ("warn", f"the {what} {path} ends in {days} days, on {end:%Y-%m-%d}: renew it soon "

@@ -1,4 +1,4 @@
-"""Pacing of live probes. One endpoint is graded with about 25 connections, so by default each host:port gets at most RATE new
+"""Pacing of live probes. One endpoint is graded with about twenty connections, so by default each host:port gets at most RATE new
 connections in any second and one connection at a time. Nothing paces a probe unless a pacer is in use (`using`), which is how
 --aggressive keeps the old behaviour."""
 import contextlib

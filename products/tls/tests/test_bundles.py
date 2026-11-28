@@ -25,6 +25,8 @@ class BundleTest(unittest.TestCase):
                 self.assertTrue((out / "ca.key.KEEP-OFFLINE").exists())
                 readme = (out / "README.txt").read_text()
                 self.assertIn("acxelin-qguard connect", readme)
+                image = next(l.split("image: ", 1)[1] for l in compose.splitlines() if "acxelin-qguard" in l)
+                self.assertIn(f"docker build -f products/tls/deploy/Dockerfile -t {image} .", readme, "the image isn't published, so the bundle says how to build it")
                 self.assertFalse([w for w in ("readiness", "vpn") if w in readme.lower()])
                 self.assertNotIn("Chrome", readme)
             with self.assertRaises(CAError):

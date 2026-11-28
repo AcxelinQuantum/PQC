@@ -2,6 +2,8 @@
 
 ## 1.4.0
 
+- Fixed: `bundle`'s README says how to build the QGuard image its compose file names, since that image isn't published yet,
+  and `doctor` points at the console's QCertificate tab to renew.
 - **The console protects services.** It is rebuilt around five places: Overview, Services, QCertificate, Check a connection
   and Settings. First run creates QCertificate, then protects the first service. A service is chosen by kind (public website,
   internal app or API, partner API, database or other); the console issues its certificate and writes the settings file the

@@ -967,20 +967,23 @@ Report vulnerabilities to info@acxelinquantum.com with "security" in the subject
 product's `docs/threat-model.md`. `SECURITY.md` lists every place classical cryptography is used on purpose (WireGuard's
 X25519 handshake, ACME account keys, SHA-1 only for key identifiers, the QReadiness corpus, the `transition` policy).
 
-# Part 8: Open items and known inconsistencies
+# Part 8: Open items
 
-Found while preparing this guide. None blocks use; each is worth a small fix.
+What still needs a decision or an action, as of this guide.
 
 | Where | What |
 |---|---|
-| Releases | Core 1.4.0, QGuard 1.4.0, QVPN 1.4.0 and QReadiness 1.5.0 (the product rework) are versioned but not released. Customers on the current releases have the pre-rework consoles |
-| Distribution | **The repository `AcxelinQuantum/PQC` is public**: its source code, review documents and releases can be read and downloaded by anyone, while the licence says the software is proprietary and confidential and the website says access is by request. Decide which is intended; to restrict it, make the repository private (GitHub Pages on a private repository needs a paid plan) and distribute release files directly. The GHCR container images can't be pulled anonymously (a package setting) |
-| QVPN `setup` | It writes the remote-access gateway on ports 7443 and 9101, while the manual, the example settings and the console use 7444 and 9102 (7443 is site-to-site). It works alone, but clashes on a machine that also runs a site |
-| QVPN systemd | Fixed with this guide: the WireGuard unit's `StateDirectory` had been renamed to `acxelin-qvpn` while the settings write to `/var/lib/acxelin-vpn`; a test now keeps them equal |
-| QReadiness docs | `docs/upgrade.md` still describes "Upgrading to Acxelin Readiness 1.0" with the old command. The number of connections per endpoint grade is "about twenty" in the manual and "about 25" in `pacing.py` |
-| QGuard | `doctor` tells people to renew via "console: Certificates, Renew"; the tab is now named QCertificate. `bundle` writes `image: ghcr.io/acxelinquantum/acxelin-qguard:…`, which can't be pulled yet. The console has an unused `/api/edges/test` route |
-| Docs and tooling | CLAUDE.md's install line omits the `desktop` extra and Playwright (CONTRIBUTING.md has them). `pages.yml` still names "demo pages" the site no longer has. `video/README.md` says the music is silence for a licensed track, while `--eleven` adds an ElevenLabs score; its file table misses several files |
+| Releases | Core 1.4.0, QGuard 1.4.0, QVPN 1.4.0 and QReadiness 1.5.0 (the product rework) are versioned but not released. Customers on the current releases have the pre-rework consoles. Release by pushing `core-v1.4.0`, then `qguard-v1.4.0`, `qvpn-v1.4.0` and `qreadiness-v1.5.0`, one at a time |
+| Distribution | **The repository `AcxelinQuantum/PQC` is public**: its source code, review documents and releases can be read and downloaded by anyone, while the licence says the software is proprietary and confidential and the website says access is by request. Decide which is intended; to restrict it, make the repository private (GitHub Pages on a private repository needs a paid plan) and distribute release files directly |
+| Container images | The GHCR images can't be pulled anonymously (a package setting). Until they can, the manuals and QGuard's `bundle` tell customers to build the image themselves |
+| Films | Before publishing them more widely, confirm the ElevenLabs plan used for the narration and score allows commercial use |
+| QGuard console | `/api/edges/test` has no button in the page; the tests and automation use it, so it stays |
 | Stale copies | `products/*/build/lib/` are old build outputs (ignored by git); never edit them |
+
+Fixed while preparing this guide: QVPN `setup` now uses the remote-access ports (7444, status 9102); the QVPN gateway's
+systemd state folder matches its settings again; QReadiness's upgrade guide covers the rename; QGuard's `doctor` names the
+QCertificate tab and `bundle` says how to build the image; the pacing note, CLAUDE.md's install line, the pages workflow's
+step name and the film README now match the code.
 
 # Glossary
 

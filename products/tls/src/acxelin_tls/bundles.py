@@ -89,7 +89,8 @@ def _create(service, s, out, host, ca, ca_dir, require_client_cert, policy):
     anchor = (Path(ca_dir).resolve() / "ca.crt").as_posix() if ca_dir else "pki/ca.crt"
     write(out / "README.txt", "\n".join([
         f"{service} behind post-quantum TLS ({policy} policy{', mutual TLS' if require_client_cert else ''})", "",
-        "1. docker compose up -d", f"2. Connect: {s['use'].format(host=host)}", f"3. Check:   acxelin-qguard connect {host}:{s['public']} --ca {anchor}", "",
+        "1. Build the QGuard image (it isn't published yet), in a checkout of the repository:", f"   docker build -f products/tls/deploy/Dockerfile -t ghcr.io/acxelinquantum/acxelin-qguard:{__version__} .",
+        "2. docker compose up -d", f"3. Connect: {s['use'].format(host=host)}", f"4. Check:   acxelin-qguard connect {host}:{s['public']} --ca {anchor}", "",
         f"Certificates: edge/ (the edge's), {anchor} (give this to clients).",
         "Renew: acxelin-qguard ca renew <serial> --dir <ca dir> --out edge   (the edge picks it up without a restart)", *notes, ""]).encode())
     return out
